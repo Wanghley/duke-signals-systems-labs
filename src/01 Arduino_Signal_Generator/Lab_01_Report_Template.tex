@@ -1,0 +1,240 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{setspace}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{amsmath}
+\usepackage{siunitx}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+
+\setstretch{1.1}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+\sisetup{round-mode=places,round-precision=3}
+
+\newcommand{\blank}{\rule{2.2in}{0.4pt}}
+\newcommand{\shortblank}{\rule{1.2in}{0.4pt}}
+\newcommand{\answerbox}[1]{\fbox{\parbox[c][#1][t]{\linewidth}{}}}
+
+\title{ECE 280 -- Lab 1 Report\\Signals and Systems: Arduino Signal Generator}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section*{Student Information}
+\begin{tabular}{@{}ll@{}}
+Course/Section: & \blank \\
+Team Members: & \blank \\
+Student IDs: & \blank \\
+Lab Date: & \blank \\
+TA/Instructor: & \blank \\
+\end{tabular}
+
+\section*{Submission Checklist}
+Submit this PDF report and supporting files (code + images) to your LMS.
+\begin{itemize}[leftmargin=1.2em]
+    \item RC filter breadboard photo (labeled R, C, Arduino pin)
+    \item DMM photos for 0\%, 50\%, 100\% duty cycles
+    \item Oscilloscope screenshot with time/div and volts/div visible
+    \item MATLAB plot screenshot (500 samples, labeled axes)
+    \item Arduino code and MATLAB script files
+    \item Jitter comparison histograms (Phase 2 vs Phase 3)
+\end{itemize}
+
+\hrule
+
+\section{Pre-Lab Results (Summary)}
+\textbf{Q1: Filter design target} ($f_c \approx \SI{50}{Hz}$)\\
+Chosen values: $R =$ \shortblank\ $\Omega$, $C =$ \shortblank\ F\\
+Computed cutoff: $f_c = \dfrac{1}{2\pi RC} =$ \shortblank\ Hz
+
+\textbf{Q2: RC response}\\
+$h(t)$ summary and settling-time derivation ($\tau = RC$):
+\answerbox{1.2in}
+
+\textbf{Q3: Quantization and SQNR}\\
+$\Delta V =$ \shortblank\ V, SQNR (8-bit) = \shortblank\ dB
+
+\section{Phase 1: Hardware Assembly and Verification}
+\subsection*{1.1 RC Filter Assembly}
+PWM pin used: \shortblank \hfill Measured $R$: \shortblank\ $\Omega$ \hfill Measured $C$: \shortblank\ F
+
+\textbf{RC schematic used and wiring notes:}
+\answerbox{1.0in}
+
+\textbf{Breadboard photo:}
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][2.0in][c]{0.9\linewidth}{\centering Insert labeled breadboard photo here}}
+    \caption{RC filter hardware implementation.}
+\end{figure}
+
+\subsection*{1.2 Baseband Verification (DMM)}
+\begin{table}[H]
+\centering
+\caption{PWM Duty-Cycle Verification}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Duty Cycle & Expected (V) & Measured (V) & Percent Error (\%) \\
+\midrule
+0\% & 0.00 & & \\
+50\% & 2.50 & & \\
+100\% & 5.00 & & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Linearity comment (is output proportional to duty cycle?):
+\answerbox{0.8in}
+
+\section{Phase 2: Acquisition and MATLAB Integration}
+\subsection*{2.1 Waveform Generation}
+Assigned waveform: \shortblank\hfill Assigned frequency $f_0$: \shortblank\ Hz
+
+Implementation method (LUT/algorithmic/hybrid) and timing strategy:
+\answerbox{1.0in}
+
+\subsection*{2.2 Oscilloscope Capture}
+\begin{table}[H]
+\centering
+\caption{Scope Measurements}
+\begin{tabular}{@{}lc@{}}
+\toprule
+Parameter & Value \\
+\midrule
+Peak-to-Peak Voltage (V) & \\
+Observed Frequency (Hz) & \\
+Period (ms) & \\
+Time/Div setting & \\
+Volts/Div setting & \\
+Visible distortion/ringing (Yes/No + note) & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][2.0in][c]{0.9\linewidth}{\centering Insert oscilloscope screenshot here}}
+    \caption{Oscilloscope capture of filtered waveform.}
+\end{figure}
+
+\subsection*{2.3 Serial Acquisition (MATLAB)}
+Serial port: \shortblank \hfill Baud: 115200 \hfill Samples acquired: 500
+
+Measured sampling period $T_s$: \shortblank\ s \hfill Measured sampling frequency $f_s = 1/T_s$: \shortblank\ Hz
+
+Any acquisition issues or fixes:
+\answerbox{0.8in}
+
+\subsection*{2.4 MATLAB Visualization}
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][2.0in][c]{0.9\linewidth}{\centering Insert MATLAB time-series plot here}}
+    \caption{500-sample MATLAB waveform plot with labeled axes and title.}
+\end{figure}
+
+\section{Phase 3: Interrupt Optimization}
+\subsection*{3.1 Baseline Jitter (Delay-Based)}
+\begin{table}[H]
+\centering
+\caption{Baseline Jitter Statistics (Phase 2)}
+\begin{tabular}{@{}lc@{}}
+\toprule
+Metric & Value (\si{\micro\second}) \\
+\midrule
+Mean interval & \\
+Standard deviation & \\
+Minimum interval & \\
+Maximum interval & \\
+Range & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{3.2 Interrupt-Driven Implementation}
+Timer used: \shortblank \hfill ISR frequency target: \shortblank\ Hz
+
+Brief ISR implementation summary and key register settings:
+\answerbox{1.0in}
+
+\subsection*{3.3 Jitter Comparison}
+\begin{table}[H]
+\centering
+\caption{Jitter Improvement Summary}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+Metric & Phase 2 (Delay) & Phase 3 (Interrupt) \\
+\midrule
+Mean interval (\si{\micro\second}) & & \\
+Std. dev. (\si{\micro\second}) & & \\
+Range (\si{\micro\second}) & & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Jitter improvement percentage:
+\[
+\text{Improvement} = \frac{\sigma_{\text{phase2}} - \sigma_{\text{phase3}}}{\sigma_{\text{phase2}}}\times 100\% = \text{\shortblank}
+\]
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][2.0in][c]{0.9\linewidth}{\centering Insert Phase 2 vs Phase 3 jitter histograms here}}
+    \caption{Jitter distribution comparison.}
+\end{figure}
+
+\section{Cross-Validation and Error Analysis}
+\begin{table}[H]
+\centering
+\caption{Theory vs Measurement Comparison}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Parameter & Theoretical & Scope & MATLAB & Error (\%) \\
+\midrule
+Amplitude (V) & & & & \\
+Frequency (Hz) & & & & \\
+Period (ms) & & & & \\
+Peak-to-peak (V) & & & & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Primary error sources (rank top 3):}
+\begin{enumerate}
+    \item 
+    \item 
+    \item 
+\end{enumerate}
+
+\textbf{Discussion:} Explain mismatch between theory and experiments, and comment on interrupt impact.
+\answerbox{1.5in}
+
+\section{Code Appendix}
+List submitted files and brief description.
+\begin{longtable}{@{}p{0.35\linewidth}p{0.58\linewidth}@{}}
+\toprule
+File Name & Description \\
+\midrule
+\endhead
+ & \\
+ & \\
+ & \\
+\bottomrule
+\end{longtable}
+
+\section*{Academic Integrity Statement}
+We certify that this submission represents our own lab work and measurements, and that all submitted images/code correspond to our team's execution.
+
+Signature(s): \blank \hfill Date: \blank
+
+\end{document}
