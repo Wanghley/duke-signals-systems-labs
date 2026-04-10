@@ -1,0 +1,24 @@
+# ignore all latex auxiliary files
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.nav
+*.snm
+*.vrb
+*.blg
+*.bbl
+*.brf
+*.idx
+*.ilg
+*.ind
+*.glo
+*.gls
+
+# ignore macos folder attributes
+.DS_Store
