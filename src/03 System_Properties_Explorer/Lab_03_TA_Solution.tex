@@ -1,0 +1,194 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{setspace}
+
+\setstretch{1.08}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+
+\title{ECE 280 Lab 3 -- TA Solution and Troubleshooting Manual\\Signals and Systems: CT/DT System Properties Explorer}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+Use this document as a fast grading and troubleshooting guide for:
+\begin{itemize}[leftmargin=1.2em]
+    \item Lab 3 manual and report template submissions
+    \item System-property verification from hardware-acquired data
+    \item TA checkoffs during in-lab demonstrations
+\end{itemize}
+
+\section{Quick Pass/Flag Menu}
+
+\subsection*{Pass Immediately If All Are True}
+\begin{itemize}[leftmargin=1.2em]
+    \item Student presents physical evidence for all three circuits (RC, diode clipper, comparator).
+    \item All required screenshots include student name/ID and are legible.
+    \item MATLAB verification uses measured input/output data (not synthetic-only arrays).
+    \item Superposition and TI tests include clear overlays and reported NRMSE values.
+    \item Final truth table is evidence-backed and consistent with measured behavior.
+\end{itemize}
+
+\subsection*{Flag for Review If Any Are True}
+\begin{itemize}[leftmargin=1.2em]
+    \item Property claims are made without scope evidence and/or numerical checks.
+    \item No unique test inputs (students reuse common canned waveforms without assigned seed variation).
+    \item Data appears copied across circuits (identical traces for RC/clipper/comparator).
+    \item MATLAB script cannot identify hardware data file origin.
+\end{itemize}
+
+\section{Instructor Key: Expected Property Outcomes}
+
+Assume ideal operating conditions and correctly built circuits.
+
+\begin{table}[h!]
+\centering
+\caption{Reference Truth Table (Expected in Most Correct Builds)}
+\begin{tabular}{lcccc}
+\toprule
+System & Linear & Time-Invariant & Causal & BIBO Stable \\
+\midrule
+RC low-pass filter & Yes & Yes & Yes & Yes \\
+Diode clipper & No & Yes & Yes & Yes \\
+Comparator (fixed threshold) & No & Yes & Yes & Yes \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Notes for TAs:}
+\begin{itemize}[leftmargin=1.2em]
+    \item Clipper and comparator are memoryless nonlinear maps, so they generally remain TI but violate superposition.
+    \item Comparator with drifting threshold or supply instability may appear weakly non-TI in practice; this should be discussed, not ignored.
+\end{itemize}
+
+\section{Pre-Lab Solution Guidance}
+
+\subsection*{Required Conceptual Targets}
+\begin{itemize}[leftmargin=1.2em]
+    \item Correct formal definitions of linearity, TI, causality, and BIBO stability.
+    \item Predicted outcomes for all three circuits with mechanism-based justification.
+    \item Test design includes two distinct inputs, nontrivial coefficients $a,b$, and a measurable time shift $\Delta$.
+\end{itemize}
+
+\subsection*{Accept/Revise Criteria}
+\begin{itemize}[leftmargin=1.2em]
+    \item Accept if definitions are mathematically valid and predictions are physically coherent.
+    \item Revise if student confuses ``bounded output'' with ``low noise'' or treats TI as ``periodic output.''
+\end{itemize}
+
+\section{Measurement Targets and Acceptance Bands}
+
+\subsection*{RC Filter Baseline}
+\begin{itemize}[leftmargin=1.2em]
+    \item Expect attenuation and phase lag dependent on frequency relative to cutoff.
+    \item Accept if gain/phase trends are physically correct even with moderate component tolerance.
+\end{itemize}
+
+\subsection*{Diode Clipper Baseline}
+\begin{itemize}[leftmargin=1.2em]
+    \item Clipping threshold typically near diode conduction region (depends on topology/bias).
+    \item Accept if waveform clearly shows limited peaks and threshold annotation is reasonable.
+\end{itemize}
+
+\subsection*{Comparator Baseline}
+\begin{itemize}[leftmargin=1.2em]
+    \item Output should switch between rails (or logic levels) around threshold crossing.
+    \item Accept if transition behavior is consistent with threshold and input crossing events.
+\end{itemize}
+
+\section{Numerical Verification Key (MATLAB)}
+
+\subsection*{Linearity Test Expectations}
+Students test:
+\[
+\mathcal{T}\{a x_1 + b x_2\}\quad\text{vs}\quad a\mathcal{T}\{x_1\}+b\mathcal{T}\{x_2\}
+\]
+
+Expected trends:
+\begin{itemize}[leftmargin=1.2em]
+    \item RC filter: low residual, small NRMSE (often \(<10\%\) with good alignment).
+    \item Diode clipper: clear failure where clipping activates; moderate/high NRMSE expected.
+    \item Comparator: strong failure (binary nonlinearity), usually high NRMSE except trivial small-signal regimes.
+\end{itemize}
+
+\subsection*{Time-Invariance Test Expectations}
+Students test:
+\[
+\mathcal{T}\{x(t-\Delta)\}\quad\text{vs}\quad y(t-\Delta)
+\]
+
+Expected trends:
+\begin{itemize}[leftmargin=1.2em]
+    \item All three systems should be TI in a stable setup with fixed parameters.
+    \item Elevated TI NRMSE often indicates poor synchronization, trigger drift, or threshold drift rather than true TI failure.
+\end{itemize}
+
+\section{TA Checkoff Script (2--3 Minutes per Team)}
+\begin{enumerate}[leftmargin=1.4em]
+    \item Ask team to state predicted truth table before showing data.
+    \item Verify one scope capture per circuit with visible settings and student ID.
+    \item Ask for one MATLAB linearity overlay and one TI overlay (any circuit).
+    \item Ask: ``Why did this property pass/fail physically?''
+    \item Confirm final report will include handwritten truth table and code/data linkage.
+\end{enumerate}
+
+\section{Troubleshooting Matrix}
+
+\begin{table}[h!]
+\centering
+\caption{Common Failure Modes and Corrective Actions}
+\begin{tabular}{p{0.24\textwidth} p{0.33\textwidth} p{0.35\textwidth}}
+\toprule
+\textbf{Observed Symptom} & \textbf{Likely Cause} & \textbf{TA Action} \\
+\midrule
+No clipping visible in clipper output & Diode reversed, incorrect reference node, or amplitude too low & Check diode orientation and threshold path; increase input amplitude above expected clipping level. \\
+Comparator output stuck high/low & Threshold out of range, missing ground reference, wiring error & Verify common ground and reference divider; sweep threshold and confirm crossing events. \\
+RC output looks identical to input at all frequencies & Cutoff too high or probe connected before RC node & Recheck node location and component values; test with higher input frequency to reveal filtering. \\
+TI test fails for all circuits & Time alignment/trigger mismatch, not intrinsic circuit behavior & Enforce common trigger method and post-alignment in MATLAB before property claim. \\
+Linearity appears to pass clipper/comparator & Inputs too small to engage nonlinearity & Increase amplitude to activate clipping/switching region and repeat superposition test. \\
+MATLAB NRMSE unstable/run-to-run variation & Inconsistent sample window, serial timing jitter, poor preprocessing & Use fixed acquisition length, consistent trigger point, detrend/align before computing metrics. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Grading Menu Aligned to Lab 3 Rubric (100 pts)}
+\begin{itemize}[leftmargin=1.2em]
+    \item Pre-lab quality (15): definitions, predictions, and test design are rigorous.
+    \item Circuit implementation/evidence (20): all three circuits built and documented.
+    \item Linearity verification (15): valid superposition workflow and justified conclusion.
+    \item TI verification (15): proper shifted-input methodology and justified conclusion.
+    \item Causality/stability evaluation (15): bounded tests and anticipatory behavior check.
+    \item Truth table/technical reasoning (10): final table is coherent and evidence-backed.
+    \item Code/data authenticity (10): MATLAB clearly uses measured hardware data.
+\end{itemize}
+
+\subsection*{Suggested Deductions}
+\begin{itemize}[leftmargin=1.2em]
+    \item Missing ID on required evidence: \(-3\) to \(-10\), depending on extent.
+    \item No quantitative metric (NRMSE or equivalent): \(-4\) to \(-8\).
+    \item Property conclusions unsupported by data: \(-5\) to \(-12\).
+    \item Synthetic-only MATLAB verification: \(-8\) to \(-15\).
+\end{itemize}
+
+\section{Minimum Passing Submission Standard}
+A minimally acceptable submission should include:
+\begin{itemize}[leftmargin=1.2em]
+    \item Physical evidence of all three circuits.
+    \item At least one valid linearity and one valid TI test workflow.
+    \item Final truth table with short justifications per system.
+    \item MATLAB script excerpts tied to acquired datasets.
+    \item Student identification visible in required screenshots.
+\end{itemize}
+
+\end{document}
