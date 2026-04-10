@@ -1,0 +1,412 @@
+% 6/15/2024: MRG - translated into single document
+
+\documentclass[12pt]{article}
+
+\include{ECE280S25header} % update semester
+
+\begin{document}
+\begin{center}
+\huge{\bf Laboratory 1:}\\
+\large{\bf Music Synthesis}
+\end{center}
+
+\tableofcontents
+
+\clearpage
+
+\section{Abstract}
+Each of the five senses are based on signals of different kinds.  Musical signals can generally be heard, seen, and felt, and thus represent an excellent first place to explore signals and systems. 
+
+\section{Objectives}
+In this assignment, you will use your expertise in MATLAB and your knowledge of sinusoids to synthesize the audio tones that make up the sequence of notes in a piece of music of your choice. You will use basic mathematical functions as the building blocks. In addition, you will explore how mathematical operations on these signals yield improvements in perceived quality and can be used to generate special effects.
+
+You will have two weeks to complete this project. 
+\begin{itemize}
+    \item In the first week of lab, your goal (at a minimum) should be to implement a basic program that generates pure tones (Steps 1-6 in the Instructions). 
+    \item In the second week of lab, you should focus on implementing signal processing that improves the sound of your music (e.g., harmonics). 
+\end{itemize}
+You may have to spend additional time outside of the two laboratory sessions to complete the project.	
+\section{Pre-Laboratory Exercises} 
+Before the lab, please read the following background information about music notation.  
+
+\subsection{Music Crash Courses}
+Dr. Sienna M. Wood has created a website called \href{https://www.musiccrashcourses.com/index.html}{Music Crash Courses} to give information about both music theory and musicology.  Several pages on her site will be helpful for this lab in terms of understanding how music can be represented on paper.  Start by reading the following pages:
+\begin{itemize}
+    \item \href{https://www.musiccrashcourses.com/about.html}{About Music Crash Courses} - it is always a good idea to find out what a web site is about before using it!\
+    \item \href{https://www.musiccrashcourses.com/lessons/pitch.html}{Introduction to Pitch} - one quick note is that the $x$ axis in the graph should probably be time instead of frequency.
+    \item \href{https://www.musiccrashcourses.com/lessons/notation_intro.html}{Introduction to Music Notation} - this gives a summary of information that you will read about later.
+    \item \href{https://www.musiccrashcourses.com/lessons/notating_naming_pitches.html}{Notating and Naming Pitches} - this page will present a Grand Staff and will show what notes ``look like'' on it.  Note that while there are seven ``named'' notes, there are actually twelve notes between one C and the next C - more on that soon.  \textit{Aside}: apparently, middle C is en explosive note!\footnote{Sorry, I'm not sorry.}
+    \item \href{https://www.musiccrashcourses.com/lessons/octave_numbering.html}{Octave Numbering} - this page explains how to distinguish the same note in a different octave
+    \item \href{https://www.musiccrashcourses.com/lessons/intervals.html}{Introduction to Intervals} - this page explains where the extra five notes come from (flats and sharps), what an \textit{octave} is, and what some key frequencies are.  Specifically, note that the A above middle C (called ``middle A'' or ``A4'') is at 440 Hz and also that notes an octave below or above other notes are at half or double the frequency of the original.
+    \item\href{https://www.musiccrashcourses.com/lessons/transposition.html}{Transposition} - for this page, mainly look at the accidentals in the score and then listen to how the music changes accordingly.
+    \item \href{https://www.musiccrashcourses.com/lessons/scales_major.html}{Major Scale} - this page begins a discussion of how the notation at the start of the Grand Staff might impact all the following notes.  For the C major scale, the notes are unaltered.
+    \item \href{https://www.musiccrashcourses.com/lessons/keys.html}{Introduction to Keys} - this page starts looking at what happens if you have a piece of music that is \textbf{not} written in C major.
+    \item \href{https://www.musiccrashcourses.com/lessons/key_relationships.html}{Relationships Between Keys - The Circle of Fifths} - this page shows the 24 possible keys (12 major, 12 minor) and the key accidentals.  If the music is written in a key other than C major, the initial accidental for a note on the Grand Staff is applied to all similarly named notes regardless of octave.  For instance, in G major, there is a sharp note for F3 and F5, but all F notes would be played as F sharp (unless another local accidental overrules that).
+    \item \href{https://www.musiccrashcourses.com/lessons/rhythm_notation.html}{Rhythms in Notation} - this page describes the different symbols for different note lengths and different rest lengths.  It also explains how dots and triplets change the duration.  
+    \item \href{https://www.musiccrashcourses.com/lessons/time_signatures.html}{Time Signature} - this page explains how the note timing for the song and for each measure is organized.
+\end{itemize}
+
+\begin{comment}
+\subsection{Frequencies in Music}
+Musical notes are arranged in groups of twelve, called octaves. The notes are named using seven letters (starting with C through G, then A and B) and, for five of them, an adjective of being ``sharp'' (slightly higher in pitch) or ``flat'' (slightly lower in pitch).  Notes are also categorized based on what octave they are in using a number.  The twelve notes in each octave are logarithmically spaced in frequency, with each note's frequency being $2^{1/12}$ times the frequency of the next lower note. Thus, a 1-octave (twelve-step) pitch shift upwards corresponds to a doubling of the frequencies. An equal-tempered scale uses a reference value of 440 Hz for A4, but to make things a bit more confusing, C4 is the lowest note in the ``fourth octave'' and B4 is the highest note in the ``fourth octave.'' Table \ref{MS:notes} shows the ordering of notes in the ``fourth octave'' plus the beginning of the fifth - for your own score you might have to use different octaves. 
+\begin{table}[!htb]
+\begin{center}
+\begin{tabular}{|c|c|}\hline
+Note & Frequency (Hz) \\ \hline \hline
+C4 & $440*2^{-9/12}=261.63$\\ \hline
+C$\sharp$4, D$\flat$3 & $220*2^{-8/12}=277.18$\\ \hline
+D4 & $440*2^{-7/12}=293.66$\\ \hline
+D$\sharp$4, E$\flat$4 & $220*2^{-6/12}=311.13$\\ \hline
+E4 & $440*2^{-5/12}=329.63$\\ \hline
+F4 & $440*2^{-4/12}=349.23$\\ \hline
+F$\sharp$4, G$\flat$4 & $220*2^{-3/12}=369.99$\\ \hline
+G4 & $440*2^{-2/12}=392.00$\\ \hline
+G$\sharp$4, A$\flat$4 & $220*2^{-1/12}=415.30$\\ \hline
+A4 & $440*2^{0/12}=440.00$\\ \hline
+A$\sharp$4, B$\flat$4 & $220*2^{1/12}=466.18$\\ \hline
+B4 & $440*2^{2/12}=493.88$\\ \hline
+C5 & $440*2^{3/12}=523.25$\\ \hline
+\end{tabular}
+\caption{Notes in the ``Fourth'' Octave\label{MS:notes}}
+\end{center}
+\end{table} 
+
+A musical score is essentially a program of sorts – a plot of frequencies (notes, on the vertical scale) versus time (measures, on the horizontal scale). For this assignment, you are going to choose a score (or part of a score) that you would like to play with MATLAB. The piece does not need to be a difficult one – for example, ``Twinkle, Twinkle Little Star'' would be fine. However, your final masterpiece should be approximately 30 to 60 seconds in length. It is also recommended that you choose a piece of music for which you have (or can find) sheet music.
+ 
+\subsection{Musical Notation}
+\begin{figure}[!htb]
+\begin{center}
+\includegraphics{MS_Beethoven.jpg}
+\caption{Musical Score of Beethoven's Fifth (partial)\label{MS:beethoven}}
+\end{center}
+\end{figure} 
+% MRG: This needs work - more information about durations, rests, signatures, and maybe something brief about other notations we do not expect to be programmed
+A small part of the score of Beethoven's Fifth Symphony is in Figure \ref{MS:beethoven}.  There should be a notation of a treble clef at left that indicates this mainly the ``middle'' or ``fourth'' octave.  Given that, the horizontal lines on the scale in the score represent the notes E4, G4, B4, D5 and F5 from bottom to top. The spaces between the lines are used to represent the notes F4, A4, C5 and E5, again from bottom to top. Note that A-G only yields seven notes. The additional changes in pitch are denoted by adding symbols $\sharp$ (sharp: multiply frequency by a factor of $2^{1/12}$) or $\flat$ (flat: multiply frequency by a factor of $2^{-1/12}$) to a given note.  Note that at the far left of the score there are already some flat symbols - Beethoven's Fifth is written in the key of C-minor and that means that the A, B, and E notes are generally their ``flat'' version.  This key signature is used to indicate the key of the piece.
+
+In the musical score shown in Figure \ref{MS:beethoven}, the first three eighth notes are all G4. While it appears that the first half note should be an E4, it is actually an E$\flat$4 due to the key. The next three eighth notes are all F4, and the final half note is D4. You can get the fundamental frequencies for these notes by following the pattern given in Table 1.  
+\end{comment}
+\begin{comment} MRG: I think this is wrong: The notes on this staff are generally one octave above those in Table \ref{MS:notes}; for instance the first note (the G) would be at 784 Hz.
+
+\subsection{Note Durations}
+In the simplest case, each note may be represented by a burst of a sinusoidal tone followed by a shorter period of silence (a pause). The pause allows us to distinguish between separate notes at the same pitch. 
+
+The duration of each tone burst is determined by whether the note is a whole note, half note, quarter note, eighth note, etc. A quarter note has twice the duration of an eighth note and so on. The short pause following each note should be of the same length regardless of the note's duration. In composed music, longer periods of silence that are part of the musical scare are indicated by one or more rest symbols. The two `4' symbols at the left of the score indicate that there are 4 beats per measure in the score and that a quarter note lasts one beat. For this particular piece of music, the duration of a beat should be about $\frac{1}{2}$ second. For your own score if you don’t know how long a beat should be you might want to start with $\frac{1}{2}$ second then correct it as necessary once you hear it.  
+\end{comment}
+\clearpage
+
+\subsection{Improving Perceived Quality}
+\begin{itemize}
+\item \textit{Volume variations:} Typically, when a note is played, the volume rises quickly from zero and then decays over time, depending on how hard the key is struck and how long it is depressed. For a given tone, volume changes can be achieved by multiplying a sinusoid by another function called a windowing function. A decaying exponential is the simplest way to modulate the tone volume. You can also try concatenating different windowing functions (e.g., piecewise linear functions) to model the four segments of volume variation: Attack, Decay, Sustain, and Release (ADSR).  
+
+\item \textit{Overlapping tones:} Consider a beginning piano player’s attempts at playing a simple tune. This student generally will quit pressing down one key before pressing down the next. A more advanced player would have some notes overlapping (either by using floor pedals or by pressing keys simultaneously). As the volume of one note is decaying another note is played. Mathematically this can be accomplished by allowing the time regions occupied by different sinusoids to overlap. This will yield a much smoother, less staccato-sounding piece.
+
+\item \textit{Harmonics:} While single tones are represented by sinusoids, in real instruments the vibrations that occur when someone plays a particular ``note'' also include harmonic components. The frequency of the note is called the fundamental frequency $f_0$; the $n^{th}$ harmonic is a sinusoid having a frequency equal to some integer $n$ times the fundamental frequency: $nf_0$. The amplitude, or power, of each harmonic component is generally less than that of the fundamental and decreases with increasing frequency. For each note, adding some lower-power harmonics makes the note sound ``richer,'' whereas a single tone sounds very crisp. \textbf{NOTE:} adding in harmonics of equal or greater power will have undesired effects, such as increasing the perceived note fundamental, and may make the note sound harsh.
+
+\begin{comment}
+To understand harmonics, recall Fourier series from mathematics; evaluating a series for a certain number of harmonic components is the desired operation. The magnitude of a Fourier series coefficient indicates the energy in a harmonic frequency. Consider the Fourier series for a square wave – it has only odd harmonics and the magnitude of the $n^{th}$ harmonic is proportional to $1/n$. 
+\end{comment}
+
+\item \textit{Instrument Synthesis:} You can modify your sinusoidal waveforms in many different ways to make the notes sound like particular instruments. For example, you can synthesize a bell using frequency modulation (FM). Specifically, your note will have the form:
+
+\vspace{-.5in}
+\large
+\begin{align*}
+    x(t)&=A(t)\,\cos\left(2\pi f_ct+I(t)\,\cos\left(2\pi f_mt\right)\right)
+\end{align*}
+\normalsize
+where $A(t)$, the signal amplitude, and $I(t)$, both have an exponential decay form: $Ke^{-t/\tau}$.  $K$ is different for each, whereas $\tau$ is the same. The ratio of $f_c$:$f_m$ should be 2:1 for a bell. Other instruments can be synthesized using amplitude modulation (changing the amplitude envelope of the note). 
+
+\item \textit{Reverb:} Instruments are usually played in rooms that generate reverberations. Reverberations are reflections off of room surfaces, including walls, ceilings, floors and obstructions. In discrete time mathematics, you can view this as generating echoes of the original signal, with decreasing amplitude as the delay time increases. However, a major surface (e.g. a wall), may generate more power (amplitude) at specific delays. You can determine the delay time by dividing the distance sound travels by the speed of the sound ($\approx$300 m/s at sea level). A model for generating an echo is given in the next section.
+\end{itemize}
+
+\subsection{A Mathematical Model of the Echo Process}
+If you want to improve the sound of your score using reverb, you will need to create a function in MATLAB to generate an echo. A simple analytical model of an echo $s_e(t)$ of a signal $s(t)$ is $s_e(t)=\alpha(t-T)s(t-T)$, where $\alpha(t)$ attenuates the volume over time and $T$ is the time delay introduced by reflection. In this treatment, we will assume that $\alpha(t)\in [0, 1)$ and $T\geq 0$. This implies that the echo’s strength is weaker than the true signal and that the echo always arrives at a time later that the true signal.  The signal $r(t)$ that you hear is formed by a simple addition of the original signal and its echo. This process is illustrated in the figure below for the simple case where $\alpha(t)$ is a constant. In this figure, $s(t)$ is the transmitted signal, $s_e(t)$ is that signal’s echo, and $r(t)$ is the signal received by a listener. Thus in general, $r(t)=s(t)+s_e(t)$.
+
+\begin{figure}[!htb]
+\begin{center}
+\includegraphics{MS_EchoModel.jpg}
+\caption{Echo Model\label{MS:echomodel}}
+\end{center}
+\end{figure} 
+\clearpage
+
+\subsection{Pre-Laboratory Assignment}
+Given the following musical score (written in G-Major, as indicated by the key signature showing that all F notes should be played sharp):
+\begin{center}
+    \includegraphics[width=6in]{Mary_Had_a_Little_Lamb.jpeg}
+``Mary Had a Little Lamb'' - Lyrics: Sarah Josepha Hale, Music: Lowell Mason.  Image from \href{https://commons.wikimedia.org/wiki/File:Mary_Had_a_Little_Lamb.jpeg}{Wikimedia Commons}
+\end{center}
+Consider:
+\begin{enumerate}
+    \item The clef being shown,
+    \item The time signature,
+    \item The number of measures in the song, and
+    \item The pitch (including octave) and duration for each of the four times the word ``lamb'' appears 
+\end{enumerate}
+For an example of the latter, the first note (above ``Ma'') would be an octave 4 quarter note B.
+
+\pldECE{Complete the ``ECE 280 Lab 1 Pre-lab Assignment" quiz on Canvas. You'll have 5 attempts, and the maximum score of these 5 attempts will be kept.}
+
+\clearpage
+\section{Instructions} 
+The goal for this lab is to synthesize a song, the final version of which will need to be between 30 and 60 seconds long. You will need to have the original score / sheet music or the ability to listen to the song repeatedly to get the notes right. 
+ \textbf{Music that was originally computer-generated is not allowed}. You will begin by synthesizing the basic notes first (Part 1), and then will experiment with some embellishments (Part 2). Your goal is to create a \textit{\underline{single}} vector which represents all of the notes and rests in your entire score. 
+
+ \textbf{NOTE: You may use the provided score for ``Mary Had a Little Lamb'' during the first laboratory session if you do not already have a piece of music chosen. Your basic MATLAB program should work the same regardless of the exact notes you want to play.}
+\subsection{Part 1: Basic Note Generation}
+\begin{enumerate}
+%\item Your final song will need to be between 30 and 60 seconds long.  You will need to have the original score / sheet music or the ability to listen to the song repeatedly to get the notes right. 
+ %\textbf{Music that was originally computer-generated is not allowed}. You will begin by synthesizing the basic notes first, and then will experiment with some embellishments. Your goal is to create a \textit{\underline{single}} vector which represents all of the notes and rests in your entire score. 
+
+%\textbf{NOTE: You may use the provided score for ``Mary Had a Little Lamb'' during the first laboratory session if you do not already have a piece of music chosen. Your basic MATLAB program should work the same regardless of the exact notes you want to play.}
+
+\item Choose a piece of music to use for the first week of lab. 
+\begin{itemize}[nosep]
+    \item This can be the piece you plan to use for your final submission, or it can be something different, for example the provided score for ``Mary Had a Little Lamb," as mentioned above. 
+\end{itemize}
+
+\item Using the information about octaves in the Pre-Laboratory Exercises section, determine the frequency of each note in your score. 
+\item For each note, apply the following procedure to generate the note in MATLAB:
+\begin{enumerate}
+    \item Choose a sampling rate (e.g., a sampling rate of $f_s$= 8kHz) and create a set of time vectors whose lengths correspond to the duration of the note in your score (e.g, for a note that lasts \textit{duration} seconds, define the vector
+
+    \vspace{-.3in}
+    \Large
+    \begin{align*}
+     t_1 &= [0:(1/f_s):(duration-1/f_s)])
+    \end{align*}
+    \normalsize
+    You may change the sampling frequency later if you want to. 
+
+    \textbf{NOTE: Make sure that you define the time vectors such that a half note has exactly half as many points as a whole note, a quarter note has exactly half as many points as a half note, etc. Use the MATLAB command \texttt{length} to see how long each vector is.}
+
+    \disECE{What is the reason that the endpoint is $duration-$1/$f_s$ instead of $duration$?  Include this answer in your lab report}
+
+    \item Use sin or cos to create the notes, using the format $y = \cos(2\pi f t)$. For example, $y=\cos(2\pi1000 t_1)$ creates a 1-second duration note with a frequency of 1000Hz. 
+    \begin{itemize}[nosep]
+        \item In MATLAB, elementwise multiplication is denoted with \texttt{.*}, as opposed to \texttt{*}. Use this to multiply your time vector \texttt{t} by $2\pi f$
+        \item To listen to this note, type \texttt{soundsc(y, fs)}. \texttt{soundsc()} is similar to \texttt{sound()} but it automatically normalizes the amplitude to be between 1 and -1.
+    \end{itemize}
+
+    \disECE{Do you think it matters if you use sin or cos? Include your conclusions in the lab report.}
+    
+    \item For the rests (i.e. the silent portions) in your score, you will need to create vectors (of the appropriate duration) with zero amplitude.  Try generating and playing individual notes using the \texttt{soundsc()} command.
+
+    \disECE{Why do you need to use vectors of zero amplitude? Include the answer in your lab report.}
+\end{enumerate}
+
+\cpECE{Explain to your TA the answers you arrived in discussions 1-3.}
+
+\delECE{Include the answers to the above discussion points in your lab report.}
+
+\item Repeat the process described in \#3 to generate a note vector for all notes in your score. 
+
+\textbf{NOTE: You may find it useful to write a function (that accepts two or more arguments) to generate the required variety of notes. In your script, you can define the frequency and time values for each note, call the function, and output the final sound.}
+
+\item Once you have a way to generate all of the necessary notes and the rests, combine them (in the correct sequence) in a single row vector. 
+\begin{itemize}
+    \item Be sure to pay attention to the short pauses after repeated notes, otherwise, the three G notes in the example would sound like one long note. You may have to play around with the duration of this pause. Theoretically, the human ear can detect a “gap” or silence between two tones only if the pause is at least one millisecond. Periods of silence shorter than this are undetectable.
+\end{itemize}
+
+\item Now, you can play your song using the soundsc() function with your row vector as the input. Listen to your song and make sure it sounds right!
+
+\cpECE{Play the song for your TA}
+\end{enumerate}
+\subsection{Part 2: Developing a More Realistic Sound}
+
+You may notice that your song sounds somewhat unnatural at this point. Part 2 of this lab will consist of employing different strategies to improve the sound by more accurately mimicking notes played by real instruments. 
+
+\begin{enumerate}
+
+\item If you generated a note vector for a song that you don't plan to use for your final submission in Part 1, you can repeat that process now to generate a simple note vector of your final submission song.
+\item One possible area of improvement for your song is note volume. The volume of a note played by a real instrument decays over time. 
+\begin{itemize}
+    \item To make your song sound more realistic, try to have the volume of each synthesized note decay using an exponential function as your window. \textbf{Generate a second row vector containing these modified notes.}
+\end{itemize}
+
+
+\cpECE{Play the song (now with notes that decay) for your TA. Discuss how your original sound compares to your new sound.}
+
+\item Now, try adding harmonics to create a richer sound. Again, create a new (third) row vector and compare to the others. 
+\begin{itemize}
+    \item Consider: how does the addition of harmonics affect the signal amplitude? Remember, the sound command can only play notes with amplitudes between -1 and 1.
+\end{itemize}
+
+
+\disECE{What happens if the amplitude of your signal goes outside of the range from -1 to 1? How can this problem be corrected?}
+
+\delECE{Include your answers to the discussion point above in your lab report.}
+
+\item Modify your vector so that you can play more than one note at the same time (e.g., chords or overlapping notes).
+\begin{itemize}
+    \item You do not have to apply this to the whole song – a couple of measures/lines will be fine. Remember to watch your amplitudes!
+\end{itemize} 
+
+\item \textbf{For the Contest:} You may want to refine your sound further by including effects such as reverb, timbre, vibrato, or others. These features are not required. Sample contest winners from past semesters have been provided on Canvas to inspire you.
+\end{enumerate}
+
+\subsection{Part 3: Final Submission}
+\textbf{NOTE: You can complete this part inside or outside of lab. There will be a week of optional "open lab hours" where you can ask for guidance from your TA in-person.}
+
+\begin{enumerate}
+    \item For the final submission, your song \textit{must be} between 30 and 60 seconds long. Additionally, it must contain \textbf{at least 3} different effects. 
+    \begin{itemize}
+        \item These can be the effects outlined in Part 2 (i.e. exponential decay, harmonics, and multiple notes) or they can be effects of your choice. 
+    \end{itemize}
+
+    \item Once you've ensured that your song meets the conditions above, normalize your final array, $y$, by dividing it by its maximum value.  This is to normalize the amplitude to be between -1 and 1.  Here is a sample line of code:
+    \begin{lstlisting}[frame=single]
+    ynorm = y / max(abs(y));
+    \end{lstlisting}
+    \item Convert your final vector (the one with volume decay, harmonics, and simultaneous notes) to a .wav file using the \texttt{audiowrite()} command in MATLAB. Name your file using your last name and a brief song title. For example, if Dr.~Huettel's song was ``Twinkle, Twinkle, Little Star,'' she would save her file as follows:
+    \begin{lstlisting}[frame=single]
+    filename = 'Huettel_Twinkle.wav';
+    audiowrite(filename, ynorm, Fs)
+    \end{lstlisting}
+    
+    \delECE{Submit the .wav file via Canvas.}
+    
+    \delECE{Include answers to the following questions in the Discussion section of your lab report:
+    \begin{itemize}[nosep]
+        \item How do each of the following effects individually affect the sound: harmonics, exponential decay, multiple notes, instrument synthesis, reverb?
+        \item What challenges did you encounter, if any, when implementing each each effect? How did you resolve the challenges?
+        \item Out of the effects that you implemented, which ones had the greatest impact on the sound, and which ones had the least impact, and why?
+        \item Assuming you had more time and resources, what possible steps would you take to further improve the quality of your song? Why do you think this would improve your song? You do not necessarily know how to implement your suggestions.
+    \end{itemize}}
+
+    \item Make sure to thoroughly comment your MATLAB code. You do not have comment every single line; just the parts that are most important. 
+    
+    \delECE{Include your MATLAB file in an Appendix in your lab report.}
+    
+\end{enumerate}
+~\\
+\textit{Do not underestimate the amount of time it will take you to perfect your song – Good luck!}
+~\\~\\
+\noindent
+\textit{Finally, all of your hard work will be rewarded not only with course credit, but also a chance for ECE 280L glory when you participate in the class contest. }
+~\\~\\
+\noindent
+\textbf{\textit{Important note: You are not allowed to use or refer to anyone else’s MATLAB code (e.g., someone’s project from a previous semester.) All code must be original and written by you. The project must be done in MATLAB. Properly cite any references (including websites) you use in creating your project or writing your report.}}
+
+
+
+\clearpage
+\begin{comment}
+    
+\section{Lab Submission}
+\begin{itemize}
+\item Normalize your final array, $y$, by dividing it by its maximum value.  This is to normalize the amplitude to be between -1 and 1.  Here is a sample line of code:
+\begin{lstlisting}[frame=single]
+ynorm = y / max(abs(y));
+\end{lstlisting}
+\item Convert your final vector (the one with volume decay, harmonics, and simultaneous notes) to a .wav file using the \texttt{audiowrite()} command in MATLAB. Name your file using your last name and a brief song title. For example, if Dr.~Huettel's song was ``Twinkle, Twinkle, Little Star,'' she would save her file as follows:
+\begin{lstlisting}[frame=single]
+filename = 'Huettel_Twinkle.wav';
+audiowrite(filename, ynorm, Fs)
+\end{lstlisting}
+\item Submit the .wav file via Canvas.
+
+\item Submit a written report (through Gradescope). 
+\begin{itemize}[nosep]
+\item You should include an Introduction, Procedure, Results and Discussion, and an Appendix with all of your MATLAB code (which should be \underline{thoroughly} commented). 
+\item Describe how your MATLAB program works, state your sampling frequency, and explain (in mathematical terms) how you made improvements to your original song and why. 
+\item Discuss what worked well and what still needs improvement. Suggest possible next steps to take (it does not have to be something you necessarily know how to do right now) and why you think those steps will improve the quality of your song. 
+\item Refer to the Grading Rubric on the final page for specific questions that should be addressed. \textbf{Include the statement ``I have adhered to the Duke Community Standard in completing this assignment'', along with your signature, on the cover page.}
+\end{itemize}
+\end{itemize}
+~\\
+\noindent
+\textit{Do not underestimate the amount of time it will take you to perfect your song – Good luck!}
+~\\~\\
+\noindent
+\textit{Finally, all of your hard work will be rewarded not only with course credit, but also a chance for ECE 280L glory when you participate in the class contest. }
+~\\~\\
+\noindent
+\textbf{\textit{Important note: You are not allowed to use or refer to anyone else’s MATLAB code (e.g., someone’s project from a previous semester.) All code must be original and written by you. The project must be done in MATLAB. Properly cite any references (including websites) you use in creating your project or writing your report.}}
+\clearpage
+\end{comment}
+
+\section{Grading Rubric – Music Synthesis Project}
+% Note: 7 points from extension distributed to intro 5->6, discussion 29->32, Final file 25->28
+Each of the sections below in your lab report will be graded on completeness and degree to which they address the listed points. 
+
+\subsection{Introduction (6):}
+\begin{itemize}[nosep]
+\item What motivated you to choose the song that you did? 
+\item What signal processing effects will be explored in this lab? 
+\end{itemize}
+ 
+\subsection{Procedure (15): }
+\begin{itemize}[nosep]
+\item How did you generate your notes (i.e., what is the general structure of your code/ .m function)?  
+\item What effects did you implement and how did you implement them in MATLAB? Be specific. 
+\end{itemize}
+ 
+\subsection{Results (10): }
+\begin{itemize}[nosep]
+\item How did your final output sound?  How similar was it to the original?  How different was it? 
+\end{itemize}
+ 
+\subsection{Discussion (32): }
+\begin{itemize}[nosep]
+\item Why is the endpoint of each time vector $duration$-1/fs instead of $duration$? (1.5)
+\item Does it matter if you use sin or cos to generate each note? (1.5)
+\item Why do you need to use vectors of zero amplitude for rests? (1.5)
+\item What happens if the amplitude of your signal exceeds -1 and 1? How can this problem be corrected? (1.5)
+\item How do each of the following effects individually affected the sound: harmonics, exponential decay, multiple notes, instrument synthesis, reverb? (9)
+\item What challenges did you encounter, if any, when implementing each effect? How did you resolve the challenges? (9) 
+\item Out of the effects that you implemented, which ones had the greatest impact on the sound, and which ones had the least impact, and why? (3) 
+\item Assuming you had more time and resources, what possible steps would you take to further improve the quality of your song?  Why do you think this would improve your song? You do not have to necessarily know how to implement your suggestions. (5) 
+\end{itemize}
+
+\subsection{Appendix/Code (9): } 
+\begin{itemize}[nosep]
+\item Your commented MATLAB code. You do not have to comment every single line; just the parts that are most important. The code will be graded based on: 
+ \begin{itemize}[nosep]
+\item Time vector definition (3) 
+\item Commenting, ease of interpretation (3) 
+\item Efficiency, elegance (3) 
+\end{itemize}
+\end{itemize}
+
+\subsection{Final .wav file (28):}
+\begin{itemize}[nosep]
+\item Non-clipped output signal (5) 
+\item At least 30 second score (5) 
+\item Effects—at least 3 (6 points for each effect) (18)
+\end{itemize}
+
+\begin{comment}
+\noindent 
+\large
+\textbf{\hl{If you complete all of the above successfully, you can earn up to 93 (out of 100) points.}} 
+\normalsize
+
+\subsection{Extension (7):}
+To earn up to an additional 7 points (bringing the total possible points up to 100), you must show evidence of independent thought. This may include (but is not limited to):
+\begin{itemize}
+\item Enhance your discussion by incorporating plots of signals that illustrate the effects you have explored. Be sure to reference the plots in your discussion and explain why you chose to include them. 
+\item Implement another type of enhancement (e.g., a particular instrument) and discuss.
+\item Try several variations of parameters (e.g., compare results with even harmonics only vs. odd harmonics only) and discuss the results. 
+\item Explore any other question that piqued your interest as you completed the project. \end{itemize}
+
+\noindent 
+The number of additional points awarded depends on the quality and extent of your independent contribution. 
+\end{comment}
+\clearpage
+
+\section{References}
+\begin{itemize}
+\item Adapted from Stonick V., Bradley K., Labs for signals and systems, PWS Publishing Company, 1996.   
+\item ``Mary Had a Little Lamb'' - Lyrics: Sarah Josepha Hale, Music: Lowell Mason.  Image from \href{https://commons.wikimedia.org/wiki/File:Mary_Had_a_Little_Lamb.jpeg}{Wikimedia Commons}
+
+Musical score for ``Mary Had a Little Lamb'' (arr. Gilbert DeBenedetti) from:\\ \url{http://www.pitt.edu/~deben/0MaryHad.pdf} (9/18/05).
+\end{itemize} 
+\section{Updates}
+\begin{itemize}
+\item September 2024: added external reference for basic and intermediate information about music and scores; made multiple adjustments based on recommendations of Jenny Green (Pratt '25) and Adam Davidson; eliminated extension and distributed points to required sections.
+\item June 2024: Turned into a standalone document; added more information about how notes are named; fixed frequencies in table; fixed spelling in table.
+\item August 2021: Converted to \LaTeX.
+\end{itemize}
+\clearpage
+\end{document}

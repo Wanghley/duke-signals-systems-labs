@@ -1,0 +1,150 @@
+% 6/15/2024: MRG - translated into single document
+
+\documentclass[12pt]{article}
+
+\include{ECE280F24header.tex} % update semester
+
+\begin{document}
+\begin{center}
+\huge{\bf Laboratory 1:}\\
+\large{\bf Music Synthesis}
+\end{center}
+
+\tableofcontents
+
+\clearpage
+
+\section{Abstract}
+Each of the five senses are based on signals of different kinds.  Musical signals can generally be heard, seen, and felt, and thus represent an excellent first place to explore signals and systems. 
+
+\section{Objectives}
+In this assignment, you will use your expertise in MATLAB and your knowledge of sinusoids to synthesize the audio tones that make up the sequence of notes in a piece of music of your choice. You will use basic mathematical functions as the building blocks. In addition, you will explore how mathematical operations on these signals yield improvements in perceived quality and can be used to generate special effects.
+
+You will have two weeks to complete this project. 
+\begin{itemize}
+    \item In the first week of lab, your goal (at a minimum) should be to implement a basic program that generates pure tones (Steps 1-6 in the Instructions). 
+    \item In the second week of lab, you should focus on implementing signal processing that improves the sound of your music (e.g., harmonics). 
+\end{itemize}
+You may have to spend additional time outside of the two laboratory sessions to complete the project.	
+\section{Pre-Laboratory Exercises} 
+Before the lab, please read the following background information about music notation.  
+
+\subsection{Music Crash Courses}
+Dr. Sienna M. Wood has created a website called \href{https://www.musiccrashcourses.com/index.html}{Music Crash Courses} to give information about both music theory and musicology.  Several pages on her site will be helpful for this lab in terms of understanding how music can be represented on paper.  Start by reading the following pages:
+\begin{itemize}
+    \item \href{https://www.musiccrashcourses.com/about.html}{About Music Crash Courses} - it is always a good idea to find out what a web site is about before using it!\
+    \item \href{https://www.musiccrashcourses.com/lessons/pitch.html}{Introduction to Pitch} - one quick note is that the $x$ axis in the graph should probably be time instead of frequency.
+    \item \href{https://www.musiccrashcourses.com/lessons/notation_intro.html}{Introduction to Music Notation} - this gives a summary of information that you will read about later.
+    \item \href{https://www.musiccrashcourses.com/lessons/notating_naming_pitches.html}{Notating and Naming Pitches} - this page will present a Grand Staff and will show what notes ``look like'' on it.  Note that while there are seven ``named'' notes, there are actually twelve notes between one C and the next C - more on that soon.  \textit{Aside}: apparently, middle C is en explosive note!\footnote{Sorry, I'm not sorry.}
+    \item \href{https://www.musiccrashcourses.com/lessons/octave_numbering.html}{Octave Numbering} - this page explains how to distinguish the same note in a different octave
+    \item \href{https://www.musiccrashcourses.com/lessons/intervals.html}{Introduction to Intervals} - this page explains where the extra five notes come from (flats and sharps), what an \textit{octave} is, and what some key frequencies are.  Specifically, note that the A above middle C (called ``middle A'' or ``A4'') is at 440 Hz and also that notes an octave below or above other notes are at half or double the frequency of the original.
+    \item\href{https://www.musiccrashcourses.com/lessons/transposition.html}{Transposition} - for this page, mainly look at the accidentals in the score and then listen to how the music changes accordingly.
+    \item \href{https://www.musiccrashcourses.com/lessons/scales_major.html}{Major Scale} - this page begins a discussion of how the notation at the start of the Grand Staff might impact all the following notes.  For the C major scale, the notes are unaltered.
+    \item \href{https://www.musiccrashcourses.com/lessons/keys.html}{Introduction to Keys} - this page starts looking at what happens if you have a piece of music that is \textbf{not} written in C major.
+    \item \href{https://www.musiccrashcourses.com/lessons/key_relationships.html}{Relationships Between Keys - The Circle of Fifths} - this page shows the 24 possible keys (12 major, 12 minor) and the key accidentals.  If the music is written in a key other than C major, the initial accidental for a note on the Grand Staff is applied to all similarly named notes regardless of octave.  For instance, in G major, there is a sharp note for F3 and F5, but all F notes would be played as F sharp (unless another local accidental overrules that).
+    \item \href{https://www.musiccrashcourses.com/lessons/rhythm_notation.html}{Rhythms in Notation} - this page describes the different symbols for different note lengths and different rest lengths.  It also explains how dots and triplets change the duration.  
+    \item \href{https://www.musiccrashcourses.com/lessons/time_signatures.html}{Time Signature} - this page explains how the note timing for the song and for each measure is organized.
+\end{itemize}
+
+\begin{comment}
+\subsection{Frequencies in Music}
+Musical notes are arranged in groups of twelve, called octaves. The notes are named using seven letters (starting with C through G, then A and B) and, for five of them, an adjective of being ``sharp'' (slightly higher in pitch) or ``flat'' (slightly lower in pitch).  Notes are also categorized based on what octave they are in using a number.  The twelve notes in each octave are logarithmically spaced in frequency, with each note's frequency being $2^{1/12}$ times the frequency of the next lower note. Thus, a 1-octave (twelve-step) pitch shift upwards corresponds to a doubling of the frequencies. An equal-tempered scale uses a reference value of 440 Hz for A4, but to make things a bit more confusing, C4 is the lowest note in the ``fourth octave'' and B4 is the highest note in the ``fourth octave.'' Table \ref{MS:notes} shows the ordering of notes in the ``fourth octave'' plus the beginning of the fifth - for your own score you might have to use different octaves. 
+\begin{table}[!htb]
+\begin{center}
+\begin{tabular}{|c|c|}\hline
+Note & Frequency (Hz) \\ \hline \hline
+C4 & $440*2^{-9/12}=261.63$\\ \hline
+C$\sharp$4, D$\flat$3 & $220*2^{-8/12}=277.18$\\ \hline
+D4 & $440*2^{-7/12}=293.66$\\ \hline
+D$\sharp$4, E$\flat$4 & $220*2^{-6/12}=311.13$\\ \hline
+E4 & $440*2^{-5/12}=329.63$\\ \hline
+F4 & $440*2^{-4/12}=349.23$\\ \hline
+F$\sharp$4, G$\flat$4 & $220*2^{-3/12}=369.99$\\ \hline
+G4 & $440*2^{-2/12}=392.00$\\ \hline
+G$\sharp$4, A$\flat$4 & $220*2^{-1/12}=415.30$\\ \hline
+A4 & $440*2^{0/12}=440.00$\\ \hline
+A$\sharp$4, B$\flat$4 & $220*2^{1/12}=466.18$\\ \hline
+B4 & $440*2^{2/12}=493.88$\\ \hline
+C5 & $440*2^{3/12}=523.25$\\ \hline
+\end{tabular}
+\caption{Notes in the ``Fourth'' Octave\label{MS:notes}}
+\end{center}
+\end{table} 
+
+A musical score is essentially a program of sorts – a plot of frequencies (notes, on the vertical scale) versus time (measures, on the horizontal scale). For this assignment, you are going to choose a score (or part of a score) that you would like to play with MATLAB. The piece does not need to be a difficult one – for example, ``Twinkle, Twinkle Little Star'' would be fine. However, your final masterpiece should be approximately 30 to 60 seconds in length. It is also recommended that you choose a piece of music for which you have (or can find) sheet music.
+ 
+\subsection{Musical Notation}
+\begin{figure}[!htb]
+\begin{center}
+\includegraphics{MS_Beethoven.jpg}
+\caption{Musical Score of Beethoven's Fifth (partial)\label{MS:beethoven}}
+\end{center}
+\end{figure} 
+% MRG: This needs work - more information about durations, rests, signatures, and maybe something brief about other notations we do not expect to be programmed
+A small part of the score of Beethoven's Fifth Symphony is in Figure \ref{MS:beethoven}.  There should be a notation of a treble clef at left that indicates this mainly the ``middle'' or ``fourth'' octave.  Given that, the horizontal lines on the scale in the score represent the notes E4, G4, B4, D5 and F5 from bottom to top. The spaces between the lines are used to represent the notes F4, A4, C5 and E5, again from bottom to top. Note that A-G only yields seven notes. The additional changes in pitch are denoted by adding symbols $\sharp$ (sharp: multiply frequency by a factor of $2^{1/12}$) or $\flat$ (flat: multiply frequency by a factor of $2^{-1/12}$) to a given note.  Note that at the far left of the score there are already some flat symbols - Beethoven's Fifth is written in the key of C-minor and that means that the A, B, and E notes are generally their ``flat'' version.  This key signature is used to indicate the key of the piece.
+
+In the musical score shown in Figure \ref{MS:beethoven}, the first three eighth notes are all G4. While it appears that the first half note should be an E4, it is actually an E$\flat$4 due to the key. The next three eighth notes are all F4, and the final half note is D4. You can get the fundamental frequencies for these notes by following the pattern given in Table 1.  
+\begin{comment} MRG: I think this is wrong: The notes on this staff are generally one octave above those in Table \ref{MS:notes}; for instance the first note (the G) would be at 784 Hz.
+
+\subsection{Note Durations}
+In the simplest case, each note may be represented by a burst of a sinusoidal tone followed by a shorter period of silence (a pause). The pause allows us to distinguish between separate notes at the same pitch. 
+
+The duration of each tone burst is determined by whether the note is a whole note, half note, quarter note, eighth note, etc. A quarter note has twice the duration of an eighth note and so on. The short pause following each note should be of the same length regardless of the note's duration. In composed music, longer periods of silence that are part of the musical scare are indicated by one or more rest symbols. The two `4' symbols at the left of the score indicate that there are 4 beats per measure in the score and that a quarter note lasts one beat. For this particular piece of music, the duration of a beat should be about $\frac{1}{2}$ second. For your own score if you don’t know how long a beat should be you might want to start with $\frac{1}{2}$ second then correct it as necessary once you hear it.  
+\end{comment}
+\clearpage
+
+\subsection{Improving Perceived Quality}
+\begin{itemize}
+\item \textit{Volume variations:} Typically, when a note is played, the volume rises quickly from zero and then decays over time, depending on how hard the key is struck and how long it is depressed. For a given tone, volume changes can be achieved by multiplying a sinusoid by another function called a windowing function. A decaying exponential is the simplest way to modulate the tone volume. You can also try concatenating different windowing functions (e.g., piecewise linear functions) to model the four segments of volume variation: Attack, Decay, Sustain, and Release (ADSR).  
+
+\item \textit{Overlapping tones:} Consider a beginning piano player’s attempts at playing a simple tune. This student generally will quit pressing down one key before pressing down the next. A more advanced player would have some notes overlapping (either by using floor pedals or by pressing keys simultaneously). As the volume of one note is decaying another note is played. Mathematically this can be accomplished by allowing the time regions occupied by different sinusoids to overlap. This will yield a much smoother, less staccato-sounding piece.
+
+\item \textit{Harmonics:} While single tones are represented by sinusoids, in real instruments the vibrations that occur when someone plays a particular ``note'' also include harmonic components. The frequency of the note is called the fundamental frequency $f_0$; the $n^{th}$ harmonic is a sinusoid having a frequency equal to some integer $n$ times the fundamental frequency: $nf_0$. The amplitude, or power, of each harmonic component is generally less than that of the fundamental and decreases with increasing frequency. For each note, adding some lower-power harmonics makes the note sound ``richer,'' whereas a single tone sounds very crisp. \textbf{NOTE:} adding in harmonics of equal or greater power will have undesired effects, such as increasing the perceived note fundamental, and may make the note sound harsh.
+
+\begin{comment}
+To understand harmonics, recall Fourier series from mathematics; evaluating a series for a certain number of harmonic components is the desired operation. The magnitude of a Fourier series coefficient indicates the energy in a harmonic frequency. Consider the Fourier series for a square wave – it has only odd harmonics and the magnitude of the $n^{th}$ harmonic is proportional to $1/n$. 
+\end{comment}
+
+\item \textit{Instrument Synthesis:} You can modify your sinusoidal waveforms in many different ways to make the notes sound like particular instruments. For example, you can synthesize a bell using frequency modulation (FM). Specifically, your note will have the form:
+
+\vspace{-.5in}
+\large
+\begin{align*}
+    x(t)&=A(t)\,\cos\left(2\pi f_ct+I(t)\,\cos\left(2\pi f_mt\right)\right)
+\end{align*}
+\normalsize
+where $A(t)$, the signal amplitude, and $I(t)$, both have an exponential decay form: $Ke^{-t/\tau}$.  $K$ is different for each, whereas $\tau$ is the same. The ratio of $f_c$:$f_m$ should be 2:1 for a bell. Other instruments can be synthesized using amplitude modulation (changing the amplitude envelope of the note). 
+
+\item \textit{Reverb:} Instruments are usually played in rooms that generate reverberations. Reverberations are reflections off of room surfaces, including walls, ceilings, floors and obstructions. In discrete time mathematics, you can view this as generating echoes of the original signal, with decreasing amplitude as the delay time increases. However, a major surface (e.g. a wall), may generate more power (amplitude) at specific delays. You can determine the delay time by dividing the distance sound travels by the speed of the sound ($\approx$300 m/s at sea level). A model for generating an echo is given in the next section.
+\end{itemize}
+
+\subsection{A Mathematical Model of the Echo Process}
+If you want to improve the sound of your score using reverb, you will need to create a function in MATLAB to generate an echo. A simple analytical model of an echo $s_e(t)$ of a signal $s(t)$ is $s_e(t)=\alpha(t-T)s(t-T)$, where $\alpha(t)$ attenuates the volume over time and $T$ is the time delay introduced by reflection. In this treatment, we will assume that $\alpha(t)\in [0, 1)$ and $T\geq 0$. This implies that the echo’s strength is weaker than the true signal and that the echo always arrives at a time later that the true signal.  The signal $r(t)$ that you hear is formed by a simple addition of the original signal and its echo. This process is illustrated in the figure below for the simple case where $\alpha(t)$ is a constant. In this figure, $s(t)$ is the transmitted signal, $s_e(t)$ is that signal’s echo, and $r(t)$ is the signal received by a listener. Thus in general, $r(t)=s(t)+s_e(t)$.
+
+\begin{figure}[!htb]
+\begin{center}
+\includegraphics{MS_EchoModel.jpg}
+\caption{Echo Model\label{MS:echomodel}}
+\end{center}
+\end{figure} 
+\clearpage
+
+\subsection{Pre-Laboratory Assignment}
+Given the following musical score (written in G-Major, as indicated by the key signature showing that all F notes should be played sharp):
+\begin{center}
+    \includegraphics[width=6in]{Mary_Had_a_Little_Lamb.jpeg}
+``Mary Had a Little Lamb'' - Lyrics: Sarah Josepha Hale, Music: Lowell Mason.  Image from \href{https://commons.wikimedia.org/wiki/File:Mary_Had_a_Little_Lamb.jpeg}{Wikimedia Commons}
+\end{center}
+Consider:
+\begin{enumerate}
+    \item The clef being shown,
+    \item The time signature,
+    \item The number of measures in the song, and
+    \item The pitch (including octave) and duration for each of the four times the word ``lamb'' appears 
+\end{enumerate}
+For an example of the latter, the first note (above ``Ma'') would be an octave 4 quarter note B.
+
+\pldECE{Complete the ``ECE 280 Lab 1 Pre-lab Assignment" quiz on Canvas. You'll have 5 attempts, and the maximum score of these 5 attempts will be kept.}
+
+\clearpage
+\end{document}
