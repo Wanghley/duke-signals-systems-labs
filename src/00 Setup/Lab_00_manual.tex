@@ -1,0 +1,217 @@
+% 6/15/2024: MRG - translated into single document
+% 04/10/2026: Updated with MATLAB/Arduino IDE 2.x requirements and Hardware Checklist
+
+\documentclass[12pt]{article}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{amssymb} % For checkbox squares
+
+\include{ECE280F24header.tex} 
+
+\begin{document}
+\begin{center}
+\huge{\bf Laboratory 0:}\\
+\large{\bf An Introduction to the ECE 280 Labs!}
+\end{center}
+
+\tableofcontents
+
+\section*{Note on Prompts}
+Throughout this and future lab documents, there will be four different prompts to let you know specific work that needs to be done.
+\begin{itemize}
+\item \color{BrickRed}\textbf{Pre-lab Deliverable ($N$): }Work to be documented in the pre-laboratory assignment.\color{black} 
+\item \color{OliveGreen}\textbf{Checkpoint ($N$): }Work to be shown to a TA during the laboratory.\color{black}
+\item \color{Plum}\textbf{Discussion ($N$): }Questions to be discussed with your lab partner and then answered in the post-laboratory assignment.\color{black} 
+\item \color{BlueViolet}\textbf{Deliverable ($N$): }Other items to be completed individually for the post-laboratory assignment.\color{black}
+\end{itemize}
+\clearpage
+
+\section{Abstract}
+This semester, you will interface high-level software (MATLAB) with physical embedded hardware (Arduino Mega). To ensure a smooth "sampling pipeline" in future labs, your environment must be configured correctly. This lab guides you through the installation of MATLAB R2023b+, Arduino IDE 2.x, and the necessary hardware drivers to communicate with your Mega 2560.
+
+\section{Objectives}
+In this assignment, you will:
+\begin{enumerate}
+    \item Locate the ECE 280 laboratory in Teer 116.
+    \item Verify MATLAB version compatibility and install required toolboxes.
+    \item Configure Arduino IDE 2.x with the correct Board Support Packages and Libraries.
+    \item Solve USB-to-Serial driver issues (the \#1 cause of lab connectivity failures).
+\end{enumerate}
+
+\section{Pre-Laboratory Exercise}
+The ECE 280 labs meet in \textbf{Teer 116}.
+\begin{itemize}
+\item Enter Teer via the main entrance (Floor 2).
+\item Go down the open staircase to the Floor 1 Lobby.
+\item Pass the elevator and walk down the hallway past the EGR 201 lab.
+\item Take a right at the end of the corridor, past the Dean's portraits.
+\end{itemize}
+
+\pldECE{Take a selfie at the lab door and upload the image to the Gradescope assignment.}
+
+\section{Laboratory Exercises}
+
+\subsection{MATLAB Installation \& Toolboxes}
+\textbf{Required MATLAB version:} \textbf{R2020a minimum} (\textbf{R2023b+ strongly recommended}).
+
+\textbf{Why this version floor matters:}
+\begin{itemize}
+    \item \texttt{exportgraphics()} was introduced in R2020a. Older versions fail figure-export deliverables.
+    \item \texttt{serialport()}, \texttt{configureTerminator()}, and \texttt{readline()} were introduced in R2019b.
+    \item Legacy \texttt{serial()} API is deprecated and not supported in our starter scripts.
+\end{itemize}
+
+\begin{table}[h]
+\centering
+\caption{MATLAB Toolboxes Required for ECE 280 Lab Sequence}
+\begin{tabularx}{\linewidth}{l l X}
+\toprule
+\textbf{Toolbox} & \textbf{Status} & \textbf{Why Needed / Typical Functions} \\ \midrule
+Instrument Control Toolbox & \textbf{Required} & Serial communication with Arduino: \texttt{serialport}, \texttt{configureTerminator}, \texttt{readline}, \texttt{flush}. \\
+Signal Processing Toolbox & \textbf{Required} & Filter/frequency analysis and report questions: \texttt{freqz}, \texttt{fir1}, \texttt{db2mag}. \\
+DSP System Toolbox & \textbf{Required} & Streaming/spectrum workflows and advanced DSP tasks: \texttt{dsp.SpectrumAnalyzer}. \\
+Control System Toolbox & \textbf{Required} & Transfer-function and response analysis: \texttt{bode}, \texttt{tf}, \texttt{step}. \\
+Audio Toolbox & \textbf{Required} & Audio-oriented sampling/analysis extensions used in later labs. \\
+Simulink & \textbf{Required} & Model-based signal and control workflows in upcoming labs. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Base MATLAB note:} \texttt{fft}, \texttt{abs}, \texttt{plot}, \texttt{xlabel}, \texttt{ylabel}, \texttt{legend}, \texttt{zeros}, \texttt{ceil}, and \texttt{str2double} are included in base MATLAB.
+
+\textbf{How to verify your installation:}
+\begin{verbatim}
+ver
+license('test','Instrument_Toolbox')
+license('test','Signal_Toolbox')
+license('test','DSP_System_Toolbox')
+license('test','Control_Toolbox')
+license('test','Audio_Toolbox')
+license('test','Simulink')
+\end{verbatim}
+
+\delECE{Upload a screenshot of MATLAB Add-On Manager showing Instrument Control, Signal Processing, DSP System, Control System, Audio Toolbox, and Simulink installed.}
+
+\subsection{Arduino IDE 2.x \& Library Setup}
+Do \textbf{not} use legacy Arduino IDE 1.x. Install \textbf{Arduino IDE 2.3+} from \url{https://arduino.cc/en/software}.
+
+\begin{table}[h]
+\centering
+\caption{Board Support Package (Boards Manager)}
+\begin{tabularx}{\linewidth}{l l X}
+\toprule
+\textbf{Package} & \textbf{Version} & \textbf{Purpose} \\ \midrule
+Arduino AVR Boards & 1.8.6+ & Required for Arduino Mega 2560 target support. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{Library Manager Requirements}
+\begin{tabularx}{\linewidth}{l l X}
+\toprule
+\textbf{Library} & \textbf{Status} & \textbf{Purpose} \\ \midrule
+TimerOne (Jesse Tane) & Recommended (install 1.1.0+) & Simplifies Timer1 configuration for high-frequency PWM workflows in Lab 1 and beyond. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Install path:}
+\begin{itemize}
+    \item Boards package: Tools $\rightarrow$ Board $\rightarrow$ Boards Manager $\rightarrow$ search \texttt{Arduino AVR Boards}.
+    \item TimerOne: Tools $\rightarrow$ Manage Libraries $\rightarrow$ search \texttt{TimerOne} $\rightarrow$ install.
+\end{itemize}
+
+\subsection{USB Drivers \& Port Permissions}
+Driver issues are the most common cause of failed serial communication.
+
+\begin{table}[h]
+\centering
+\caption{USB Driver by Board Variant}
+\begin{tabularx}{\linewidth}{l l X}
+\toprule
+\textbf{Board Variant} & \textbf{USB Chip} & \textbf{Driver Requirement} \\ \midrule
+Official Arduino Mega 2560 & ATmega16U2 & Native CDC-ACM support on modern Windows/macOS/Linux (usually no manual install). \\
+Most clone/off-brand Mega boards & CH340G & Manual CH340 driver install required. \\
+Some clone boards & FTDI FT232 & Usually auto-installed; FTDI vendor driver may improve stability. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{CH340 Driver Installation Notes}
+\begin{tabularx}{\linewidth}{l l X}
+\toprule
+\textbf{OS} & \textbf{Source} & \textbf{Notes} \\ \midrule
+Windows 10/11 & \url{https://www.wch-ic.com} & Run installer as Administrator and reboot. \\
+macOS Ventura/Sonoma+ & \url{https://www.wch-ic.com} & Approve kernel/security prompt in System Settings $\rightarrow$ Privacy \& Security. \\
+Linux (kernel 3.12+) & Built-in & Run \texttt{sudo usermod -aG dialout \$USER}, then log out/in. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Finding the Correct Serial Port}
+\begin{table}[h]
+\centering
+\caption{Port Discovery by Operating System}
+\begin{tabularx}{\linewidth}{l X X}
+\toprule
+\textbf{OS} & \textbf{Where to Check} & \textbf{Typical Port Name} \\ \midrule
+Windows & Device Manager $\rightarrow$ Ports (COM \& LPT) & COM3, COM4, ... \\
+macOS & Terminal: \texttt{ls /dev/tty.*} & \texttt{/dev/tty.usbmodem*}, \texttt{/dev/tty.wchusbserial*} \\
+Linux & Terminal: \texttt{ls /dev/ttyUSB* /dev/ttyACM*} & \texttt{/dev/ttyUSB0}, \texttt{/dev/ttyACM0} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Oscilloscope Screenshot Export (Optional)}
+If your scope supports PC transfer, you may use vendor software (e.g., Tektronix OpenChoice Desktop or equivalent) to export PNG/PDF screenshots for reports. A USB thumb drive save from the front panel is also acceptable.
+
+\subsection{Installation Checklist}
+Complete the following checklist before attending Lab 1.
+\begin{itemize}
+    \item[$\square$] MATLAB R2020a or later installed (R2023b+ recommended).
+    \item[$\square$] Instrument Control Toolbox installed and licensed.
+    \item[$\square$] Signal Processing Toolbox installed and licensed.
+    \item[$\square$] DSP System Toolbox installed and licensed.
+    \item[$\square$] Control System Toolbox installed and licensed.
+    \item[$\square$] Audio Toolbox installed and licensed.
+    \item[$\square$] Simulink installed and licensed.
+    \item[$\square$] Arduino IDE 2.x installed.
+    \item[$\square$] Arduino AVR Boards package installed via Boards Manager.
+    \item[$\square$] TimerOne library installed via Library Manager.
+    \item[$\square$] Correct USB driver installed for your board (CH340 if clone).
+    \item[$\square$] Port permissions configured (Linux dialout / macOS approval if needed).
+    \item[$\square$] Port name identified and verified in MATLAB script settings.
+    \item[$\square$] Arduino Serial Monitor tested at 115200 baud.
+    \item[$\square$] Arduino IDE Serial Monitor \textbf{closed} before running MATLAB (single-app COM port access).
+\end{itemize}
+
+\cpECE{Show your TA your completed MATLAB/Arduino installation and the functional Checklist.}
+
+\delECE{Upload screenshots of: (1) MATLAB \texttt{ver} output, (2) toolbox license checks, and (3) Arduino IDE Boards/Library Manager pages showing AVR Boards and TimerOne.}
+
+\subsection{MATLAB Tutorial}
+Follow the MATLAB Onramp tutorial: \url{https://www.mathworks.com/learn/tutorials/MATLAB-onramp.html}. 
+
+\delECE{Upload your completed MATLAB Onramp Certificate PDF.}
+
+\section{Laboratory Assignment}
+Submit the following to Gradescope:
+\begin{itemize}
+    \item \textbf{Pre-lab Deliverable 1:} Lab Door Selfie.
+    \item \textbf{Deliverable 1:} MATLAB Add-On Manager screenshot with all required toolboxes.
+    \item \textbf{Deliverable 2:} MATLAB \texttt{ver} + toolbox license-check screenshots.
+    \item \textbf{Deliverable 3:} Arduino IDE Board/Library Manager screenshots (AVR Boards + TimerOne).
+    \item \textbf{Deliverable 4:} MATLAB Onramp Certificate PDF.
+\end{itemize}
+
+\section{Updates}
+\begin{itemize}
+\item April 2026: Updated for MATLAB R2023b, Arduino IDE 2.x, and CH340 driver requirements.
+\item January 2025: Updated lab location and enumerated add-ons.
+\end{itemize}
+
+\end{document}
