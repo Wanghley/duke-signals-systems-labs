@@ -39,3 +39,6 @@ __kicad_temp__/
 *-backup*.*
 *-autosave*.*
 *-backups/
+
+# MS word temp files
+~$*.*
