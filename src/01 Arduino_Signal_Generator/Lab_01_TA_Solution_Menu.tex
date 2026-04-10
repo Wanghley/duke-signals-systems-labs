@@ -1,0 +1,197 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{setspace}
+
+\setstretch{1.08}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+
+\title{ECE 280 Lab 1 -- TA Solution Menu\\Signals and Systems: Arduino Signal Generator}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+Use this as a fast grading and troubleshooting guide for:
+\begin{itemize}[leftmargin=1.2em]
+    \item Lab 1: Signals and Systems (Arduino Signal Generator)
+    \item Student report template + evidence files
+\end{itemize}
+
+\section{Quick Pass/Flag Menu}
+
+\subsection*{Pass Immediately If All Are True}
+\begin{itemize}[leftmargin=1.2em]
+    \item RC filter is physically present and correctly wired: PWM pin $\to$ R $\to$ node, and C to GND.
+    \item DMM readings are approximately linear at 0\%, 50\%, and 100\% duty cycle.
+    \item Oscilloscope capture shows stable trigger and expected waveform frequency.
+    \item MATLAB plot has 500 samples, labeled axes, and matches scope trend.
+    \item Phase 3 uses timer interrupt ISR (not delay-loop timing), and jitter is lower than baseline.
+    \item Scope proof image includes handwritten student name and ID.
+\end{itemize}
+
+\subsection*{Flag for Review If Any Are True}
+\begin{itemize}[leftmargin=1.2em]
+    \item Missing physical evidence (scope/DMM/breadboard images).
+    \item Phase 3 code still performs sample timing inside loop with delay calls.
+    \item Scope and MATLAB frequencies disagree by more than 10\% without explanation.
+    \item Report includes formulas but no measured values and/or no error analysis.
+\end{itemize}
+
+\section{Pre-Lab Answer Key (Expected)}
+
+\subsection*{Q1: RC Selection for $f_c \approx 50$ Hz}
+Formula:
+\[
+f_c = \frac{1}{2\pi RC}
+\]
+
+Valid examples (commercial values):
+\begin{itemize}[leftmargin=1.2em]
+    \item $R = 10\,\text{k}\Omega$, $C = 330\,\text{nF} \Rightarrow f_c \approx 48.2\,\text{Hz}$
+    \item $R = 9.1\,\text{k}\Omega$, $C = 330\,\text{nF} \Rightarrow f_c \approx 53.1\,\text{Hz}$
+    \item $R = 4.7\,\text{k}\Omega$, $C = 680\,\text{nF} \Rightarrow f_c \approx 49.8\,\text{Hz}$
+\end{itemize}
+Accept if $f_c$ is roughly 40--60 Hz and derivation is shown.
+
+\subsection*{Q2: RC Impulse/Step Response}
+Expected forms:
+\begin{itemize}[leftmargin=1.2em]
+    \item Impulse response:
+    \[
+    h(t) = \frac{1}{RC}e^{-t/RC}u(t)
+    \]
+    \item Step response to 5 V:
+    \[
+    v_o(t) = 5\left(1-e^{-t/RC}\right)
+    \]
+    \item 63\% time constant:
+    \[
+    t_{63\%} = \tau = RC
+    \]
+\end{itemize}
+
+\subsection*{Q3: Quantization and SQNR (8-bit)}
+\begin{itemize}[leftmargin=1.2em]
+    \item Quantization step (0--255):
+    \[
+    \Delta V \approx \frac{5}{255} = 19.6\,\text{mV}
+    \]
+    \item SQNR for full-scale sine:
+    \[
+    \text{SQNR}_{\text{dB}} \approx 6.02N + 1.76
+    \]
+\end{itemize}
+For $N=8$: $\text{SQNR} \approx 49.9\,\text{dB}$.
+
+\section{Lab Measurement Targets}
+
+\subsection*{Phase 1 DMM Targets}
+\begin{itemize}[leftmargin=1.2em]
+    \item 0\% duty: $\sim 0.00$ V (typical $\pm 0.05$ V)
+    \item 50\% duty: $\sim 2.50$ V (typical 2.45--2.55 V)
+    \item 100\% duty: $\sim 5.00$ V (typical 4.95--5.05 V)
+\end{itemize}
+Suggested acceptance: within 5--10\% unless hardware issues are justified.
+
+\subsection*{Phase 2 Frequency and Shape}
+\begin{itemize}[leftmargin=1.2em]
+    \item Frequency error target: $\le 10\%$
+    \item Waveform should be stable and periodic with proper trigger.
+    \item MATLAB trace should visually match scope behavior (shape, period, amplitude trend).
+\end{itemize}
+
+\subsection*{Phase 3 Jitter Expectations}
+\begin{itemize}[leftmargin=1.2em]
+    \item Baseline (delay-based): wider interval spread.
+    \item Interrupt-based: narrower distribution and lower standard deviation.
+    \item Acceptable improvement: $\ge 30\%$ jitter reduction (std-dev basis).
+    \item Strong implementation: $\ge 50\%$ reduction with clear histogram evidence.
+\end{itemize}
+
+\section{Code Key Checks (TA Spot-Check)}
+
+\subsection*{Delay-Based Baseline (Phase 2/3.1)}
+\begin{itemize}[leftmargin=1.2em]
+    \item Uses \texttt{micros()} logging or timestamp differences.
+    \item Uses \texttt{delay()} or \texttt{delayMicroseconds()} in generation loop.
+\end{itemize}
+
+\subsection*{Interrupt Phase (Phase 3)}
+\begin{itemize}[leftmargin=1.2em]
+    \item Timer register setup is present (Timer1/Timer2 acceptable).
+    \item ISR is concise and handles sample update.
+    \item Shared ISR variables are marked \texttt{volatile}.
+    \item Sampling path has no blocking delay calls.
+\end{itemize}
+
+\subsection*{Timer Formula Sanity Check}
+If using Timer1 CTC mode:
+\[
+f_{int} = \frac{F_{CPU}}{\text{prescaler}\cdot(OCR1A+1)}
+\]
+If LUT size is $N$ samples/cycle:
+\[
+f_0 = \frac{f_{int}}{N}
+\]
+
+Common correction with $F_{CPU}=16\,\text{MHz}$, prescaler $=8$, $N=256$, $f_0=10\,\text{Hz}$:
+\begin{itemize}[leftmargin=1.2em]
+    \item Required interrupt frequency: $f_{int} \approx 2560\,\text{Hz}$
+    \item $OCR1A \approx 780$ (not 6249)
+\end{itemize}
+
+\section{Frequent Failure Modes and TA Actions}
+\begin{itemize}[leftmargin=1.2em]
+    \item \textbf{Flat output near mid-level only}: likely wrong probe node or RC short.\\
+    Action: verify probe at RC output node and capacitor to GND only.
+    \item \textbf{Heavy ripple/noisy analog output}: likely $f_c$ too high or grounding/wiring noise.\\
+    Action: check R/C values, wiring length, and ground routing.
+    \item \textbf{MATLAB timeout/missing data}: wrong COM port or baud mismatch.\\
+    Action: confirm 115200 baud, correct port, terminator, and buffer handling.
+    \item \textbf{Interrupt code compiles but jitter not improved}: ISR too long, serial inside ISR, or loop timing still active.\\
+    Action: remove serial from ISR, keep ISR minimal, move logging outside ISR.
+\end{itemize}
+
+\section{Grading Menu (Aligned to Rubric)}
+Use this quick decision map while assigning points:
+\begin{itemize}[leftmargin=1.2em]
+    \item Pre-Lab (15): full math, correct formulas, sensible component choices.
+    \item Hardware (12): valid RC build + DMM evidence at 0/50/100\%.
+    \item Scope Capture (10): clear image, correct scales, $\le 10\%$ frequency/amplitude error.
+    \item MATLAB Acquisition (10): 500 samples, labeled plot, scope-consistent behavior.
+    \item Phase 3 Interrupt (12): timer ISR implemented + jitter reduction demonstrated.
+    \item Proof Documentation (21): required proof images complete and identifiable.
+    \item Analysis \& Errors (20): numerical errors computed + ranked error sources justified.
+\end{itemize}
+
+\subsection*{Suggested Deduction Guide}
+\begin{itemize}[leftmargin=1.2em]
+    \item Missing one required proof image: \(-5\) to \(-10\) (severity-based)
+    \item No jitter comparison evidence: \(-4\) to \(-8\)
+    \item No error calculations: \(-5\) to \(-10\)
+    \item Copy/paste code with no measured-data linkage: \(-3\) to \(-8\)
+\end{itemize}
+
+\section{Minimum Submission for Passing Work}
+A minimally acceptable submission should include:
+\begin{itemize}[leftmargin=1.2em]
+    \item Pre-lab equations and numerical results.
+    \item One valid RC hardware photo and DMM verification table/photo set.
+    \item One scope capture with visible settings.
+    \item One MATLAB 500-sample plot with labeled axes.
+    \item Baseline vs interrupt jitter evidence and brief improvement statement.
+    \item Short error analysis with at least three plausible sources.
+\end{itemize}
+
+\end{document}
