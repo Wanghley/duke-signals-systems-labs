@@ -5,8 +5,17 @@
 \usepackage{booktabs}
 \usepackage{float}
 \usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{amsmath}
 
 \input{ECE280F24header}
+
+% Fallbacks in case custom macros are not provided by ECE280F24header
+\providecommand{\pldECE}[1]{\textcolor{BrickRed}{\textbf{Pre-lab Deliverable:} #1}}
+\providecommand{\cpECE}[1]{\textcolor{OliveGreen}{\textbf{Checkpoint:} #1}}
+\providecommand{\disECE}[1]{\textcolor{Plum}{\textbf{Discussion:} #1}}
+\providecommand{\delECE}[1]{\textcolor{BlueViolet}{\textbf{Deliverable:} #1}}
 
 \begin{document}
 
@@ -18,6 +27,17 @@
 \end{center}
 
 \tableofcontents
+
+\clearpage
+
+\section*{Note on Prompts}
+Throughout this and future lab documents, there will be four different prompts to let you know specific work that needs to be done.
+\begin{itemize}
+\item \color{BrickRed}\textbf{Pre-lab Deliverable ($N$): }Work to be documented in the pre-laboratory assignment.\color{black} 
+\item \color{OliveGreen}\textbf{Checkpoint ($N$): }Work to be shown to a TA during the laboratory.\color{black}
+\item \color{Plum}\textbf{Discussion ($N$): }Questions to be discussed with your lab partner and then answered in the post-laboratory assignment.\color{black} 
+\item \color{BlueViolet}\textbf{Deliverable ($N$): }Other items to be completed individually for the post-laboratory assignment.\color{black}
+\end{itemize}
 
 \clearpage
 
@@ -157,6 +177,8 @@ Test PWM at 0\%, 50\%, and 100\% duty cycles using DMM. Verify filter output is 
     \vspace{0.5in}
     \delECE{Your DMM Photo: Photograph your digital multimeter display showing the voltage reading at one of the duty cycle settings (0\%, 50\%, or 100\%). Show your Arduino code on screen if possible, or write it next to the photo.}
 \end{figure}
+
+\disECE{Compare expected vs. measured DMM voltages at 0\%, 50\%, and 100\% duty cycle. Explain any nonlinearity or offsets using component tolerance, PWM ripple, or measurement setup.}
 
 \subsection{Phase 2: Signal Acquisition and MATLAB Integration}
 
@@ -362,6 +384,8 @@ Create time vector: $t = [0 : T_s : (N-1) \cdot T_s]$ where $N=500$. Scale ADC t
     \label{fig:matlab_plot}
 \end{figure}
 
+\disECE{Compare your scope waveform and MATLAB waveform for frequency, amplitude, and distortion. Identify the dominant source of mismatch between analog capture and serially sampled data.}
+
 \clearpage
 
 \subsection{Phase 3 (The Challenge): Interrupt Optimization}
@@ -539,6 +563,8 @@ Record Phase 2 baseline ($f_{s,\text{orig}}$, $T_{s,\text{orig}}$). Double frequ
     \caption{\textbf{REFERENCE COMPARISON CODE:} Include side-by-side histograms (Phase 2 vs Phase 3 jitter) in lab report showing improvement percentage.}
     \label{fig:jitter_comparison}
 \end{figure}
+
+\disECE{Explain why timer-interrupt scheduling reduces jitter compared to delay-based loops. Discuss at least one tradeoff (complexity, ISR constraints, or resource usage).}
 
 \clearpage
 
