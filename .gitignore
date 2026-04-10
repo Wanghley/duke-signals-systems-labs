@@ -22,3 +22,20 @@
 
 # ignore macos folder attributes
 .DS_Store
+
+# kicad temp files
+*.kicad_pcb-bak
+*.kicad_sch-bak
+*.kicad_mod-bak
+*.kicad_wks-bak
+*.kicad_sym-bak
+*.kicad_dcm-bak
+*.kicad_prl-bak
+*.kicad_net-bak
+
+# kicad temp folders/files (match in any directory)
+__kicad_temp__/
+.history/
+*-backup*.*
+*-autosave*.*
+*-backups/
