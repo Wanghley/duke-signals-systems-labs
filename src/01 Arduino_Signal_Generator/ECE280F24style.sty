@@ -1,0 +1,411 @@
+ % update semester
+
+% Formatting for pre-lab, check point, discussion, and lab work
+\newcounter{pldECEx}
+\setcounter{pldECEx}{0}
+\newcounter{cpECEx}
+\setcounter{cpECEx}{0}
+\newcounter{disECEx}
+\setcounter{disECEx}{0}
+\newcounter{delECEx}
+\setcounter{delECEx}{0}
+\newcounter{IDCCheckECEx}
+\setcounter{IDCCheckECEx}{0}
+\newcounter{idelECEx}
+\setcounter{idelECEx}{0}
+
+\regtotcounter{pldECEx}
+\regtotcounter{cpECEx}
+\regtotcounter{disECEx}
+\regtotcounter{delECEx}
+\regtotcounter{idelECEx}
+
+\newcommand{\pldECE}[1]{\stepcounter{pldECEx}\color{BrickRed}\textbf{Pre-lab Deliverable (\arabic{pldECEx}/\total{pldECEx}): }{#1}\color{black} }
+\newcommand{\cpECE}[1]{\stepcounter{cpECEx}\color{OliveGreen}\textbf{Checkpoint (\arabic{cpECEx}/\total{cpECEx}): }{#1}\color{black} }
+\newcommand{\disECE}[1]{\stepcounter{disECEx}\color{Plum}\textbf{Discussion (\arabic{disECEx}/\total{disECEx}): }{#1}\color{black} }
+\newcommand{\delECE}[1]{\stepcounter{delECEx}\color{Plum}\textbf{Deliverable (\arabic{delECEx}/\total{delECEx}): }{#1}\color{black} }
+\newcommand{\IDCCheckECE}[1]{\stepcounter{IDCCheckECEx}\color{PineGreen}\textbf{IDC Checkpoint (\arabic{IDCCheckECEx}/\total{IDCCheckECEx}): }{#1}\color{black} }
+\newcommand{\idelECE}[1]{\stepcounter{idelECEx}\color{Mahogany}\textbf{IDC Deliverable (\arabic{idelECEx}/\total{idelECEx}): }{#1}\color{black} }
+
+% style guide now recommends singular they versus his/her
+\newcommand{\hcsECE}{Your document must include your name, NetID, and the Duke Honor Code statement: ``I have adhered to the Duke Community Standard in completing this assignment'' at the top.  {\bf EACH INDIVIDUAL} should submit their own assignment.}
+% New LL
+% For Arduino
+\newcommand{\LLardbox}{\begin{lstlisting}[frame=single, language=Arduino]}
+\newcommand{\LLardboxN}{\begin{lstlisting}[frame=single, language=Arduino, numbers=none]}
+\newcommand{\LILard}[1]{\lstinputlisting[language=Arduino]{#1}}
+\newcommand{\LILardN}[1]{\lstinputlisting[language=Arduino, numbers=none]{#1}}
+
+% For UNIX / bash / plain
+\newcommand{\LLbashbox}{\begin{lstlisting}[frame=single, language=bash]}
+\newcommand{\LLbashsides}{\begin{lstlisting}[frame=LR, language=bash]}
+
+% For plain
+\newcommand{\LLsingle}{\begin{lstlisting}[frame=single]}
+\newcommand{\LLshadow}{\begin{lstlisting}[frame=shadowbox]}
+\newcommand{\LLlines}{\begin{lstlisting}[frame=LR]}
+\newcommand{\LLnone}{\begin{lstlisting}[frame=none]}
+
+\newcommand{\LILtxt}[1]{\lstinputlisting[language=]{#1}}
+
+% For LaTeX
+\newcommand{\LLltxshadow}{\begin{lstlisting}[frame=shadowbox, language={[LaTeX]TeX}, style=latex]}
+\newcommand{\LLltxbox}{\begin{lstlisting}[frame=single, language={[LaTeX]TeX}, style=latex]}
+
+% For Python
+\newcommand{\LLpyshadowN}{\begin{lstlisting}[frame=shadowbox, language=Python, style=python]}
+\newcommand{\LLpyboxN}{\begin{lstlisting}[frame=single, language=Python, style=python]}
+\newcommand{\LLpysidesN}{\begin{lstlisting}[frame=LR, language=Python, style=python]}
+
+\newcommand{\LLpyshadow}{\begin{lstlisting}[frame=shadowbox, language=Python, style=pyno]}
+\newcommand{\LLpybox}{\begin{lstlisting}[frame=single, language=Python, style=pyno]}
+\newcommand{\LLpyboxbig}{\begin{lstlisting}[frame=single, language=Python, style=pyno, basicstyle=\large]}
+\newcommand{\LLpyboxh}{\begin{lstlisting}[frame=single, language=Python, style=pyno, escapechar=\%]}
+\newcommand{\LLpysides}{\begin{lstlisting}[frame=LR, language=bash, style=nobox]}
+
+\newcommand{\LIpy}[1]{\lstinline[language=python,style=pyline]{#1}}
+\newcommand{\LILpy}[1]{\lstinputlisting[language=python,style=python]{#1}}
+
+% For MATLAB
+\newcommand{\LILmat}[1]{\lstinputlisting[language=matlab,style=matlab]{#1}}
+
+% boxes
+\newcommand{\LLsinglespaces}{\begin{lstlisting}[frame=single,showspaces=true]}
+\newcommand{\LLshadowspaces}{\begin{lstlisting}[frame=shadowbox,showspaces=true]}
+\newcommand{\LLlinesspaces}{\begin{lstlisting}[frame=LR,showspaces=true]}
+
+\newcommand{\tvsbox}{\,$\Box$\,}
+%\newcommand{\tvsbox}{\,$\textvisiblespace$\,}
+\def\lst@visiblespace{\tvsbox}
+
+% single for cool unused code
+
+%\newfont{\Bbb}{bbm10}
+%\newcommand{\Bb}[1]{\mbox{\Bbb{{#1}}}}
+
+%\newcommand{\UL}[1]{{\mathcal #1}}
+%\newcommand{\sys}[1]{\stackrel{#1}{\longrightarrow}}
+%\newcommand{\FS}{\stackrel{{\cal FS}}{\longleftrightarrow}}
+
+%\newcommand{\FT}[1]{{\cal F}\left\{ {#1} \right\}}
+%\newcommand{\LT}{\stackrel{{\cal L}}{\longleftrightarrow}}
+%\newcommand{\ULT}{\stackrel{{\cal UL}}{\longleftrightarrow}}
+
+%Subscripts
+%\newcommand{\ET}[2]{{{\mathrm #1}}_{{\mathrm #2}}}
+%\newcommand{\EM}[2]{{{\mathit #1}}_{{\mathrm #2}}}
+%\newcommand{\Z}[1]{\Bb{Z}_{#1}}
+%\newcommand{\N}[1]{\|#1\|_2}
+%\newcommand{\dya}[1]{\overset{\Rightarrow}{#1}}
+
+%\newcommand{\NA}{\mbox{NA}}
+%\newcommand{\ppar}[2]{\frac{\partial{#1}}{\partial{#2}}}
+
+\newcommand{\enumera}{\begin{enumerate}[{\it (a)}]\setlength{\itemsep}{0pt}}
+\newcommand{\enumern}{\begin{enumerate}[{\bf (1)}]\setlength{\itemsep}{0pt}}
+\newcommand{\itemizer}{\begin{itemize}\setlength{\itemsep}{0pt}}
+\newcommand{\itemizers}[1]{\begin{itemize}\setlength{\itemsep}{#1}}
+
+%\newcommand{\inv}{\mbox{inv}}
+%\newcommand{\rad}{\mbox{rad}}
+%\newcommand{\cof}[1]{\{{\bf {#1}}\}}
+%\renewcommand{\textvisiblespace}{\,$\Box$\,}
+
+% Color definitions
+\RequirePackage[usenames,dvipsnames]{xcolor}
+
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{cscolor}{HTML}{7D7D7D}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{lncolor}{HTML}{000000}
+\definecolor{stcolor}{HTML}{007000}
+\definecolor{ntcolor}{HTML}{000000}
+\definecolor{numcolor}{HTML}{800000}
+
+\DeclareOption{bw}{ 
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{cscolor}{HTML}{000000}
+\definecolor{kwcolor}{HTML}{000000}
+\definecolor{lncolor}{HTML}{000000}
+\definecolor{stcolor}{HTML}{000000}
+\definecolor{ntcolor}{HTML}{000000}
+\definecolor{numcolor}{HTML}{000000}
+}
+
+\DeclareOption*{\PackageWarning{examplepackage}{Unknown ‘\CurrentOption’}}
+\ProcessOptions\relax
+\lstdefinestyle{python}{
+    upquote=true,
+    %backgroundcolor=\color{bgcolor},   
+    commentstyle=\ttfamily\normalsize\itshape\color{cscolor},
+    keywordstyle=\ttfamily\normalsize\bfseries\color{kwcolor},
+    numberstyle=\ttfamily\normalsize\color{lncolor},
+    stringstyle=\ttfamily\normalsize\color{stcolor},
+    basicstyle=\ttfamily\normalsize\color{ntcolor},
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2,
+    stepnumber=1,    
+    firstnumber=1,
+    numberfirstline=true,
+    morekeywords = {as},
+    literate=% 
+   *{0}{{{\color{numcolor}0}}}1
+    {1}{{{\color{numcolor}1}}}1
+    {2}{{{\color{numcolor}2}}}1
+    {3}{{{\color{numcolor}3}}}1
+    {4}{{{\color{numcolor}4}}}1
+    {5}{{{\color{numcolor}5}}}1
+    {6}{{{\color{numcolor}6}}}1
+    {7}{{{\color{numcolor}7}}}1
+    {8}{{{\color{numcolor}8}}}1
+    {9}{{{\color{numcolor}9}}}1,
+    %{"}{\textquotedbl}1,
+    classoffset=1, % starting new class
+    emph={print, range},
+    emphstyle=\color{purple!70!black},
+    classoffset=0,
+}
+
+\lstdefinestyle{pyno}{
+    upquote=true,
+    %backgroundcolor=\color{bgcolor},    
+    commentstyle=\ttfamily\normalsize\itshape\color{cscolor},
+    keywordstyle=\ttfamily\normalsize\bfseries\color{kwcolor},
+    numberstyle=\ttfamily\normalsize\color{lncolor},
+    stringstyle=\ttfamily\normalsize\color{stcolor},
+    basicstyle=\ttfamily\normalsize\color{ntcolor}, 
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=none,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2,
+    stepnumber=1,    
+    firstnumber=1,
+    numberfirstline=true,
+    literate=%
+   *{0}{{{\color{numcolor}0}}}1
+    {1}{{{\color{numcolor}1}}}1
+    {2}{{{\color{numcolor}2}}}1
+    {3}{{{\color{numcolor}3}}}1
+    {4}{{{\color{numcolor}4}}}1
+    {5}{{{\color{numcolor}5}}}1
+    {6}{{{\color{numcolor}6}}}1
+    {7}{{{\color{numcolor}7}}}1
+    {8}{{{\color{numcolor}8}}}1
+    {9}{{{\color{numcolor}9}}}1,
+    %{"}{\textquotedbl}1
+}
+ 
+\lstdefinestyle{pyline}{
+    upquote=true,
+    numberstyle=\normalsize\color{black},
+    basicstyle=\normalsize\color{ntcolor}\ttfamily,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2,
+    stepnumber=1,    
+    firstnumber=1,
+    numberfirstline=true,
+}
+
+\lstdefinestyle{latex}{
+    upquote=true,
+    commentstyle=\color{red!50!black},
+    keywordstyle=\bfseries\color{purple!50!black},
+    numberstyle=\color{black},
+    stringstyle=\color{yellow},
+    basicstyle=\color{black},
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=none,                    
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2,
+    rulecolor=\color{black},
+    morekeywords={tableofcontents, listoffigures, mbox, subsection, lstinputlisting, appendix, epsfig, verbatiminput},
+}
+
+\lstdefinestyle{nobox}{
+    showtabs=false,
+    showspaces=false,
+    showstringspaces=false,
+    upquote=true,
+}
+
+
+\lstdefinestyle{matlab}{
+    commentstyle=\ttfamily\normalsize\bfseries\color[RGB]{60, 118, 61},
+    keywordstyle=\ttfamily\normalsize\bfseries\color[RGB]{0, 0, 255},
+    numberstyle=\ttfamily\normalsize\color{black},
+    stringstyle=\ttfamily\normalsize\color[RGB]{160, 32, 240},
+    basicstyle=\ttfamily\normalsize\color{black},
+    numbers=left,                    
+    showstringspaces=false,
+    morekeywords = {on, switch, case},
+    deletekeywords={clear, format, figure, clf, plot, title, sprintf, eval, %
+          ode45, linspace, cos, sin, subplot, print, eps, disp, load, %
+          xlabel, ylabel, grid, legend, exp, sum, cd},
+    upquote=true,
+}
+
+
+% Arduino below from: https://tex.stackexchange.com/questions/211415/how-to-set-up-listings-for-use-code-from-arduino
+%%% Define Custom IDE Colors %%%
+\definecolor{arduinoGreen}    {rgb} {0.17, 0.43, 0.01}
+\definecolor{arduinoGrey}     {rgb} {0.47, 0.47, 0.33}
+\definecolor{arduinoOrange}   {rgb} {0.8 , 0.4 , 0   }
+\definecolor{arduinoBlue}     {rgb} {0.01, 0.61, 0.98}
+\definecolor{arduinoDarkBlue} {rgb} {0.0 , 0.2 , 0.5 }
+
+%%% Define Arduino Language %%%
+\lstdefinelanguage{Arduino}{
+  language=C++, % begin with default C++ settings 
+%
+%
+  %%% Keyword Color Group 1 %%%  (called KEYWORD3 by arduino)
+  keywordstyle=\color{arduinoGreen},   
+  deletekeywords={  % remove all arduino keywords that might be in c++
+                break, case, override, final, continue, default, do, else, for, 
+                if, return, goto, switch, throw, try, while, setup, loop, export, 
+                not, or, and, xor, include, define, elif, else, error, if, ifdef, 
+                ifndef, pragma, warning,
+                HIGH, LOW, INPUT, INPUT_PULLUP, OUTPUT, DEC, BIN, HEX, OCT, PI, 
+                HALF_PI, TWO_PI, LSBFIRST, MSBFIRST, CHANGE, FALLING, RISING, 
+                DEFAULT, EXTERNAL, INTERNAL, INTERNAL1V1, INTERNAL2V56, LED_BUILTIN, 
+                LED_BUILTIN_RX, LED_BUILTIN_TX, DIGITAL_MESSAGE, FIRMATA_STRING, 
+                ANALOG_MESSAGE, REPORT_DIGITAL, REPORT_ANALOG, SET_PIN_MODE, 
+                SYSTEM_RESET, SYSEX_START, auto, int8_t, int16_t, int32_t, int64_t, 
+                uint8_t, uint16_t, uint32_t, uint64_t, char16_t, char32_t, operator, 
+                enum, delete, bool, boolean, byte, char, const, false, float, double, 
+                null, NULL, int, long, new, private, protected, public, short, 
+                signed, static, volatile, String, void, true, unsigned, word, array, 
+                sizeof, dynamic_cast, typedef, const_cast, struct, static_cast, union, 
+                friend, extern, class, reinterpret_cast, register, explicit, inline, 
+                _Bool, complex, _Complex, _Imaginary, atomic_bool, atomic_char, 
+                atomic_schar, atomic_uchar, atomic_short, atomic_ushort, atomic_int, 
+                atomic_uint, atomic_long, atomic_ulong, atomic_llong, atomic_ullong, 
+                virtual, PROGMEM,
+                Serial, Serial1, Serial2, Serial3, SerialUSB, Keyboard, Mouse,
+                abs, acos, asin, atan, atan2, ceil, constrain, cos, degrees, exp, 
+                floor, log, map, max, min, radians, random, randomSeed, round, sin, 
+                sq, sqrt, tan, pow, bitRead, bitWrite, bitSet, bitClear, bit, 
+                highByte, lowByte, analogReference, analogRead, 
+                analogReadResolution, analogWrite, analogWriteResolution, 
+                attachInterrupt, detachInterrupt, digitalPinToInterrupt, delay, 
+                delayMicroseconds, digitalWrite, digitalRead, interrupts, millis, 
+                micros, noInterrupts, noTone, pinMode, pulseIn, pulseInLong, shiftIn, 
+                shiftOut, tone, yield, Stream, begin, end, peek, read, print, 
+                println, available, availableForWrite, flush, setTimeout, find, 
+                findUntil, parseInt, parseFloat, readBytes, readBytesUntil, readString, 
+                readStringUntil, trim, toUpperCase, toLowerCase, charAt, compareTo, 
+                concat, endsWith, startsWith, equals, equalsIgnoreCase, getBytes, 
+                indexOf, lastIndexOf, length, replace, setCharAt, substring, 
+                toCharArray, toInt, press, release, releaseAll, accept, click, move, 
+                isPressed, isAlphaNumeric, isAlpha, isAscii, isWhitespace, isControl, 
+                isDigit, isGraph, isLowerCase, isPrintable, isPunct, isSpace, 
+                isUpperCase, isHexadecimalDigit, 
+                }, 
+  morekeywords={   % add arduino structures to group 1
+                break, case, override, final, continue, default, do, else, for, 
+                if, return, goto, switch, throw, try, while, setup, loop, export, 
+                not, or, and, xor, include, define, elif, else, error, if, ifdef, 
+                ifndef, pragma, warning,
+                }, 
+% 
+%
+  %%% Keyword Color Group 2 %%%  (called LITERAL1 by arduino)
+  keywordstyle=[2]\color{arduinoBlue},   
+  keywords=[2]{   % add variables and dataTypes as 2nd group  
+                HIGH, LOW, INPUT, INPUT_PULLUP, OUTPUT, DEC, BIN, HEX, OCT, PI, 
+                HALF_PI, TWO_PI, LSBFIRST, MSBFIRST, CHANGE, FALLING, RISING, 
+                DEFAULT, EXTERNAL, INTERNAL, INTERNAL1V1, INTERNAL2V56, LED_BUILTIN, 
+                LED_BUILTIN_RX, LED_BUILTIN_TX, DIGITAL_MESSAGE, FIRMATA_STRING, 
+                ANALOG_MESSAGE, REPORT_DIGITAL, REPORT_ANALOG, SET_PIN_MODE, 
+                SYSTEM_RESET, SYSEX_START, auto, int8_t, int16_t, int32_t, int64_t, 
+                uint8_t, uint16_t, uint32_t, uint64_t, char16_t, char32_t, operator, 
+                enum, delete, bool, boolean, byte, char, const, false, float, double, 
+                null, NULL, int, long, new, private, protected, public, short, 
+                signed, static, volatile, String, void, true, unsigned, word, array, 
+                sizeof, dynamic_cast, typedef, const_cast, struct, static_cast, union, 
+                friend, extern, class, reinterpret_cast, register, explicit, inline, 
+                _Bool, complex, _Complex, _Imaginary, atomic_bool, atomic_char, 
+                atomic_schar, atomic_uchar, atomic_short, atomic_ushort, atomic_int, 
+                atomic_uint, atomic_long, atomic_ulong, atomic_llong, atomic_ullong, 
+                virtual, PROGMEM,
+                },  
+% 
+%
+  %%% Keyword Color Group 3 %%%  (called KEYWORD1 by arduino)
+  keywordstyle=[3]\bfseries\color{arduinoOrange},
+  keywords=[3]{  % add built-in functions as a 3rd group
+                Serial, Serial1, Serial2, Serial3, SerialUSB, Keyboard, Mouse,
+                },      
+%
+%
+  %%% Keyword Color Group 4 %%%  (called KEYWORD2 by arduino)
+  keywordstyle=[4]\color{arduinoOrange},
+  keywords=[4]{  % add more built-in functions as a 4th group
+                abs, acos, asin, atan, atan2, ceil, constrain, cos, degrees, exp, 
+                floor, log, map, max, min, radians, random, randomSeed, round, sin, 
+                sq, sqrt, tan, pow, bitRead, bitWrite, bitSet, bitClear, bit, 
+                highByte, lowByte, analogReference, analogRead, 
+                analogReadResolution, analogWrite, analogWriteResolution, 
+                attachInterrupt, detachInterrupt, digitalPinToInterrupt, delay, 
+                delayMicroseconds, digitalWrite, digitalRead, interrupts, millis, 
+                micros, noInterrupts, noTone, pinMode, pulseIn, pulseInLong, shiftIn, 
+                shiftOut, tone, yield, Stream, begin, end, peek, read, print, 
+                println, available, availableForWrite, flush, setTimeout, find, 
+                findUntil, parseInt, parseFloat, readBytes, readBytesUntil, readString, 
+                readStringUntil, trim, toUpperCase, toLowerCase, charAt, compareTo, 
+                concat, endsWith, startsWith, equals, equalsIgnoreCase, getBytes, 
+                indexOf, lastIndexOf, length, replace, setCharAt, substring, 
+                toCharArray, toInt, press, release, releaseAll, accept, click, move, 
+                isPressed, isAlphaNumeric, isAlpha, isAscii, isWhitespace, isControl, 
+                isDigit, isGraph, isLowerCase, isPrintable, isPunct, isSpace, 
+                isUpperCase, isHexadecimalDigit, writeMicroseconds, 
+                },      
+%
+%
+  %%% Set Other Colors %%%
+  stringstyle=\color{arduinoDarkBlue},    
+  commentstyle=\color{arduinoGrey},    
+%          
+%   
+  %%%% Line Numbering %%%%
+   numbers=left,                    
+  numbersep=5pt,                   
+  numberstyle=\color{arduinoGrey},    
+  %stepnumber=2,                      % show every 2 line numbers
+%
+%
+  %%%% Code Box Style %%%%
+  breaklines=true,                    % wordwrapping
+  tabsize=2,         
+  basicstyle=\ttfamily,  
+%
+ %%%% Get rid of boxes for spaces in strings
+  showstringspaces=false
+}
