@@ -1,0 +1,268 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{amsmath}
+
+\input{ECE280F24header}
+
+% Fallbacks in case custom macros are not provided by ECE280F24header
+\providecommand{\pldECE}[1]{\textcolor{BrickRed}{\textbf{Pre-lab Deliverable:} #1}}
+\providecommand{\cpECE}[1]{\textcolor{OliveGreen}{\textbf{Checkpoint:} #1}}
+\providecommand{\disECE}[1]{\textcolor{Plum}{\textbf{Discussion:} #1}}
+\providecommand{\delECE}[1]{\textcolor{BlueViolet}{\textbf{Deliverable:} #1}}
+\newcommand{\evidencebox}[2]{%
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][#1][c]{0.9\textwidth}{\centering \textbf{#2}}}
+\end{figure}}
+
+\begin{document}
+
+\begin{center}
+\huge{\bf Laboratory 2 Report Template:}\\
+\large{\bf Signals and Systems}\\
+\large{\bf Signal Transformations in Hardware}\\
+\large{\bf Time Shift, Amplitude Scaling, and Time Reversal}
+\end{center}
+
+\section*{Graded Submission Requirement}
+\delECE{This is a graded assignment. Include your name and student ID in every required screenshot and in as many additional screenshots as possible. Screenshots without clear student identification may not receive full credit.}
+
+\cpECE{Before submission, verify that each screenshot is legible and contains visible labels/measurements where required.}
+
+\section*{Student Information}
+\begin{tabularx}{\linewidth}{l X l X}
+\toprule
+\textbf{Name 1} & \underline{\hspace{5cm}} & \textbf{Name 2} & \underline{\hspace{5cm}} \\
+\textbf{NetID 1} & \underline{\hspace{5cm}} & \textbf{NetID 2} & \underline{\hspace{5cm}} \\
+\textbf{Section} & \underline{\hspace{5cm}} & \textbf{Date} & \underline{\hspace{5cm}} \\
+\textbf{TA} & \underline{\hspace{5cm}} & \textbf{Random Seed} & \underline{\hspace{5cm}} \\
+\bottomrule
+\end{tabularx}
+
+\section*{Note on Prompts}
+\begin{itemize}
+\item \color{BrickRed}\textbf{Pre-lab Deliverable ($N$): }Pre-lab work to complete before lab.\color{black}
+\item \color{OliveGreen}\textbf{Checkpoint ($N$): }Items to show your TA in lab.\color{black}
+\item \color{Plum}\textbf{Discussion ($N$): }Analysis and interpretation in your report.\color{black}
+\item \color{BlueViolet}\textbf{Deliverable ($N$): }Required report artifacts and evidence.\color{black}
+\end{itemize}
+
+\clearpage
+
+\section{Assigned Parameters}
+\begin{table}[H]
+    \centering
+    \caption{TA-Assigned Base Signal Parameters}
+    \begin{tabularx}{\linewidth}{l X l}
+    \toprule
+    \textbf{Parameter} & \textbf{Description} & \textbf{Assigned Value}\\
+    \midrule
+    $A$ & Base signal amplitude (V) & \underline{\hspace{2.5cm}}\\
+    $f_0$ & Fundamental frequency (Hz) & \underline{\hspace{2.5cm}}\\
+    $\phi$ & Initial phase (rad) & \underline{\hspace{2.5cm}}\\
+    $\alpha$ & Exponential decay rate (s$^{-1}$), if applicable & \underline{\hspace{2.5cm}}\\
+    Signal Type & Sinusoidal / Exponential / Damped Sinusoidal & \underline{\hspace{2.5cm}}\\
+    $t_0$ & Time shift duration (ms) & \underline{\hspace{2.5cm}}\\
+    $B$ & Amplitude scale factor & \underline{\hspace{2.5cm}}\\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\section{Pre-Lab Results}
+\pldECE{Attach your complete pre-lab pages or include concise summaries below.}
+
+\subsection{Transformation Derivations}
+\begin{itemize}
+    \item $y_1(t) = x(t - t_0)$: \underline{\hspace{9cm}}
+    \item $y_2(t) = B\,x(t)$: \underline{\hspace{9cm}}
+    \item $y_3(t) = x(-t)$: \underline{\hspace{9cm}}
+    \item $y_4(t) = B\,x(-t - t_0)$: \underline{\hspace{7.5cm}}
+\end{itemize}
+
+\subsection{Discrete-Time Mapping}
+\begin{itemize}
+    \item Shift depth: $k = \lfloor t_0 / T_s \rfloor = $ \underline{\hspace{2cm}} samples
+    \item MATLAB mapping for $y_1, y_2, y_3, y_4$: \underline{\hspace{8cm}}
+\end{itemize}
+
+\subsection{Sketch Summary}
+\evidencebox{2.2in}{Insert pre-lab sketch image (x, y1, y2, y3, y4) or attach scanned page}
+
+\clearpage
+
+\section{Phase 1: Base Signal Acquisition}
+\cpECE{Verify base signal generation and acquisition in both scope and MATLAB.}
+
+\subsection{Step 1.1 Base Signal on Oscilloscope}
+\delECE{Submit scope screenshot with name/ID, time/div, volts/div, measured frequency, measured amplitude.}
+
+\begin{table}[H]
+\centering
+\caption{Measured Base Signal Parameters}
+\begin{tabularx}{\linewidth}{l l}
+\toprule
+Measured frequency (Hz) & \underline{\hspace{4cm}} \\
+Measured peak-to-peak voltage (Vpp) & \underline{\hspace{4cm}} \\
+Time/div & \underline{\hspace{4cm}} \\
+Volts/div & \underline{\hspace{4cm}} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\evidencebox{2.3in}{Step 1.1 Evidence: Oscilloscope screenshot (base signal)}
+
+\subsection{Step 1.2 MATLAB Base Signal Acquisition}
+\delECE{Submit MATLAB plot of x\_hw with labeled axes and title.}
+\evidencebox{2.1in}{Step 1.2 Evidence: MATLAB base-signal plot screenshot}
+
+\disECE{Compare scope and MATLAB base signal. Report amplitude error and likely cause.}
+\[
+\varepsilon_A(\%) = \frac{|A_{scope} - A_{MATLAB}|}{A_{scope}}\times 100 = \underline{\hspace{2.5cm}}\%
+\]
+
+\clearpage
+
+\section{Phase 2: Hardware Transformations}
+
+\subsection{Step 2.1 Amplitude Scaling}
+\cpECE{Implement gain control with potentiometer and verify B ratio.}
+\delECE{Submit dual-channel scope screenshot (scaled vs original) with annotated ratio.}
+
+\begin{table}[H]
+\centering
+\caption{Amplitude Scaling Measurements}
+\begin{tabularx}{\linewidth}{l l}
+\toprule
+$A_{Ch1}$ (scaled) & \underline{\hspace{4cm}} \\
+$A_{Ch2}$ (original) & \underline{\hspace{4cm}} \\
+$B_{meas} = A_{Ch1}/A_{Ch2}$ & \underline{\hspace{4cm}} \\
+Assigned $B$ & \underline{\hspace{4cm}} \\
+Percent error in $B$ & \underline{\hspace{4cm}} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\evidencebox{2.2in}{Step 2.1 Evidence: Scope screenshot for amplitude scaling}
+
+\disECE{Why is potentiometer reading performed outside ISR? Why must shared gain variable be volatile?}
+
+\subsection{Step 2.2 Time Shift}
+\cpECE{Implement circular buffer delay with depth k and verify time shift.}
+\delECE{Submit dual-channel scope screenshot with cursor-measured delay.}
+
+\begin{table}[H]
+\centering
+\caption{Time Shift Measurements}
+\begin{tabularx}{\linewidth}{l l}
+\toprule
+Predicted $t_0$ (ms) & \underline{\hspace{4cm}} \\
+Measured delay (ms) & \underline{\hspace{4cm}} \\
+Absolute error (ms) & \underline{\hspace{4cm}} \\
+Percent error & \underline{\hspace{4cm}} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\evidencebox{2.2in}{Step 2.2 Evidence: Scope screenshot for time shift}
+
+\disECE{Explain time delay vs phase shift equivalence for sinusoid and why it does not generalize to all signal classes.}
+
+\subsection{Step 2.3 Time Reversal}
+\cpECE{Implement reversed LUT indexing and verify waveform reversal.}
+\delECE{Submit dual-channel scope screenshot with key distinguishing feature annotated.}
+\evidencebox{2.2in}{Step 2.3 Evidence: Scope screenshot for time reversal}
+
+\disECE{Classify x(t) as even/odd/neither and explain expected reversal behavior.}
+
+\subsection{Step 2.4 Combined Transformation}
+\cpECE{Implement and verify $y_4(t)=B\,x(-t-t_0)$.}
+\delECE{Submit dual-channel scope screenshot with ratio and time-offset annotations.}
+\evidencebox{2.2in}{Step 2.4 Evidence: Scope screenshot for combined transformation}
+
+\clearpage
+
+\section{Phase 3: MATLAB Verification}
+
+\subsection{Step 3.1 Acquire All Signals}
+\cpECE{Acquire x, y1, y2, y3, y4 into MATLAB.}
+\delECE{Submit five MATLAB plots with proper labeling.}
+\evidencebox{2.1in}{Step 3.1 Evidence: MATLAB screenshots for x, y1, y2, y3, y4}
+
+\subsection{Step 3.2 Predicted vs Measured Overlays}
+\delECE{Submit four overlays: base, hardware, predicted for each transformation.}
+\evidencebox{2.1in}{Step 3.2 Evidence: MATLAB overlay screenshots (y1-y4)}
+
+\subsection{Step 3.3 NRMSE Quantification}
+\delECE{Report NRMSE for y1, y2, y3, y4 using the specified formula.}
+\begin{table}[H]
+\centering
+\caption{NRMSE Summary}
+\begin{tabularx}{\linewidth}{l l}
+\toprule
+Time Shift ($y_1$) NRMSE (\%) & \underline{\hspace{4cm}} \\
+Amplitude Scaling ($y_2$) NRMSE (\%) & \underline{\hspace{4cm}} \\
+Time Reversal ($y_3$) NRMSE (\%) & \underline{\hspace{4cm}} \\
+Combined ($y_4$) NRMSE (\%) & \underline{\hspace{4cm}} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\evidencebox{1.8in}{Step 3.3 Evidence: MATLAB output/table screenshot for NRMSE}
+
+\disECE{Which transformation has largest NRMSE and why? Separate systematic vs random error sources.}
+
+\clearpage
+
+\section{Data Analysis}
+
+\subsection{Transformation Summary}
+\begin{table}[H]
+    \centering
+    \caption{Transformation Summary Table}
+    \begin{tabularx}{\linewidth}{l X X X}
+    \toprule
+    \textbf{Parameter} & \textbf{Theoretical} & \textbf{Measured} & \textbf{\% Error}\\
+    \midrule
+    Base amplitude $A$ (V) & & & \\
+    Base frequency $f_0$ (Hz) & & & \\
+    Scaled amplitude $B\cdot A$ (V) & & & \\
+    Gain ratio $B_{meas}$ & & & \\
+    Time shift $t_0$ (ms) & & & \\
+    Phase shift $\phi_0$ (rad) & & & \\
+    Combined amplitude $B\cdot A$ (V) & & & \\
+    Combined shift $t_0$ (ms) & & & \\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\disECE{Identify the largest discrepancy source for each transformation and justify with measured evidence.}
+
+\subsection{Symmetry and Boundary Effects}
+\disECE{Classify signal symmetry (even/odd/neither) and discuss \texttt{circshift} wrap-around artifacts with mitigation strategy.}
+
+\subsection{Error Source Ranking}
+\delECE{Rank top three contributors to error using NRMSE and physical justification (PWM quantization, RC phase distortion, ADC quantization, UART jitter, potentiometer noise, ISR jitter, etc.).}
+
+\clearpage
+
+\section*{Final Submission Checklist}
+\begin{itemize}
+    \item[\(\square\)] Pre-lab derivations and sketches included.
+    \item[\(\square\)] Step 1.1 scope screenshot with name/ID.
+    \item[\(\square\)] Step 1.2 MATLAB base signal plot.
+    \item[\(\square\)] Step 2.1-2.4 scope screenshots with annotations.
+    \item[\(\square\)] Step 3.1 five MATLAB signal plots.
+    \item[\(\square\)] Step 3.2 four overlay plots.
+    \item[\(\square\)] Step 3.3 NRMSE table/screenshot.
+    \item[\(\square\)] Completed analysis tables and discussion responses.
+\end{itemize}
+
+\end{document}
+</attachment> </attachments><context>The current date is April 10, 2026.There have been some changes between the last request and now.Some edits were made, by the user or possibly by a formatter or another automated tool, to:- /Users/student/Workspace/ECE280-Labs-New/src/02 Signal_Transformations_in_Hardware/Lab_02_Manual.texSo be sure to check the current file contents before making any new edits.Terminals:Terminal: zshLast Command: git statusCwd: /Users/student/Workspace/ECE280-Labs-NewExit Code: 0Terminal: zshTerminal: zshLast Command:  cd "/Users/student/Workspace/ECE280-Labs-New/src/02 Signal_Transformations_in_Hardware" && pdflatex -interaction=nonstopmode Lab_02_Manual.tex 2>&1 | tail -40Cwd: /Users/student/Workspace/ECE280-Labs-New/src/02 Signal_Transformations_in_HardwareExit Code: 0</context><editorContext>The user's current file is /Users/student/Workspace/ECE280-Labs-New/src/02 Signal_Transformations_in_Hardware/Lab_02_Manual.tex. </editorContext><reminderInstructions>You are an agent—keep going until the user's query is completely resolved before ending your turn. ONLY stop if solved or genuinely blocked.Take action when possible; the user expects you to do useful work without unnecessary questions.After any parallel, read-only context gathering, give a concise progress update and what's next.Avoid repetition across turns: don't restate unchanged plans or sections (like the todo list) verbatim; provide delta updates or only the parts that changed.Tool batches: You MUST preface each batch with a one-sentence why/what/outcome preamble.Progress cadence: After 3 to 5 tool calls, or when you create/edit > ~3 files in a burst, report progress.Requirements coverage: Read the user's ask in full and think carefully. Do not omit a requirement. If something cannot be done with available tools, note why briefly and propose a viable alternative.</reminderInstructions><userRequest>this is looking way better, now in the begining i need to say to all students that this is graded assignment and they need their name and id in all screenshots or as many as possible</userRequest>We need edit lab02 manual beginning add strong notice. user asks beginning statement. Do patch in early after note prompts maybe before abstract. add section Graded Submission Policy maybe with delECE maybe bold. do one file edit and maybe compile maybe not necessary but good. do apply patch. provide commentary preamble. then maybe compile quick. let's do two tool calls. take care file path with spaces. use apply_patch. then run pdflatex tail maybe quick. let's do.numerusformassistant to=functions.apply_patch in commentary  仲博json code block নেই due to requirement include explanation/input.{
