@@ -1,0 +1,742 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{amsmath}
+
+\input{ECE280F24header}
+
+% Fallbacks in case custom macros are not provided by ECE280F24header
+\providecommand{\pldECE}[1]{\textcolor{BrickRed}{\textbf{Pre-lab Deliverable:} #1}}
+\providecommand{\cpECE}[1]{\textcolor{OliveGreen}{\textbf{Checkpoint:} #1}}
+\providecommand{\disECE}[1]{\textcolor{Plum}{\textbf{Discussion:} #1}}
+\providecommand{\delECE}[1]{\textcolor{BlueViolet}{\textbf{Deliverable:} #1}}
+\newcommand{\evidencebox}[2]{%
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][#1][c]{0.9\textwidth}{\centering \textbf{#2}}}
+\end{figure}}
+
+\begin{document}
+
+\begin{center}
+\huge{\bf Laboratory 2:}\\
+\large{\bf Signals and Systems}\\
+\large{\bf Signal Transformations: Time Shift, Amplitude Scaling, and Time Reversal}\\
+\large{\bf Hardware Implementation with Arduino and MATLAB Verification}
+\end{center}
+
+\tableofcontents
+
+\section*{Note on Prompts}
+Throughout this and future lab documents, there will be four different prompts to let you know specific work that needs to be done.
+\begin{itemize}
+\item \color{BrickRed}\textbf{Pre-lab Deliverable ($N$): }Work to be documented in the pre-laboratory assignment.\color{black}
+\item \color{OliveGreen}\textbf{Checkpoint ($N$): }Work to be shown to a TA during the laboratory.\color{black}
+\item \color{Plum}\textbf{Discussion ($N$): }Questions to be discussed with your lab partner and then answered in the post-laboratory assignment.\color{black}
+\item \color{BlueViolet}\textbf{Deliverable ($N$): }Other items to be completed individually for the post-laboratory assignment.\color{black}
+\end{itemize}
+
+\section*{Graded Assignment and Authenticity Requirement}
+\delECE{This is a graded laboratory assignment. To receive full credit, include your \textbf{name and student ID} in \textbf{all required screenshots} and in as many additional screenshots as possible (oscilloscope captures, MATLAB plots, and setup photos). Screenshots without identifying information may receive reduced credit.}
+
+\cpECE{Before submission, verify that each required image is legible, clearly labeled, and contains your identifying information when applicable.}
+
+\clearpage
+
+\section{Abstract}
+\noindent This laboratory bridges the gap between the abstract mathematical formalism of continuous-time signal transformations and their concrete physical realization in embedded hardware. Building on the signal generation pipeline established in Laboratory~1, students here apply the three fundamental signal transformations---time shift, amplitude scaling, and time reversal---both in firmware running on an Arduino microcontroller and in MATLAB post-processing. Each student receives a unique, TA-assigned base signal whose parameters are seeded from a random number generator, ensuring independent work and authentic acquisition evidence. The transformed outputs are captured simultaneously on a digital oscilloscope and via MATLAB serial acquisition; MATLAB's \texttt{circshift}, scalar multiplication, and \texttt{fliplr} operators then serve as the computational ground truth against which the hardware results are validated. This dual-domain verification pipeline reinforces the core systems principle that transformations are coordinate changes on the signal's domain and range---independent of the physical medium carrying the signal.
+
+\vspace{0.2in}
+
+\section{Learning Objectives}
+\begin{enumerate}
+    \item \textbf{Analytical Transformation Derivation:} Formulate, in closed form, the time-shifted, amplitude-scaled, and time-reversed versions of a given base signal $x(t)$, and map those continuous-time expressions to their discrete-time counterparts $x[n]$.
+    \item \textbf{Hardware Transformation Implementation:} Implement time shift via a circular sample buffer, amplitude scaling via a potentiometer-controlled gain stage, and time reversal via reversed LUT indexing on an Arduino microcontroller.
+    \item \textbf{Dual-Domain Acquisition and Overlay:} Acquire the original and transformed signals through both oscilloscope and MATLAB serial channels; overlay measured versus predicted signals on a common time axis and quantify the residual error.
+    \item \textbf{Discrete-Time Operator Mapping:} Connect hardware operations to the MATLAB operators \texttt{circshift}, scalar multiply, and \texttt{fliplr}, and demonstrate analytically why each operator is the correct discrete-time analogue of the corresponding continuous-time transformation.
+    \item \textbf{Exponential and Sinusoidal Signal Characterization:} Identify and parameterize real exponentials $Ae^{\alpha t}$, sinusoids $A\cos(\omega_0 t + \phi)$, and damped sinusoids $Ae^{-\alpha t}\cos(\omega_0 t + \phi)$ from hardware-acquired waveforms.
+\end{enumerate}
+
+\section{Theoretical Background}
+Signal transformations are the algebraic mechanisms by which the domain (time axis) and range (amplitude axis) of a signal are systematically altered. Understanding them is prerequisite to every subsequent topic in this course---convolution, system responses, Fourier analysis, and filtering---because each of those operations can be decomposed into elementary transformations.
+
+\subsection{Fundamental Continuous-Time Signal Transformations}
+
+Let $x(t)$ denote an arbitrary continuous-time base signal. The three elementary independent-variable and dependent-variable transformations are:
+
+\subsubsection{Time Shift (Delay and Advance)}
+A time shift by $t_0$ seconds maps $x(t) \rightarrow y(t) = x(t - t_0)$. The signal retains its shape but is translated along the time axis. A \emph{positive} $t_0$ produces a \emph{delay} (the feature that was at $t=0$ now appears at $t = t_0 > 0$); a \emph{negative} $t_0$ produces an \emph{advance}:
+\begin{equation}
+    y(t) = x(t - t_0), \qquad t_0 \in \mathbb{R}.
+\end{equation}
+For a sinusoidal base signal $x(t) = A\cos(\omega_0 t)$, a time shift by $t_0$ introduces a phase offset $\phi_0 = \omega_0 t_0$:
+\begin{equation}
+    y(t) = A\cos\!\bigl(\omega_0(t-t_0)\bigr) = A\cos(\omega_0 t - \phi_0).
+    \label{eq:timeshift_sine}
+\end{equation}
+Equation~(\ref{eq:timeshift_sine}) is fundamental: it demonstrates that \emph{time delay and phase shift are equivalent representations for sinusoidal signals}, a relationship that underpins Fourier-domain analysis later in the course.
+
+\subsubsection{Amplitude Scaling}
+Amplitude scaling multiplies the signal's range by a scalar $B \in \mathbb{R}$:
+\begin{equation}
+    y(t) = B \cdot x(t).
+\end{equation}
+When $|B| > 1$ the signal is \emph{amplified}; when $0 < |B| < 1$ it is \emph{attenuated}; when $B < 0$ the signal is simultaneously scaled and \emph{inverted} (reflected about the horizontal axis). In this laboratory a potentiometer physically implements this operation by acting as a programmable voltage divider whose wiper position sets:
+\begin{equation}
+    B_{\text{hw}} = \frac{V_{\text{wiper}}}{V_{\text{supply}}} = \frac{\text{analogRead(A1)}}{1023} \in [0, 1].
+\end{equation}
+
+\subsubsection{Time Reversal}
+Time reversal reflects the signal about the vertical axis by replacing $t$ with $-t$:
+\begin{equation}
+    y(t) = x(-t).
+\end{equation}
+For a causal signal (one that is identically zero for $t < 0$), time reversal produces a signal that is nonzero only for $t \leq 0$---a non-causal output. Exact continuous-time reversal is therefore physically non-realizable in real time; however, it is \emph{exactly} implementable on a finite-duration buffered waveform stored in memory, which is precisely how the Arduino LUT approach realizes it.
+
+\subsubsection{Combined Transformations and Order of Operations}
+Transformations can be composed. The general affine time transformation is:
+\begin{equation}
+    y(t) = B \cdot x(at - t_0),
+    \label{eq:combined}
+\end{equation}
+where $B$ is the amplitude scale, $a$ is the time scale factor (compression if $|a|>1$, expansion if $|a|<1$, reversal if $a = -1$), and $t_0$ is the time shift applied \emph{after} time scaling. \textbf{Order of operations matters}: time scaling and shifting do not commute unless the argument is rewritten carefully. In this laboratory $a = \pm 1$ only (no compression or expansion), so the combined form reduces to:
+\begin{equation}
+    y(t) = B \cdot x(\pm\, t - t_0).
+\end{equation}
+
+\subsection{Discrete-Time Analogues and MATLAB Operators}
+
+When the base signal is stored as a finite-length vector $\mathbf{x} = [x[0],\; x[1],\; \ldots,\; x[N-1]]$ of $N$ samples at sampling period $T_s$, the continuous-time transformations map to exact array operations:
+
+\begin{table}[H]
+    \centering
+    \caption{Continuous-Time Transformations and Their Discrete-Time MATLAB Counterparts}
+    \label{tab:transforms}
+    \begin{tabularx}{\linewidth}{l l X}
+    \toprule
+    \textbf{Transformation} & \textbf{CT Expression} & \textbf{MATLAB Discrete Equivalent}\\
+    \midrule
+    Time shift ($k$ samples) & $x(t - kT_s)$ & \texttt{circshift(x, k)} \\
+    Amplitude scale by $B$   & $B \cdot x(t)$ & \texttt{B * x} \\
+    Time reversal            & $x(-t)$        & \texttt{fliplr(x)} \\
+    Shift then scale         & $B \cdot x(t - kT_s)$ & \texttt{B * circshift(x, k)} \\
+    Reversal then shift      & $x(-t - t_0)$  & \texttt{circshift(fliplr(x), k)} \\
+    Combined                 & $B \cdot x(-t - t_0)$ & \texttt{B * circshift(fliplr(x), k)} \\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\noindent\textbf{Important:} \texttt{circshift} implements a \emph{circular} shift---samples that shift off one end of the array reappear at the other end. This is exact only when the signal is periodic with period $NT_s$. For non-periodic or transient signals, a boundary wrap-around artifact will appear; documenting, explaining, and proposing a mitigation for this artifact is part of the post-lab analysis.
+
+\subsection{Exponential and Sinusoidal Signals}
+
+The two canonical signal families used as base signals in this laboratory are:
+
+\subsubsection{Real Exponential Signals}
+\begin{equation}
+    x(t) = A e^{\alpha t}, \qquad A,\, \alpha \in \mathbb{R}.
+\end{equation}
+The sign of $\alpha$ determines the qualitative behavior: $\alpha < 0$ gives a \emph{decaying} (stable) exponential; $\alpha > 0$ gives a \emph{growing} (unstable) one. The \emph{time constant} $\tau = 1/|\alpha|$ is the time required for the amplitude to fall to $e^{-1} \approx 36.8\%$ of its initial value (for a decaying exponential) or to grow to $e^{1} \approx 271.8\%$ (for a growing one). In hardware, $\alpha$ is set by the LUT pre-computation parameters assigned by your TA.
+
+\subsubsection{Sinusoidal Signals}
+\begin{equation}
+    x(t) = A\cos(\omega_0 t + \phi), \qquad \omega_0 = 2\pi f_0.
+\end{equation}
+The three defining parameters are: amplitude $A$ (V), angular frequency $\omega_0$ (rad/s), and initial phase $\phi$ (rad). Note that a pure sinusoid is neither causal nor finite-energy---it is an idealized infinite-duration signal. In hardware it is always windowed to a finite duration equal to one LUT period.
+
+\subsubsection{Damped Sinusoidal Signals}
+The damped sinusoid combines the exponential envelope with sinusoidal oscillation and arises naturally as the free response of any underdamped second-order linear system:
+\begin{equation}
+    x(t) = A e^{-\alpha t}\cos(\omega_0 t + \phi), \qquad \alpha > 0.
+    \label{eq:damped_sine}
+\end{equation}
+The time constant $\tau = 1/\alpha$ governs the envelope decay, while $\omega_0$ governs the oscillation rate. These two parameters are independently controllable in firmware, making this waveform particularly instructive for studying transformation effects.
+
+\subsection{Unit Impulse and Unit Step Functions}
+
+The unit impulse $\delta(t)$ and unit step $u(t)$ are the two foundational singularity functions in signals and systems theory. While not directly output by the Arduino in this laboratory, their mathematical properties underpin the interpretation of every hardware measurement.
+
+\subsubsection{Unit Impulse (Dirac Delta)}
+\begin{equation}
+    \delta(t) \triangleq \begin{cases} \infty, & t = 0 \\ 0, & t \neq 0 \end{cases}, \qquad \int_{-\infty}^{\infty} \delta(t)\, dt = 1.
+\end{equation}
+The impulse is rigorously defined by its \emph{sifting property}: for any signal $x(t)$ continuous at $t = t_0$,
+\begin{equation}
+    \int_{-\infty}^{\infty} x(t)\,\delta(t - t_0)\, dt = x(t_0).
+    \label{eq:sifting}
+\end{equation}
+Its discrete-time counterpart, the Kronecker delta, is directly representable in memory:
+\begin{equation}
+    \delta[n] = \begin{cases} 1, & n = 0 \\ 0, & n \neq 0. \end{cases}
+\end{equation}
+In MATLAB, a Kronecker delta of length $N$ centered at sample $k$ is simply:
+\begin{verbatim}
+    d = zeros(1, N);  d(k+1) = 1;   % MATLAB indexing starts at 1
+\end{verbatim}
+
+\subsubsection{Unit Step Function}
+\begin{equation}
+    u(t) = \begin{cases} 1, & t \geq 0 \\ 0, & t < 0 \end{cases}, \qquad u(t) = \int_{-\infty}^{t} \delta(\tau)\, d\tau.
+    \label{eq:step}
+\end{equation}
+The step function acts as a \emph{causal window}: multiplying any signal $x(t)$ by $u(t - t_0)$ zeroes it out for $t < t_0$, modeling the physical action of turning on a source at time $t_0$. Its discrete counterpart is:
+\begin{equation}
+    u[n] = \begin{cases} 1, & n \geq 0 \\ 0, & n < 0. \end{cases}
+\end{equation}
+The fundamental calculus relationship between the two singularity functions,
+\begin{equation}
+    \delta(t) = \frac{d}{dt}\,u(t) \qquad \text{and} \qquad u(t) = \int_{-\infty}^{t} \delta(\tau)\, d\tau,
+    \label{eq:delta_step_relation}
+\end{equation}
+will recur throughout the course when analyzing LTI system impulse and step responses.
+
+\section{Pre-Lab Assignment}
+Provide rigorous mathematical derivations and supporting sketches for the following problems. \textbf{Your assigned base signal parameters are listed in Table~\ref{tab:assigned_params}, which your TA will fill in at the start of the laboratory session. Do not proceed with pre-lab work until you have received your seed.}
+
+\begin{table}[H]
+    \centering
+    \caption{TA-Assigned Base Signal Parameters \quad (Random Seed: \underline{\hspace{2cm}})}
+    \label{tab:assigned_params}
+    \begin{tabularx}{\linewidth}{l X l}
+    \toprule
+    \textbf{Parameter} & \textbf{Description} & \textbf{Assigned Value}\\
+    \midrule
+    $A$           & Base signal amplitude (V)                              & \underline{\hspace{2.5cm}}\\
+    $f_0$         & Fundamental frequency (Hz)                             & \underline{\hspace{2.5cm}}\\
+    $\phi$        & Initial phase (rad)                                    & \underline{\hspace{2.5cm}}\\
+    $\alpha$      & Exponential decay rate (s$^{-1}$), if applicable       & \underline{\hspace{2.5cm}}\\
+    Signal Type   & Sinusoidal / Exponential / Damped Sinusoidal           & \underline{\hspace{2.5cm}}\\
+    $t_0$         & Time shift duration (ms)                               & \underline{\hspace{2.5cm}}\\
+    $B$           & Amplitude scale factor (potentiometer target ratio)    & \underline{\hspace{2.5cm}}\\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\begin{enumerate}
+    \item \pldECE{Analytical Transformation Derivations:} Using your TA-assigned base signal $x(t)$ (closed-form expression), derive algebraic expressions for the four transformed signals below. Show all intermediate steps, and for each result explicitly state the effect on (a)~amplitude, (b)~frequency or time constant, (c)~initial phase, and (d)~causality.
+    \begin{enumerate}
+        \item Time-shifted signal: $y_1(t) = x(t - t_0)$
+        \item Amplitude-scaled signal: $y_2(t) = B \cdot x(t)$
+        \item Time-reversed signal: $y_3(t) = x(-t)$
+        \item Combined transformation: $y_4(t) = B \cdot x(-t - t_0)$
+    \end{enumerate}
+
+    \item \pldECE{Predicted Waveform Sketches:} On a single set of labeled axes spanning at least $3/f_0$ seconds, sketch all five waveforms $x(t)$, $y_1(t)$, $y_2(t)$, $y_3(t)$, and $y_4(t)$ with accurate amplitudes and periods. Mark the time shift $t_0$ with a labeled arrow. Use different line styles (solid, dashed, dotted, etc.) to distinguish each signal and include a legend.
+
+    \item \pldECE{MATLAB Operator Mapping:} Write the exact MATLAB expressions (using \texttt{circshift}, \texttt{fliplr}, and scalar operations) that implement transformations $y_1$ through $y_4$ on a discrete vector \texttt{x} of length $N = 512$ sampled at $T_s = 1/(256\,f_0)$. Compute the integer shift depth $k = \lfloor t_0 / T_s \rfloor$ numerically for your assigned $t_0$ and $f_0$, and state its value explicitly.
+
+    \item \pldECE{Unit Step Windowing Analysis:} Express the signal $x_w(t) = x(t) \cdot u(t - t_0)$ using your assigned base signal $x(t)$. Sketch $x_w(t)$, label the onset time $t_0$, and in one paragraph explain the physical significance of this operation in the context of \emph{causal signal processing}.
+\end{enumerate}
+
+\clearpage
+
+\section{Equipment \& Setup}
+
+Table~\ref{tab:equipment} lists the hardware and software required for this laboratory session.
+
+\begin{table}[H]
+    \centering
+    \caption{Hardware and DAQ Software Requirements}
+    \label{tab:equipment}
+    \begin{tabularx}{\linewidth}{l X}
+    \toprule
+    \textbf{Classification} & \textbf{Required Tooling/Resources}\\
+    \midrule
+    \textbf{Compute System}      & Arduino Microcontroller (Uno or equivalent), Standard USB A-to-B Serial bus.\\
+    \textbf{Analog Control}      & Prototyping Breadboard, $10\,\text{k}\Omega$ Linear-Taper Potentiometer, Jumper wires.\\
+    \textbf{Bench Instrumentation} & High-resolution Dual-Channel Digital Oscilloscope or ADALM2000 hardware suite.\\
+    \textbf{IDE \& Processing}   & Arduino Studio IDE (C++ deployment), MATLAB (Serial Acquisition and Signal Processing Toolboxes).\\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \caption{Visual Reference of Key Equipment}
+    \label{tab:equipment_photos}
+    \begin{tabular}{ccc}
+        \textbf{Arduino Uno} & \textbf{Potentiometer ($10\,\text{k}\Omega$)} & \textbf{Dual-Channel Oscilloscope} \\
+        \includegraphics[width=0.3\textwidth]{assets/arduino mega_fixed.jpg} &
+        \includegraphics[width=0.3\textwidth]{assets/pot10k.png} &
+        \includegraphics[width=0.3\textwidth]{assets/osciloscope Agilent DSOX3012A.jpg} \\
+        \textbf{Breadboard} & \textbf{MATLAB Interface} & \textbf{USB Cable} \\
+        \includegraphics[width=0.3\textwidth]{assets/breadboard.jpg} &
+        \includegraphics[width=0.3\textwidth]{assets/matlab.png} &
+        \includegraphics[width=0.3\textwidth]{assets/cable.jpg} \\
+    \end{tabular}
+\end{table}
+
+\subsection{Potentiometer Wiring and Gain Calculation}
+
+The $10\,\text{k}\Omega$ potentiometer is configured as a variable voltage divider between the Arduino's $5\,\text{V}$ supply rail and ground. The wiper (center pin) connects to Arduino analog input \texttt{A1}, providing a continuously variable control voltage $V_{\text{pot}} \in [0,\, 5]\,\text{V}$. The normalized gain read by the firmware is:
+\begin{equation}
+    B_{\text{hw}} = \frac{\text{analogRead(A1)}}{1023} \in [0,\, 1].
+    \label{eq:pot_gain}
+\end{equation}
+
+\begin{figure}[H]
+    \centering
+    \vspace{0.2in}
+    \fbox{\parbox{0.85\textwidth}{\centering
+        \textbf{Potentiometer Wiring Diagram Placeholder}\\[0.5cm]
+        \small{Pin 1 (left terminal) $\;\rightarrow\;$ Arduino 5V}\\
+        \small{Pin 2 (wiper / center) $\;\rightarrow\;$ Arduino A1}\\
+        \small{Pin 3 (right terminal) $\;\rightarrow\;$ Arduino GND}\\[0.3cm]
+        \small{RC filter output (from Lab~1) $\;\rightarrow\;$ Arduino A0 (base signal acquisition)}
+    }}
+    \vspace{0.2in}
+    \caption{Potentiometer configured as a gain controller. The wiper voltage is read by \texttt{analogRead(A1)} and used to multiply the buffered signal amplitude in real time.}
+    \label{fig:pot_schematic}
+\end{figure}
+
+\clearpage
+
+\section{Laboratory Procedure}
+
+\subsection{Submission Evidence Map}
+Use this map while working to keep your report organized and complete.
+
+\begin{table}[H]
+    \centering
+    \caption{Required Student Evidence by Procedure Step}
+    \begin{tabularx}{\linewidth}{l l X}
+    \toprule
+    \textbf{Step} & \textbf{Evidence Type} & \textbf{What must be visible}\\
+    \midrule
+    1.1 & Oscilloscope photo & Base waveform, time/div, volts/div, measured frequency/amplitude, handwritten name/ID.\\
+    1.2 & MATLAB screenshot & 512-sample base signal plot with labeled axes and title.\\
+    2.1 & Dual-channel scope photo & Scaled vs original signals with annotated measured gain ratio.\\
+    2.2 & Dual-channel scope photo & Original vs delayed signal with cursor-measured delay annotation.\\
+    2.3 & Dual-channel scope photo & Original vs reversed signal, annotated distinguishing feature.\\
+    2.4 & Dual-channel scope photo & Original vs combined transform with amplitude ratio and shift annotations.\\
+    3.1 & MATLAB screenshots & Five acquired signals: $x$, $y_1$, $y_2$, $y_3$, $y_4$.\\
+    3.2 & MATLAB screenshots & Four overlay plots (base, measured, predicted).\\
+    3.3 & MATLAB output/table & NRMSE values for all four transformations.\\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection{Phase 1: Base Signal Generation and Dual-Channel Acquisition}
+
+\subsubsection{Step 1.1: Load the TA-Assigned Base Signal}
+\cpECE{Base Signal Verification:} Program your Arduino with the TA-provided seed parameters to generate your unique base signal. Verify the output on Channel~1 of the oscilloscope before proceeding to any transformation steps.
+
+\textbf{Procedure:}
+\begin{enumerate}
+    \item In MATLAB, run the LUT pre-computation script (Figure~\ref{fig:matlab_lut_gen}) using your TA-assigned parameters. Copy the printed LUT array into the Arduino sketch template.
+    \item Flash the Arduino. Connect the RC-filtered PWM output to both oscilloscope Channel~1 and Arduino \texttt{A0}.
+    \item Verify the oscilloscope displays the correct waveform morphology (sinusoidal, exponential, or damped sinusoidal), with frequency $f_0 \pm 5\%$ and amplitude $A \pm 5\%$.
+    \item Record the measured frequency and peak-to-peak amplitude in your lab notebook.
+\end{enumerate}
+
+\delECE{Submit an oscilloscope screenshot of the base signal. The image must show: (a)~measured frequency readout, (b)~measured peak-to-peak amplitude, (c)~time/div and volts/div settings, and (d)~your \textbf{handwritten name and student ID} visible in the frame. This is your primary authenticity proof.}
+
+\evidencebox{2.2in}{STUDENT EVIDENCE PLACEHOLDER (Step 1.1): Base-signal oscilloscope screenshot with name/ID visible}
+
+\begin{figure}[H]
+    \centering
+    \vspace{0.3in}
+    \textbf{REFERENCE --- MATLAB LUT Pre-Computation from TA Seed:}
+    \begin{verbatim}
+    % Run in MATLAB before the lab session. Paste the printed LUT into Arduino.
+
+    rng(ASSIGNED_SEED);          % <-- replace with your TA-assigned integer seed
+    N    = 256;
+    f0   = ASSIGNED_F0;          % Hz
+    A    = ASSIGNED_A;           % V
+    phi  = ASSIGNED_PHI;         % rad
+    alph = ASSIGNED_ALPHA;       % s^-1 (set 0 for pure sinusoidal)
+
+    t    = linspace(0, 1/f0, N+1);
+    t    = t(1:N);               % one period, N samples, exclude endpoint
+
+    % Select signal type based on TA assignment:
+    % Sinusoidal:       x = A * cos(2*pi*f0*t + phi);
+    % Exponential:      x = A * exp(alph * t);   (alph < 0 for decay)
+    % Damped sinusoid:  x = A * exp(-alph*t) .* cos(2*pi*f0*t + phi);
+
+    x      = A * exp(-alph * t) .* cos(2*pi*f0*t + phi);  % edit as needed
+    x_norm = (x - min(x)) ./ (max(x) - min(x));           % normalize to [0, 1]
+    lut    = uint8(round(x_norm * 255));                   % 8-bit DAC range
+
+    % Print array for copy-paste into Arduino sketch
+    fprintf('const byte lut[256] PROGMEM = {');
+    fprintf('%d, ', lut(1:end-1));
+    fprintf('%d};\n', lut(end));
+    \end{verbatim}
+    \vspace{0.2in}
+    \caption{REFERENCE MATLAB LUT generator. Replace all \texttt{ASSIGNED\_*} placeholders with your TA-assigned values. The printed array is pasted verbatim into the Arduino sketch.}
+    \label{fig:matlab_lut_gen}
+\end{figure}
+
+\subsubsection{Step 1.2: Acquire the Base Signal into MATLAB}
+\cpECE{MATLAB Base Signal Acquisition:} Acquire 512 contiguous samples of the base signal via UART serial at baud rate 115200 and produce a calibrated voltage-versus-time plot.
+
+\textbf{Procedure:}
+Configure the Arduino to transmit \texttt{analogRead(A0)} values at your assigned sampling rate $f_s = 256\,f_0$. Run the MATLAB acquisition script in Figure~\ref{fig:matlab_acq} to collect the base signal vector \texttt{x\_hw}.
+
+\delECE{Submit a MATLAB figure of the acquired base signal \texttt{x\_hw} with: correct time axis in milliseconds, voltage axis in volts, grid enabled, and a descriptive title. Confirm visually that the MATLAB waveform matches the oscilloscope capture from Step~1.1.}
+
+\evidencebox{2.0in}{STUDENT EVIDENCE PLACEHOLDER (Step 1.2): MATLAB base-signal plot screenshot}
+
+\begin{figure}[H]
+    \centering
+    \vspace{0.3in}
+    \textbf{REFERENCE --- MATLAB Serial Acquisition Script:}
+    \begin{verbatim}
+    clear; clc;
+    %--- Serial setup ---
+    port = 'COM3';          % change to match your system
+    baud = 115200;
+    f0   = ASSIGNED_F0;     % Hz -- your TA-assigned frequency
+
+    s = serialport(port, baud);
+    configureTerminator(s, "CR/LF");
+
+    %--- Acquire 512 samples ---
+    N   = 512;
+    raw = zeros(N, 1);
+    for k = 1:N
+        raw(k) = str2double(readline(s));
+    end
+    clear s;
+
+    %--- Convert ADC counts to voltage ---
+    x_hw = (raw / 1023) * 5.0;        % volts
+    Ts   = 1 / (256 * f0);            % sampling period (s)
+    t    = (0:N-1) * Ts;              % time axis (s)
+
+    %--- Plot ---
+    figure('Position', [100 100 850 400]);
+    plot(t*1e3, x_hw, 'b-', 'LineWidth', 1.5);
+    xlabel('Time (ms)', 'FontSize', 12);
+    ylabel('Voltage (V)', 'FontSize', 12);
+    title('Base Signal x_{hw}[n] -- Acquired from Arduino', 'FontSize', 14);
+    grid on;
+    ylim([0 5.5]);
+    \end{verbatim}
+    \vspace{0.2in}
+    \caption{REFERENCE acquisition script. Modify \texttt{port} and \texttt{ASSIGNED\_F0} to match your setup.}
+    \label{fig:matlab_acq}
+\end{figure}
+
+\disECE{Compare the oscilloscope capture (Step~1.1) with the MATLAB plot (Step~1.2). Identify and quantify discrepancies in frequency, amplitude, and waveform morphology. Compute the amplitude percent error $\varepsilon_A = |A_{\text{scope}} - A_{\text{MATLAB}}|\,/\,A_{\text{scope}} \times 100\%$ and propose the dominant physical cause.}
+
+\clearpage
+
+\subsection{Phase 2: Hardware Implementation of Signal Transformations}
+
+\subsubsection{Step 2.1: Amplitude Scaling via Potentiometer}
+\cpECE{Potentiometer Gain Stage:} Wire the $10\,\text{k}\Omega$ potentiometer as described in Section~5 and implement firmware that multiplies the LUT output by the normalized potentiometer reading in real time.
+
+\textbf{Procedure:}
+\begin{enumerate}
+    \item Wire the potentiometer to \texttt{A1} per the schematic in Figure~\ref{fig:pot_schematic}.
+    \item Modify the Arduino ISR to apply the gain: \texttt{out\_val = (pot / 1023.0) * lut\_val} (see Figure~\ref{fig:ard_scale} for the complete reference ISR).
+    \item Adjust the potentiometer until the oscilloscope measures $B \cdot A$ on Channel~1. Simultaneously display the unscaled reference (original signal) on Channel~2.
+    \item Confirm the amplitude ratio matches your TA-assigned $B$ to within $10\%$.
+\end{enumerate}
+
+\delECE{Submit a dual-channel oscilloscope screenshot with Channel~1 showing the scaled signal $y_2(t) = B\cdot x(t)$ and Channel~2 showing the original $x(t)$. Annotate the measured amplitudes of both channels and the computed ratio $B_{\text{meas}} = A_{\text{Ch1}} / A_{\text{Ch2}}$.}
+
+\evidencebox{2.2in}{STUDENT EVIDENCE PLACEHOLDER (Step 2.1): Scope capture for amplitude scaling}
+
+\begin{figure}[H]
+    \centering
+    \vspace{0.3in}
+    \textbf{REFERENCE --- Arduino Amplitude-Scaling ISR:}
+    \begin{verbatim}
+    #define PWM_PIN  3                   // original signal output
+
+    volatile byte  lut_idx = 0;
+    volatile float gain    = 0.5f;       // updated in loop() from A1 reading
+    const    byte  lut[256] PROGMEM = { /* paste your TA LUT here */ };
+
+    // ISR: called by Timer1 at rate f_s = 256 * f0
+    ISR(TIMER1_COMPA_vect) {
+      byte lut_val = pgm_read_byte(&lut[lut_idx]);
+      byte out_val = (byte)(gain * lut_val);   // apply gain
+      analogWrite(PWM_PIN, out_val);
+      lut_idx = (lut_idx + 1) & 0xFF;         // increment and wrap (0..255)
+    }
+
+    void loop() {
+      // Read potentiometer outside ISR to avoid blocking interrupt timing
+      gain = analogRead(A1) / 1023.0f;
+      // Note: 'gain' must be declared volatile for ISR-safe sharing
+    }
+    \end{verbatim}
+    \vspace{0.2in}
+    \caption{REFERENCE ISR for potentiometer-controlled amplitude scaling. The \texttt{gain} variable is updated asynchronously in \texttt{loop()} to avoid extending ISR execution time.}
+    \label{fig:ard_scale}
+\end{figure}
+
+\disECE{The reference code reads the potentiometer in \texttt{loop()} rather than inside the ISR. Explain why placing \texttt{analogRead(A1)} inside the ISR would introduce a timing hazard. What C++ storage qualifier must the shared variable \texttt{gain} carry, and what does that qualifier instruct the compiler to do differently? How does this prevent a subtle race condition between the main code and the ISR?}
+
+\subsubsection{Step 2.2: Time Shift via Circular Sample Buffer}
+\cpECE{Time-Shift Buffer:} Implement a $k$-sample circular FIFO delay buffer in firmware to produce the time-shifted signal $y_1[n] = x[n - k]$.
+
+\textbf{Procedure:}
+\begin{enumerate}
+    \item Compute the buffer depth: $k = \lfloor t_0 / T_s \rfloor$, where $T_s = 1/(256\,f_0)$ seconds. Verify this matches your pre-lab value.
+    \item Implement the circular FIFO buffer (Figure~\ref{fig:ard_delay}). Set \texttt{K\_DELAY} to your computed $k$.
+    \item Output the original signal on \texttt{PWM\_PIN} and the delayed signal on \texttt{PWM\_PIN\_DELAYED}. Capture both simultaneously on the dual-channel oscilloscope.
+    \item Use the oscilloscope's cursor or automatic measurement tool to quantify the time between corresponding features (e.g., zero-crossings or peaks) on the two channels.
+\end{enumerate}
+
+\delECE{Submit a dual-channel oscilloscope screenshot with Channel~1 showing $x(t)$ and Channel~2 showing $y_1(t) = x(t-t_0)$. Using cursors, measure and annotate the delay between corresponding zero-crossings or peaks. Compare to your pre-lab predicted $t_0$.}
+
+\evidencebox{2.2in}{STUDENT EVIDENCE PLACEHOLDER (Step 2.2): Scope capture for time shift with cursor delay annotation}
+
+\begin{figure}[H]
+    \centering
+    \vspace{0.3in}
+    \textbf{REFERENCE --- Circular Delay Buffer (Arduino):}
+    \begin{verbatim}
+    #define PWM_PIN         3      // original
+    #define PWM_PIN_DELAYED 5      // delayed -- use second PWM-capable pin
+    #define K_DELAY         26     // buffer depth = floor(t0 / Ts); set your value
+
+    volatile byte circ_buf[K_DELAY];
+    volatile byte buf_head = 0;
+
+    ISR(TIMER1_COMPA_vect) {
+      byte lut_val = pgm_read_byte(&lut[lut_idx]);
+
+      // FIFO: read the oldest sample (delayed output), then overwrite it
+      byte delayed_val   = circ_buf[buf_head];
+      circ_buf[buf_head] = lut_val;
+      buf_head           = (buf_head + 1) % K_DELAY;
+
+      analogWrite(PWM_PIN,         lut_val);      // original x[n]
+      analogWrite(PWM_PIN_DELAYED, delayed_val);  // shifted  x[n-k]
+
+      lut_idx = (lut_idx + 1) & 0xFF;
+    }
+    \end{verbatim}
+    \vspace{0.2in}
+    \caption{REFERENCE circular FIFO delay buffer. Replace \texttt{K\_DELAY} with your computed shift depth $k$.}
+    \label{fig:ard_delay}
+\end{figure}
+
+\disECE{For a sinusoidal base signal $x(t) = A\cos(2\pi f_0 t)$, show algebraically that a time delay $t_0 = 1/(4f_0)$ is exactly equivalent to a phase shift of $-\pi/2$ radians (quarter-period lag). Does this equivalence hold for a non-sinusoidal signal such as the decaying exponential $x(t) = Ae^{-\alpha t}$? Justify your answer rigorously in terms of the definition of ``phase.'' Why is phase a concept that applies to sinusoidal signals specifically?}
+
+\subsubsection{Step 2.3: Time Reversal via Reversed LUT Indexing}
+\cpECE{Time Reversal Implementation:} Implement time reversal by decrementing the LUT index rather than incrementing it, effectively reading the stored waveform backwards in time.
+
+\textbf{Procedure:}
+\begin{enumerate}
+    \item Modify the ISR to traverse the LUT in reverse: decrement \texttt{rev\_idx} each tick, wrapping at 0 back to 255 (see Figure~\ref{fig:ard_reverse}).
+    \item Output the forward signal on \texttt{PWM\_PIN} and the reversed signal on \texttt{PWM\_PIN\_REV}.
+    \item Capture both channels on the oscilloscope.
+    \item Describe qualitatively how the reversed waveform differs from the original. For a symmetric base signal (e.g., a zero-phase cosine), explain what you expect to see.
+\end{enumerate}
+
+\delECE{Submit a dual-channel oscilloscope screenshot with Channel~1 showing $x(t)$ and Channel~2 showing $y_3(t) = x(-t)$. For an asymmetric waveform (e.g., a damped sinusoidal), annotate the key visual feature that distinguishes the reversed signal from the original.}
+
+\evidencebox{2.2in}{STUDENT EVIDENCE PLACEHOLDER (Step 2.3): Scope capture for time reversal}
+
+\begin{figure}[H]
+    \centering
+    \vspace{0.3in}
+    \textbf{REFERENCE --- Reversed LUT Indexing ISR:}
+    \begin{verbatim}
+    #define PWM_PIN      3
+    #define PWM_PIN_REV  5
+
+    volatile byte fwd_idx = 0;
+    volatile byte rev_idx = 255;   // start at last sample of LUT
+
+    ISR(TIMER1_COMPA_vect) {
+      byte orig_val = pgm_read_byte(&lut[fwd_idx]);   // forward:  x[n]
+      byte rev_val  = pgm_read_byte(&lut[rev_idx]);   // reversed: x[-n]
+
+      analogWrite(PWM_PIN,     orig_val);
+      analogWrite(PWM_PIN_REV, rev_val);
+
+      fwd_idx = (fwd_idx + 1) & 0xFF;          // increment with wrap
+      rev_idx = (rev_idx - 1 + 256) & 0xFF;    // decrement with wrap
+    }
+    \end{verbatim}
+    \vspace{0.2in}
+    \caption{REFERENCE reversed-index ISR. Both the forward and time-reversed signals are output simultaneously, enabling direct dual-channel oscilloscope comparison.}
+    \label{fig:ard_reverse}
+\end{figure}
+
+\disECE{Under what conditions on $x(t)$ does $x(-t) = x(t)$? This property defines an \emph{even} function. Under what conditions does $x(-t) = -x(t)$? This defines an \emph{odd} function. Determine analytically whether your assigned base signal is even, odd, or neither, and explain what the dual-channel oscilloscope display should look like in each case.}
+
+\subsubsection{Step 2.4: Combined Transformation --- Reversal, Shift, and Scale}
+\cpECE{Combined Transformation Verification:} Implement $y_4(t) = B \cdot x(-t - t_0)$ in firmware by composing the three individual transformations from Steps~2.1--2.3. Verify the result against your pre-lab prediction.
+
+\textbf{Procedure:}
+\begin{enumerate}
+    \item Integrate the reversed LUT index (Step~2.3), the circular delay buffer (Step~2.2), and the potentiometer gain (Step~2.1) into a single ISR.
+    \item Output $x(t)$ on Channel~1 and $y_4(t)$ on Channel~2 of the oscilloscope.
+    \item Set the potentiometer to the TA-assigned $B$ value.
+    \item Compare the oscilloscope output qualitatively and quantitatively to your pre-lab sketch of $y_4(t)$.
+\end{enumerate}
+
+\delECE{Submit a dual-channel oscilloscope screenshot of $x(t)$ (Ch.~1) versus $y_4(t) = B\cdot x(-t-t_0)$ (Ch.~2). Annotate: (a)~measured amplitude ratio $B_{\text{meas}}$, (b)~measured time offset between corresponding features, and (c)~whether the reversed morphology matches your pre-lab sketch.}
+
+\evidencebox{2.2in}{STUDENT EVIDENCE PLACEHOLDER (Step 2.4): Scope capture for combined transformation}
+
+\clearpage
+
+\subsection{Phase 3: MATLAB Verification and Predicted vs.\ Measured Overlay}
+
+\subsubsection{Step 3.1: Acquire All Transformed Signals into MATLAB}
+\cpECE{Full Transformation Acquisition:} Acquire 512-sample MATLAB vectors for each of the four transformed signals $y_1[n]$ through $y_4[n]$. Each signal should be acquired with the Arduino running the corresponding transformation from Phase~2.
+
+\delECE{Submit MATLAB figures for all five signals ($x$, $y_1$, $y_2$, $y_3$, $y_4$), each with: time axis in milliseconds, voltage axis in volts, grid enabled, and a descriptive title identifying the transformation and your assigned parameters.}
+
+\evidencebox{2.0in}{STUDENT EVIDENCE PLACEHOLDER (Step 3.1): MATLAB screenshots for all acquired transformed signals}
+
+\subsubsection{Step 3.2: Predicted vs.\ Measured Overlay Plots}
+\delECE{For each of the four transformations, produce a single MATLAB figure that overlays three signals: (1)~the base signal \texttt{x\_hw} (blue solid), (2)~the hardware-acquired transformation \texttt{y\_meas} (red dashed), and (3)~the MATLAB-predicted transformation \texttt{y\_pred} computed from Table~\ref{tab:transforms} (black dotted). Include a legend identifying all three traces. See Figure~\ref{fig:matlab_overlay} for the reference overlay template.}
+
+\evidencebox{2.0in}{STUDENT EVIDENCE PLACEHOLDER (Step 3.2): MATLAB overlay screenshots for $y_1$ through $y_4$}
+
+\begin{figure}[H]
+    \centering
+    \vspace{0.3in}
+    \textbf{REFERENCE --- MATLAB Overlay: Measured Hardware vs.\ Predicted Theory:}
+    \begin{verbatim}
+    % Assumes x_hw, Ts, t, and assigned parameters are already in workspace
+    k      = floor(t0_s / Ts);         % shift depth (integer samples)
+    B_val  = ASSIGNED_B;               % potentiometer target gain
+
+    % Predicted transformations from base vector
+    y1_pred = circshift(x_hw, k);               % time shift
+    y2_pred = B_val * x_hw;                     % amplitude scale
+    y3_pred = fliplr(x_hw);                     % time reversal
+    y4_pred = B_val * circshift(fliplr(x_hw), k);  % combined
+
+    % -- Example: Time Shift Overlay --
+    figure('Position', [100 100 900 430]);
+    plot(t*1e3, x_hw,   'b-',  'LineWidth', 1.5, 'DisplayName', 'x_{hw} (base)');
+    hold on;
+    plot(t*1e3, y1_meas,'r--', 'LineWidth', 1.5, 'DisplayName', 'y_1 (hardware)');
+    plot(t*1e3, y1_pred,'k:',  'LineWidth', 2.0, ...
+         'DisplayName', sprintf('y_1 = circshift(x,%d) (predicted)', k));
+    xlabel('Time (ms)', 'FontSize', 12);
+    ylabel('Voltage (V)', 'FontSize', 12);
+    title(sprintf('Time Shift Verification: t_0 = %.1f ms', t0_s*1e3), ...
+          'FontSize', 14);
+    legend('Location', 'best');  grid on;
+
+    % Repeat the same overlay structure for y2_pred, y3_pred, y4_pred
+    \end{verbatim}
+    \vspace{0.2in}
+    \caption{REFERENCE overlay template for the time-shift verification. Replicate this structure for $y_2$, $y_3$, and $y_4$.}
+    \label{fig:matlab_overlay}
+\end{figure}
+
+\subsubsection{Step 3.3: Residual Error Quantification}
+\delECE{For each of the four transformations, compute the Normalized Root Mean Square Error (NRMSE) between the hardware-acquired signal and the MATLAB-predicted signal:}
+\begin{equation}
+    \text{NRMSE}(\%) = \frac{\displaystyle\sqrt{\frac{1}{N}\sum_{n=0}^{N-1}\bigl(y_{\text{hw}}[n] - y_{\text{pred}}[n]\bigr)^2}}{\max(y_{\text{pred}}) - \min(y_{\text{pred}})} \times 100\%.
+    \label{eq:nrmse}
+\end{equation}
+
+\begin{verbatim}
+    % MATLAB NRMSE calculation
+    nrmse = @(hw, pred) rms(hw(:) - pred(:)) / (max(pred) - min(pred)) * 100;
+    fprintf('Time Shift    NRMSE: %.2f%%\n', nrmse(y1_meas, y1_pred));
+    fprintf('Ampl. Scale   NRMSE: %.2f%%\n', nrmse(y2_meas, y2_pred));
+    fprintf('Time Reversal NRMSE: %.2f%%\n', nrmse(y3_meas, y3_pred));
+    fprintf('Combined      NRMSE: %.2f%%\n', nrmse(y4_meas, y4_pred));
+\end{verbatim}
+
+\evidencebox{1.7in}{STUDENT EVIDENCE PLACEHOLDER (Step 3.3): NRMSE output table or MATLAB command-window screenshot}
+
+\disECE{Which of the four transformations yields the largest NRMSE? Propose and justify at least two distinct physical or algorithmic mechanisms that cause the hardware output to deviate from the MATLAB prediction. Distinguish between errors that are \emph{systematic} (biased, repeatable) versus \emph{random} (stochastic, non-repeatable) and state how you would characterize each from the available data.}
+
+\clearpage
+
+\section{Data Analysis}
+
+\subsection{Analysis Step 1: Pre-Lab Sketch vs.\ Hardware vs.\ MATLAB Comparison}
+\disECE{For each of the four transformations, compare your pre-lab hand-sketch against the oscilloscope capture and the MATLAB-measured signal. Create a completed version of Table~\ref{tab:summary} and identify which domain shows the largest deviation from the theoretical prediction. Explain the primary source of discrepancy in each case.}
+
+\begin{table}[H]
+    \centering
+    \caption{Transformation Summary Table (complete in your report)}
+    \label{tab:summary}
+    \begin{tabularx}{\linewidth}{l X X X}
+    \toprule
+    \textbf{Parameter} & \textbf{Theoretical (Pre-Lab)} & \textbf{Hardware Measured} & \textbf{\% Error}\\
+    \midrule
+    Base amplitude $A$ (V)               & & & \\
+    Base frequency $f_0$ (Hz)            & & & \\
+    Scaled amplitude $B\cdot A$ (V)      & & & \\
+    Measured gain ratio $B_{\text{meas}}$& & & \\
+    Time shift $t_0$ (ms)                & & & \\
+    Phase shift $\phi_0 = \omega_0 t_0$ (rad) & & & \\
+    Combined amplitude $B\cdot A$ (V)    & & & \\
+    Combined shift $t_0$ (ms)            & & & \\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection{Analysis Step 2: Signal Symmetry Classification}
+\disECE{Classify your assigned base signal $x(t)$ as even, odd, or neither. Support the classification analytically by evaluating whether $x(-t) \stackrel{?}{=} x(t)$ or $x(-t) \stackrel{?}{=} -x(t)$. Confirm visually by overlaying the MATLAB vectors \texttt{x\_hw} and \texttt{fliplr(x\_hw)} on a single plot. Any even signal should show perfect overlap; any odd signal should show perfect sign inversion.}
+
+\subsection{Analysis Step 3: \texttt{circshift} Boundary Artifact Investigation}
+\disECE{\texttt{circshift} performs a \emph{circular} shift: samples that scroll off one end of the array reappear at the other. (a)~Identify in your overlay plot where this wrap-around artifact is visible. (b)~Explain the mathematical reason it occurs. (c)~Propose a practical mitigation: describe how zero-padding the vector to length $2N$ before calling \texttt{circshift} would eliminate the artifact and demonstrate this in MATLAB with a brief code snippet.}
+
+\subsection{Analysis Step 4: Unit Step Windowing Verification}
+\disECE{Using your acquired base signal vector \texttt{x\_hw}, construct the MATLAB representation of $x_w[n] = x[n] \cdot u[n - k]$ by zeroing all samples with index $n < k$. Plot both \texttt{x\_hw} and \texttt{x\_w} on the same axes. In one paragraph, explain the connection between the unit step function, causal signal processing, and the concept of switching a signal source on at a specified time $t_0$.}
+
+\subsection{Analysis Step 5: Error Source Ranking}
+\delECE{Using the NRMSE values from Step~3.3 and the measurements in Table~\ref{tab:summary}, rank the three largest sources of error (by estimated contribution to NRMSE) from the following list: PWM quantization noise, DAC non-linearity, RC filter phase distortion, ADC quantization, UART serial transmission jitter, potentiometer contact noise, and Timer1 interrupt jitter. For each identified source, provide a one-sentence physical justification for its ranking, referencing specific numerical evidence from your measurements.}
+
+\clearpage
+
+\section{Grading Rubric}
+\textbf{Total Points: 100}
+
+\begin{table}[H]
+    \centering
+    \caption{Detailed Grading Rubric with Specific Criteria}
+    \label{tab:grading_detail}
+    \begin{tabularx}{\linewidth}{l X c}
+    \toprule
+    \textbf{Category} & \textbf{Evaluation Criteria} & \textbf{Weight}\\
+    \midrule
+    \multirow{4}{*}{\textbf{Pre-Lab (20 pts)}}
+        & PL1: Closed-form derivations for $y_1$--$y_4$ with effects on amplitude/frequency/phase/causality & 8 \\
+        & PL2: Five waveform sketches with correct axes, labels, legend, and $t_0$ arrow & 6 \\
+        & PL3: MATLAB operator expressions with correct shift depth $k$ computed numerically & 4 \\
+        & PL4: Unit step windowing derivation, sketch, and causal-processing explanation & 2 \\
+    \midrule
+    \multirow{2}{*}{\textbf{Base Signal (10 pts)}}
+        & Scope photo: name/ID visible, frequency $\leq 5\%$ error, amplitude $\leq 5\%$ error & 5 \\
+        & MATLAB acquisition plot: correct axes (ms, V), grid, descriptive title & 5 \\
+    \midrule
+    \multirow{4}{*}{\textbf{Hardware Transformations (28 pts)}}
+        & Amplitude scaling: dual-channel scope, $B_{\text{meas}}$ annotated ($\leq 10\%$ error) & 7 \\
+        & Time shift: dual-channel scope, delay measured by cursor ($\leq 10\%$ error) & 7 \\
+        & Time reversal: dual-channel scope, asymmetry feature annotated & 7 \\
+        & Combined $y_4$: scope capture, amplitude and shift both annotated vs.\ pre-lab & 7 \\
+    \midrule
+    \multirow{2}{*}{\textbf{MATLAB Verification (22 pts)}}
+        & Four overlay plots (base + hardware + predicted) with legend, axes, grid & 12 \\
+        & NRMSE table: all four values computed, reported, and interpreted & 10 \\
+    \midrule
+    \multirow{3}{*}{\textbf{Analysis (20 pts)}}
+        & Table~\ref{tab:summary} complete with \% errors and interpretation of dominant deviations & 8 \\
+        & Symmetry analysis + \texttt{circshift} boundary artifact discussion with mitigation code & 6 \\
+        & Error source ranking: three sources ranked by NRMSE evidence with physical justifications & 6 \\
+    \midrule
+    \textbf{Totals} & & \textbf{100}\\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\end{document}
