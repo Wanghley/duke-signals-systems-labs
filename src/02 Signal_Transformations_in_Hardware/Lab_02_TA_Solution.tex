@@ -1,0 +1,214 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{setspace}
+
+\setstretch{1.08}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+
+\title{ECE 280 Lab 2 -- TA Solution and Troubleshooting Manual\\Signals and Systems: Signal Transformations in Hardware}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+Use this as a fast grading and troubleshooting guide for:
+\begin{itemize}[leftmargin=1.2em]
+    \item Lab 2 manual and report template submissions
+    \item Hardware implementation of time shift, amplitude scaling, and time reversal
+    \item MATLAB verification using measured Arduino-acquired data
+\end{itemize}
+
+\section{Quick Pass/Flag Menu}
+
+\subsection*{Pass Immediately If All Are True}
+\begin{itemize}[leftmargin=1.2em]
+    \item Student shows required scope and MATLAB evidence for Steps 1.1 through 3.3.
+    \item Required screenshots include student name/ID and are legible.
+    \item Measured transformations are compared to predicted MATLAB transforms (not only raw captures).
+    \item Report includes NRMSE values for $y_1,y_2,y_3,y_4$ and discusses largest error source.
+    \item Final conclusions distinguish algorithmic intent from hardware non-idealities.
+\end{itemize}
+
+\subsection*{Flag for Review If Any Are True}
+\begin{itemize}[leftmargin=1.2em]
+    \item No evidence for one or more transformation steps (2.1--2.4 or 3.1--3.3).
+    \item Shift/reversal claims are visual only, with no quantitative or annotated timing checks.
+    \item MATLAB work appears synthetic-only (no linkage to acquired hardware datasets).
+    \item Same screenshot reused across multiple required steps.
+\end{itemize}
+
+\section{Instructor Key: Core Expected Results}
+
+Given base signal $x(t)$ and assigned parameters $t_0$ and $B$:
+\[
+\begin{aligned}
+y_1(t) &= x(t-t_0) \\
+y_2(t) &= B\,x(t) \\
+y_3(t) &= x(-t) \\
+y_4(t) &= B\,x(-t-t_0)
+\end{aligned}
+\]
+
+Discrete-time mapping (length-$N$ sample vectors):
+\[
+\begin{aligned}
+y_1[n] &\leftrightarrow \texttt{circshift(x,k)} \\
+y_2[n] &\leftrightarrow \texttt{B*x} \\
+y_3[n] &\leftrightarrow \texttt{fliplr(x)} \\
+y_4[n] &\leftrightarrow \texttt{B*circshift(fliplr(x),k)}
+\end{aligned}
+\]
+where $k = \lfloor t_0/T_s \rfloor$.
+
+\textbf{TA note:} If students use non-periodic windows, circular shift boundary artifacts are expected and should be discussed, not treated as automatic failure.
+
+\section{Pre-Lab Solution Guidance}
+
+\subsection*{Required Conceptual Targets}
+\begin{itemize}[leftmargin=1.2em]
+    \item Correct derivations for $y_1,y_2,y_3,y_4$ from assigned base signal form.
+    \item Correct sign convention for delay/advance and reversal.
+    \item Correct mapping from continuous shift $t_0$ to integer sample shift $k$.
+\end{itemize}
+
+\subsection*{Accept/Revise Criteria}
+\begin{itemize}[leftmargin=1.2em]
+    \item Accept if algebra is correct and plotted/sketched outputs match transformed behavior.
+    \item Revise if student confuses phase shift with amplitude scaling or claims reversal is same as negative amplitude.
+\end{itemize}
+
+\section{Measurement Targets and Acceptance Bands}
+
+\subsection*{Step 1.1 Base Signal}
+\begin{itemize}[leftmargin=1.2em]
+    \item Frequency and amplitude should be close to TA-assigned targets.
+    \item Typical acceptance band: within 5--10\% if setup is otherwise coherent.
+\end{itemize}
+
+\subsection*{Step 2.1 Amplitude Scaling}
+\begin{itemize}[leftmargin=1.2em]
+    \item Measured ratio $B_{meas}=A_{Ch1}/A_{Ch2}$ should track assigned $B$.
+    \item Typical acceptance: ratio error under 10--15\% with clear annotation.
+\end{itemize}
+
+\subsection*{Step 2.2 Time Shift}
+\begin{itemize}[leftmargin=1.2em]
+    \item Cursor-measured delay should match target $t_0$ within sampling granularity.
+    \item Expected resolution limit: approximately one sample period $T_s$.
+\end{itemize}
+
+\subsection*{Step 2.3 Time Reversal}
+\begin{itemize}[leftmargin=1.2em]
+    \item Reversed waveform should preserve amplitude envelope but reverse temporal order.
+    \item Student should identify one distinct feature that appears mirrored in time.
+\end{itemize}
+
+\subsection*{Step 2.4 Combined Transform}
+\begin{itemize}[leftmargin=1.2em]
+    \item Combined output must simultaneously show reversal pattern, delay offset, and amplitude scaling.
+\end{itemize}
+
+\section{Numerical Verification Key (MATLAB)}
+
+\subsection*{Expected Deliverables}
+\begin{itemize}[leftmargin=1.2em]
+    \item Five captured traces: $x,y_1,y_2,y_3,y_4$.
+    \item Four overlays: measured vs predicted transform for each $y_i$.
+    \item NRMSE table for all four transforms.
+\end{itemize}
+
+\subsection*{NRMSE Interpretation}
+\[
+\mathrm{NRMSE}(\%) = 100\times\frac{\|y_{meas}-y_{pred}\|_2}{\|y_{pred}\|_2}
+\]
+
+\begin{itemize}[leftmargin=1.2em]
+    \item Lower NRMSE indicates better hardware-model agreement.
+    \item Time shift and combined transforms commonly show larger error due to alignment and sampling jitter.
+    \item High NRMSE is acceptable if causes are explicitly diagnosed with evidence.
+\end{itemize}
+
+\section{Code Key Checks (TA Spot-Check)}
+
+\subsection*{Arduino Checks}
+\begin{itemize}[leftmargin=1.2em]
+    \item Gain variable updated from potentiometer read and applied as scalar multiplier.
+    \item Delay implemented via circular buffer index offset (not by arbitrary blocking delay).
+    \item Reversal implemented via reversed LUT indexing or equivalent index transform.
+    \item Shared variables across ISR/main loop are marked \texttt{volatile} if interrupt-timed.
+\end{itemize}
+
+\subsection*{MATLAB Checks}
+\begin{itemize}[leftmargin=1.2em]
+    \item Predicted transforms generated from captured base $x$ (not hand-crafted replacement arrays).
+    \item Uses correct operators (\texttt{circshift}, scalar multiply, \texttt{fliplr}).
+    \item Axes labeled and overlay legends clear enough to audit claims.
+\end{itemize}
+
+\section{TA Checkoff Script (2--3 Minutes per Team)}
+\begin{enumerate}[leftmargin=1.4em]
+    \item Ask team to state assigned $t_0$ and $B$, then define each $y_i$ verbally.
+    \item Verify one scope evidence image from Steps 2.1--2.4 with ID visible.
+    \item Ask for one MATLAB overlay and corresponding NRMSE value.
+    \item Ask: ``Which transform had the largest error and why?''
+    \item Confirm final report includes all required evidence map items.
+\end{enumerate}
+
+\section{Troubleshooting Matrix}
+
+\begin{table}[h!]
+\centering
+\caption{Common Failure Modes and Corrective Actions}
+\begin{tabular}{p{0.24\textwidth} p{0.33\textwidth} p{0.35\textwidth}}
+\toprule
+\textbf{Observed Symptom} & \textbf{Likely Cause} & \textbf{TA Action} \\
+\midrule
+Amplitude scaling does not change with potentiometer & Pot wired incorrectly or wrong analog pin read & Verify 5V-GND on end terminals and wiper to configured analog input. \\
+Measured delay is inconsistent across runs & Buffer index update bug or nonuniform sampling interval & Check circular-buffer indexing and enforce fixed sample timing. \\
+Time reversal looks like inversion only & Index ordering incorrect; sign flip applied without reversing sample order & Require explicit reverse-index logic and compare with MATLAB \texttt{fliplr}. \\
+Combined transform fails while individual steps pass & Wrong operation order (shift before/after reverse mismatch) & Re-derive $y_4=B\,x(-t-t_0)$ and align firmware/MATLAB operation order. \\
+MATLAB overlays misaligned despite similar shapes & Time vector offset, trigger mismatch, or sample start mismatch & Apply alignment offset/cross-correlation before NRMSE computation. \\
+Very noisy acquired traces & Ground/probe issues or serial acquisition instability & Recheck common ground, probe compensation, and acquisition window consistency. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Grading Menu Aligned to Lab 2 Expectations}
+\begin{itemize}[leftmargin=1.2em]
+    \item Pre-lab derivation quality: formulas, mappings, and sketches are correct.
+    \item Hardware transformation evidence: complete and annotated scope captures.
+    \item MATLAB verification: all required overlays and NRMSE metrics included.
+    \item Technical analysis: strongest error sources identified and justified.
+    \item Authenticity compliance: required screenshots include name/ID.
+\end{itemize}
+
+\subsection*{Suggested Deductions}
+\begin{itemize}[leftmargin=1.2em]
+    \item Missing required evidence image: \(-4\) to \(-10\), depending on impact.
+    \item No quantitative error metric: \(-4\) to \(-8\).
+    \item Incorrect transform mapping with no correction attempt: \(-5\) to \(-12\).
+    \item Missing ID on required screenshots: \(-3\) to \(-10\).
+\end{itemize}
+
+\section{Minimum Passing Submission Standard}
+A minimally acceptable submission should include:
+\begin{itemize}[leftmargin=1.2em]
+    \item Pre-lab derivations for all four transformed signals.
+    \item Scope evidence for base signal and all four hardware transforms.
+    \item MATLAB plots for captured signals and at least one valid measured-vs-predicted overlay.
+    \item NRMSE values for transformation comparisons.
+    \item Brief error analysis linked to measured evidence.
+\end{itemize}
+
+\end{document}
