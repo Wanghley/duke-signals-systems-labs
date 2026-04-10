@@ -1,0 +1,266 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{amsmath}
+
+\input{ECE280F24header}
+
+% Fallbacks in case custom macros are not provided by ECE280F24header
+\providecommand{\pldECE}[1]{\textcolor{BrickRed}{\textbf{Pre-lab Deliverable:} #1}}
+\providecommand{\cpECE}[1]{\textcolor{OliveGreen}{\textbf{Checkpoint:} #1}}
+\providecommand{\disECE}[1]{\textcolor{Plum}{\textbf{Discussion:} #1}}
+\providecommand{\delECE}[1]{\textcolor{BlueViolet}{\textbf{Deliverable:} #1}}
+\newcommand{\evidencebox}[2]{%
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][#1][c]{0.9\textwidth}{\centering \textbf{#2}}}
+\end{figure}}
+
+\begin{document}
+
+\begin{center}
+\huge{\bf Laboratory 3 Report Template:}\\
+\large{\bf Signals and Systems}\\
+\large{\bf CT/DT Systems and Basic System Properties}\\
+\large{\bf System Properties Explorer}
+\end{center}
+
+\section*{Graded Submission Requirement}
+\delECE{This is a graded assignment. Include your name and student ID in all required screenshots and in as many additional screenshots as possible. Screenshots without clear student identification may not receive full credit.}
+
+\delECE{All MATLAB verification in this report must use your own captured hardware input/output data. Synthetic-only data is not accepted for verification credit.}
+
+\cpECE{Before submission, verify every screenshot is legible and includes labels, units, and key measurements where applicable.}
+
+\section*{Student Information}
+\begin{tabularx}{\linewidth}{l X l X}
+\toprule
+\textbf{Name 1} & \underline{\hspace{5cm}} & \textbf{Name 2} & \underline{\hspace{5cm}} \\
+\textbf{NetID 1} & \underline{\hspace{5cm}} & \textbf{NetID 2} & \underline{\hspace{5cm}} \\
+\textbf{Section} & \underline{\hspace{5cm}} & \textbf{Date} & \underline{\hspace{5cm}} \\
+\textbf{TA} & \underline{\hspace{5cm}} & \textbf{Random Seed} & \underline{\hspace{5cm}} \\
+\bottomrule
+\end{tabularx}
+
+\section*{Note on Prompts}
+\begin{itemize}
+\item \color{BrickRed}\textbf{Pre-lab Deliverable ($N$): }Pre-lab work to complete before lab.\color{black}
+\item \color{OliveGreen}\textbf{Checkpoint ($N$): }Items to show your TA in lab.\color{black}
+\item \color{Plum}\textbf{Discussion ($N$): }Analysis and interpretation in your report.\color{black}
+\item \color{BlueViolet}\textbf{Deliverable ($N$): }Required report artifacts and evidence.\color{black}
+\end{itemize}
+
+\clearpage
+
+\section{Assigned Parameters}
+\begin{table}[H]
+    \centering
+    \caption{TA-Assigned Experiment Parameters}
+    \begin{tabularx}{\linewidth}{l X l}
+    \toprule
+    \textbf{Parameter} & \textbf{Description} & \textbf{Assigned Value}\\
+    \midrule
+    $f_1$ & Frequency for $x_1$ & \underline{\hspace{2.5cm}}\\
+    $f_2$ & Frequency for $x_2$ & \underline{\hspace{2.5cm}}\\
+    $a,b$ & Superposition coefficients & \underline{\hspace{2.5cm}}\\
+    $\Delta$ & Time shift for time-invariance test (ms) & \underline{\hspace{2.5cm}}\\
+    $A_{max}$ & Maximum bounded-input amplitude & \underline{\hspace{2.5cm}}\\
+    Seed & Unique randomization seed & \underline{\hspace{2.5cm}}\\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\section{Pre-Lab Results}
+\pldECE{Attach your complete pre-lab pages or include concise summaries below.}
+
+\subsection{Predicted Property Truth Table}
+\begin{table}[H]
+\centering
+\caption{Pre-Lab Property Predictions}
+\begin{tabularx}{\linewidth}{l c c c c X}
+\toprule
+\textbf{System} & \textbf{Linear} & \textbf{TI} & \textbf{Causal} & \textbf{BIBO Stable} & \textbf{Pre-Lab Justification} \\
+\midrule
+RC filter &  &  &  &  &  \\
+Diode clipper &  &  &  &  &  \\
+Comparator &  &  &  &  &  \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Unique Test Signal Design Summary}
+\begin{itemize}
+    \item $x_1(t)$ definition: \underline{\hspace{8.2cm}}
+    \item $x_2(t)$ definition: \underline{\hspace{8.2cm}}
+    \item Superposition coefficients $a,b$: \underline{\hspace{6.2cm}}
+    \item Time shift $\Delta$ and rationale: \underline{\hspace{6.3cm}}
+    \item Bounded-input range used: \underline{\hspace{7.0cm}}
+\end{itemize}
+
+\subsection{MATLAB Verification Plan (Summary)}
+\evidencebox{1.8in}{Insert pseudocode or snapshot of your pre-lab MATLAB verification plan}
+
+\clearpage
+
+\section{Phase 1: Circuit Construction and Baseline Validation}
+
+\subsection{Step 1.1 RC Filter Baseline}
+\cpECE{Verify RC filter operation and record input/output relationship.}
+\delECE{Submit dual-channel scope screenshot with name/ID and annotations for amplitude ratio and delay.}
+\evidencebox{2.1in}{Step 1.1 Evidence: RC filter scope screenshot}
+
+\subsection{Step 1.2 Diode Clipper Baseline}
+\cpECE{Verify clipping behavior and estimate clipping threshold from measurements.}
+\delECE{Submit scope screenshot with clipping threshold clearly labeled.}
+\evidencebox{2.1in}{Step 1.2 Evidence: Diode clipper scope screenshot}
+
+\subsection{Step 1.3 Comparator Baseline}
+\cpECE{Verify threshold switching behavior of comparator output.}
+\delECE{Submit scope screenshot with analog input, comparator output, and threshold annotation.}
+\evidencebox{2.1in}{Step 1.3 Evidence: Comparator scope screenshot}
+
+\subsection{Circuit Photo Evidence}
+\delECE{Submit one setup photo containing all three circuits (or three separate photos), each with student ID visible.}
+\evidencebox{2.0in}{Phase 1 Evidence: Circuit photo(s) with visible student ID}
+
+\clearpage
+
+\section{Phase 2: Property Testing with Hardware Data}
+
+\subsection{Step 2.1 Linearity (Superposition) Test}
+\cpECE{Acquire data for $x_1$, $x_2$, and $a x_1+b x_2$ for each circuit.}
+\delECE{Provide overlay plots and NRMSE for superposition agreement for all circuits.}
+
+\begin{table}[H]
+\centering
+\caption{Linearity Verification Summary}
+\begin{tabularx}{\linewidth}{l l l X}
+\toprule
+\textbf{Circuit} & \textbf{NRMSE (\%)} & \textbf{Linear?} & \textbf{Evidence-Based Justification} \\
+\midrule
+RC filter & \underline{\hspace{2.3cm}} & \underline{\hspace{1.2cm}} & \\
+Diode clipper & \underline{\hspace{2.3cm}} & \underline{\hspace{1.2cm}} & \\
+Comparator & \underline{\hspace{2.3cm}} & \underline{\hspace{1.2cm}} & \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\evidencebox{2.0in}{Step 2.1 Evidence: MATLAB linearity overlays and residual plots}
+
+\disECE{Explain why each circuit passes or fails linearity using both circuit physics and numerical results.}
+
+\subsection{Step 2.2 Time-Invariance Test}
+\cpECE{Acquire data for $x(t)$ and $x(t-\Delta)$ for each circuit and compare outputs.}
+\delECE{Provide overlay plots of $\mathcal{T}\{x(t-\Delta)\}$ versus $y(t-\Delta)$ and report NRMSE.}
+
+\begin{table}[H]
+\centering
+\caption{Time-Invariance Verification Summary}
+\begin{tabularx}{\linewidth}{l l l X}
+\toprule
+\textbf{Circuit} & \textbf{NRMSE (\%)} & \textbf{TI?} & \textbf{Evidence-Based Justification} \\
+\midrule
+RC filter & \underline{\hspace{2.3cm}} & \underline{\hspace{1.2cm}} & \\
+Diode clipper & \underline{\hspace{2.3cm}} & \underline{\hspace{1.2cm}} & \\
+Comparator & \underline{\hspace{2.3cm}} & \underline{\hspace{1.2cm}} & \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\evidencebox{2.0in}{Step 2.2 Evidence: MATLAB TI overlays and residual plots}
+
+\disECE{If mismatch occurs, separate true non-TI behavior from alignment, trigger, or sampling artifacts.}
+
+\subsection{Step 2.3 Causality and Stability Checks}
+\cpECE{Use bounded tests to verify no anticipatory output and bounded response.}
+\delECE{Submit scope evidence supporting causality and bounded-input bounded-output conclusions.}
+
+\begin{table}[H]
+\centering
+\caption{Causality and Stability Summary}
+\begin{tabularx}{\linewidth}{l c c X}
+\toprule
+\textbf{Circuit} & \textbf{Causal?} & \textbf{BIBO Stable?} & \textbf{Evidence-Based Justification} \\
+\midrule
+RC filter &  &  & \\
+Diode clipper &  &  & \\
+Comparator &  &  & \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\evidencebox{2.0in}{Step 2.3 Evidence: Scope captures for causality and bounded-output tests}
+
+\clearpage
+
+\section{Phase 3: MATLAB Verification from Captured Data}
+
+\subsection{Step 3.1 Data Import and Alignment}
+\delECE{Submit MATLAB code showing import, cleaning, and alignment of acquired datasets.}
+\evidencebox{1.8in}{Step 3.1 Evidence: MATLAB import/alignment code screenshot}
+
+\subsection{Step 3.2 Numerical Metrics Overview}
+\delECE{Report final NRMSE values used to support property conclusions.}
+
+\begin{table}[H]
+\centering
+\caption{Numerical Verification Summary}
+\begin{tabularx}{\linewidth}{l l l}
+\toprule
+\textbf{Circuit} & \textbf{Linearity NRMSE (\%)} & \textbf{TI NRMSE (\%)} \\
+\midrule
+RC filter & \underline{\hspace{3cm}} & \underline{\hspace{3cm}} \\
+Diode clipper & \underline{\hspace{3cm}} & \underline{\hspace{3cm}} \\
+Comparator & \underline{\hspace{3cm}} & \underline{\hspace{3cm}} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Step 3.3 Final Property Truth Table}
+\delECE{Complete the final truth table based on all scope and MATLAB evidence.}
+
+\begin{table}[H]
+\centering
+\caption{Final Property Conclusions}
+\begin{tabularx}{\linewidth}{l c c c c X}
+\toprule
+\textbf{System} & \textbf{Linear} & \textbf{TI} & \textbf{Causal} & \textbf{BIBO Stable} & \textbf{One-Sentence Final Justification} \\
+\midrule
+RC filter &  &  &  &  &  \\
+Diode clipper &  &  &  &  &  \\
+Comparator &  &  &  &  &  \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\delECE{Attach a handwritten property truth table image with your ID visible.}
+\evidencebox{1.8in}{Step 3.3 Evidence: Handwritten truth table with student ID}
+
+\clearpage
+
+\section{Discussion and Interpretation}
+\disECE{For each circuit, identify the physical mechanism that most strongly determines its property outcomes (memory, thresholding, clipping, switching).}
+
+\disECE{Give one concrete example from your data showing how an LTI approximation can be useful but incomplete for real hardware.}
+
+\disECE{Describe one failure mode in data collection (synchronization, trigger, quantization, or noise) that can mislead property verification if not controlled.}
+
+\section*{Final Submission Checklist}
+\begin{itemize}
+    \item[\(\square\)] Pre-lab pages and prediction table included.
+    \item[\(\square\)] Circuit photo evidence with visible student ID.
+    \item[\(\square\)] RC, clipper, and comparator scope screenshots included and annotated.
+    \item[\(\square\)] MATLAB superposition verification plots and NRMSE values included.
+    \item[\(\square\)] MATLAB time-invariance verification plots and NRMSE values included.
+    \item[\(\square\)] Causality and BIBO evidence included for all circuits.
+    \item[\(\square\)] Final property truth table completed and justified.
+    \item[\(\square\)] MATLAB scripts shown to use captured hardware data.
+\end{itemize}
+
+\end{document}
