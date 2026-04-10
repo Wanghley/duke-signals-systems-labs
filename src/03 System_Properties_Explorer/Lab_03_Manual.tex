@@ -1,0 +1,350 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{amsmath}
+
+\input{ECE280F24header}
+
+% Fallbacks in case custom macros are not provided by ECE280F24header
+\providecommand{\pldECE}[1]{\textcolor{BrickRed}{\textbf{Pre-lab Deliverable:} #1}}
+\providecommand{\cpECE}[1]{\textcolor{OliveGreen}{\textbf{Checkpoint:} #1}}
+\providecommand{\disECE}[1]{\textcolor{Plum}{\textbf{Discussion:} #1}}
+\providecommand{\delECE}[1]{\textcolor{BlueViolet}{\textbf{Deliverable:} #1}}
+\newcommand{\evidencebox}[2]{%
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][#1][c]{0.92\textwidth}{\centering \textbf{#2}}}
+\end{figure}}
+
+\begin{document}
+
+\begin{center}
+\huge{\bf Laboratory 3:}\\
+\large{\bf Signals and Systems}\\
+\large{\bf CT/DT Systems and Basic System Properties}\\
+\large{\bf System Properties Explorer}
+\end{center}
+
+\tableofcontents
+\clearpage
+
+\section*{Graded Assignment and Authenticity Requirement}
+\delECE{This is a graded assignment. Include your name and student ID in all required screenshots and in as many additional screenshots as possible. Work missing clear student identification may lose credit.}
+
+\delECE{All MATLAB verification must use your own captured input/output data from hardware. Synthetic data generated entirely in MATLAB is not accepted for property verification credit.}
+
+\cpECE{Before submission, verify that all screenshots are legible and include axis labels, units, and measurement readouts where applicable.}
+
+\section*{Note on Prompts}
+Throughout this lab manual, four prompt types indicate required work.
+\begin{itemize}
+\item \color{BrickRed}\textbf{Pre-lab Deliverable ($N$): }Work to complete before entering lab.\color{black}
+\item \color{OliveGreen}\textbf{Checkpoint ($N$): }Evidence to show your TA during lab.\color{black}
+\item \color{Plum}\textbf{Discussion ($N$): }Analysis questions to answer in your submission.\color{black}
+\item \color{BlueViolet}\textbf{Deliverable ($N$): }Required artifacts for grading.\color{black}
+\end{itemize}
+
+\clearpage
+
+\section{Abstract}
+This laboratory builds a direct bridge between abstract system-property definitions and measurable hardware behavior. You will implement three physical systems driven by an Arduino source: a first-order RC filter, a diode clipper, and a comparator threshold circuit. For each system, you will evaluate linearity, time invariance, causality, and bounded-input bounded-output stability using both oscilloscope evidence and MATLAB-based numerical tests from captured data.
+
+The instructional objective is not merely classification, but explanation: when a property fails, you must identify the mechanism (memory, thresholding, saturation, finite slew rate, or switching nonlinearity) responsible for the observed behavior.
+
+\section{Learning Objectives}
+By the end of this lab, you should be able to:
+\begin{enumerate}
+    \item Map formal CT/DT property definitions to real circuit behavior under physical non-idealities.
+    \item Design and execute reproducible experiments to test linearity and time invariance using measured input/output pairs.
+    \item Distinguish theoretical causality/stability claims from practical measurement artifacts.
+    \item Quantify property-test agreement using error metrics (e.g., NRMSE) computed from acquired data.
+    \item Defend a system-property truth table with both mathematical argument and hardware evidence.
+\end{enumerate}
+
+\section{Theoretical Background}
+For a system operator $\mathcal{T}\{\cdot\}$ with input $x(t)$ and output $y(t)$:
+\begin{itemize}
+    \item \textbf{Linearity:}
+    \[
+    \mathcal{T}\{a x_1(t) + b x_2(t)\} = a\,\mathcal{T}\{x_1(t)\} + b\,\mathcal{T}\{x_2(t)\}
+    \]
+    for all scalars $a,b$ and admissible inputs $x_1, x_2$.
+
+    \item \textbf{Time Invariance:}
+    \[
+    x_\Delta(t)=x(t-\Delta) \Rightarrow \mathcal{T}\{x_\Delta(t)\}=y(t-\Delta)
+    \]
+    where $y(t)=\mathcal{T}\{x(t)\}$.
+
+    \item \textbf{Causality:} $y(t_0)$ depends only on input values at times $\tau\le t_0$.
+
+    \item \textbf{BIBO Stability:}
+    \[
+    |x(t)|\le M_x<\infty \Rightarrow |y(t)|\le M_y<\infty
+    \]
+\end{itemize}
+
+For sampled data $x[n],y[n]$, use discrete analogs. To quantify test agreement, use normalized RMS error:
+\[
+\mathrm{NRMSE}(\%) = 100\times\frac{\|y_{test}[n]-y_{ref}[n]\|_2}{\|y_{ref}[n]\|_2}
+\]
+Small NRMSE supports property agreement over the tested operating region; it does not prove global validity.
+
+\section{Pre-Laboratory Assignment}
+\pldECE{Complete all pre-lab work before arriving. Bring handwritten derivations and predicted truth table.}
+
+\subsection{Part A: Property Predictions}
+For each system below, predict whether it is linear, time-invariant, causal, and BIBO stable. Justify each claim in 2--4 technical sentences.
+\begin{enumerate}
+    \item RC low-pass filter (first-order passive network)
+    \item Diode clipper (single-supply threshold clipping)
+    \item Comparator (open-loop threshold detector)
+\end{enumerate}
+
+\subsection{Part B: Test Signal Design}
+\pldECE{Create your own unique test set using your assigned random seed.}
+Design and tabulate:
+\begin{itemize}
+    \item Two base signals $x_1(t),x_2(t)$ (distinct shapes/frequencies)
+    \item Scalars $a,b$ for superposition test
+    \item Time shift $\Delta$ (ms)
+    \item Bounded amplitude limits for stability tests
+\end{itemize}
+
+\subsection{Part C: MATLAB Verification Plan}
+Write pseudocode for:
+\begin{enumerate}
+    \item importing captured CSV/serial data,
+    \item aligning time vectors and resampling if needed,
+    \item computing superposition residual and NRMSE,
+    \item computing time-invariance residual and NRMSE.
+\end{enumerate}
+
+\delECE{Submit scanned handwritten pre-lab pages with your name and student ID visible on the first page.}
+
+\clearpage
+
+\section{Equipment and Setup}
+\begin{table}[H]
+    \centering
+    \caption{Required Hardware and Software}
+    \begin{tabularx}{\linewidth}{l X}
+    \toprule
+    \textbf{Category} & \textbf{Required Items}\\
+    \midrule
+    Hardware Source & Arduino (Uno/Mega or approved equivalent), USB cable, breadboard, jumper wires\\
+    Circuit Components & Resistors, capacitors, signal diode (e.g., 1N4148), op-amp/comparator IC, potentiometer (threshold set)\\
+    Measurement & Oscilloscope or ADALM2000, multimeter, probes/ground clips\\
+    Software & Arduino IDE, MATLAB (Signal Processing and basic plotting capability)\\
+    Documentation & Lab notebook pages for handwritten property truth tables\\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection{Assigned Parameters}
+\begin{table}[H]
+    \centering
+    \caption{TA-Assigned Experiment Parameters}
+    \begin{tabularx}{\linewidth}{l X l}
+    \toprule
+    \textbf{Symbol} & \textbf{Description} & \textbf{Assigned Value}\\
+    \midrule
+    $f_1$ & Frequency for $x_1$ & \underline{\hspace{2.5cm}}\\
+    $f_2$ & Frequency for $x_2$ & \underline{\hspace{2.5cm}}\\
+    $a,b$ & Superposition coefficients & \underline{\hspace{2.5cm}}\\
+    $\Delta$ & Time shift for TI test & \underline{\hspace{2.5cm}}\\
+    $A_{max}$ & Maximum allowed input amplitude & \underline{\hspace{2.5cm}}\\
+    Seed & Unique randomization seed & \underline{\hspace{2.5cm}}\\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\delECE{Capture one physical setup photo that includes all three circuits (or three separate photos), each with your student ID visible in-frame.}
+
+\clearpage
+
+\section{Laboratory Procedure}
+
+\subsection{Phase 1: Circuit Construction and Baseline Validation}
+
+\subsubsection{Step 1.1 RC Filter Assembly}
+\cpECE{Build and verify a first-order RC low-pass circuit driven by Arduino output.}
+
+\textbf{Procedure:}
+\begin{enumerate}
+    \item Construct RC filter and verify wiring against your schematic.
+    \item Apply sinusoidal input and capture $x(t)$ and $y(t)$ on two channels.
+    \item Record gain and phase shift at your assigned frequency.
+\end{enumerate}
+
+\delECE{Submit dual-channel scope screenshot showing input/output waveforms with measured amplitude ratio and time delay annotations.}
+\evidencebox{2.0in}{Step 1.1 Evidence: RC filter scope capture with ID visible}
+
+\subsubsection{Step 1.2 Diode Clipper Assembly}
+\cpECE{Build the clipper and demonstrate amplitude limiting behavior.}
+
+\textbf{Procedure:}
+\begin{enumerate}
+    \item Build a diode clipping circuit for positive or negative threshold clipping.
+    \item Sweep input amplitude while observing output flattening/clipping onset.
+    \item Record approximate clipping threshold from measurement.
+\end{enumerate}
+
+\delECE{Submit scope screenshot with clipped waveform and labeled threshold estimate.}
+\evidencebox{2.0in}{Step 1.2 Evidence: Diode clipper scope capture with ID visible}
+
+\subsubsection{Step 1.3 Comparator Circuit Assembly}
+\cpECE{Build comparator with adjustable threshold and verify binary switching behavior.}
+
+\textbf{Procedure:}
+\begin{enumerate}
+    \item Set threshold using potentiometer or reference divider.
+    \item Apply analog input and observe output transitions.
+    \item Measure switching threshold and discuss hysteresis (if present).
+\end{enumerate}
+
+\delECE{Submit scope screenshot showing analog input and digital-like comparator output with threshold annotation.}
+\evidencebox{2.0in}{Step 1.3 Evidence: Comparator scope capture with ID visible}
+
+\clearpage
+
+\subsection{Phase 2: Property Testing with Hardware Data}
+
+\subsubsection{Step 2.1 Linearity Test (Superposition)}
+\cpECE{For each circuit, acquire data to compare $\mathcal{T}\{a x_1+b x_2\}$ versus $a\mathcal{T}\{x_1\}+b\mathcal{T}\{x_2\}$.}
+
+\textbf{Required acquisition set per circuit:}
+\begin{enumerate}
+    \item Input/output for $x_1$
+    \item Input/output for $x_2$
+    \item Input/output for $a x_1+b x_2$
+\end{enumerate}
+
+\delECE{Provide MATLAB plot overlay and NRMSE table quantifying superposition agreement for all three circuits.}
+\evidencebox{2.2in}{Step 2.1 Evidence: MATLAB linearity overlays and NRMSE summary}
+
+\disECE{Explain why linearity is expected to hold (or fail) for each circuit. Distinguish intrinsic circuit behavior from measurement noise.}
+
+\subsubsection{Step 2.2 Time-Invariance Test}
+\cpECE{For each circuit, compare response to shifted input with shifted response to original input.}
+
+\textbf{Required acquisition set per circuit:}
+\begin{enumerate}
+    \item Input/output for $x(t)$
+    \item Input/output for $x(t-\Delta)$
+\end{enumerate}
+
+\delECE{Provide MATLAB overlay of $\mathcal{T}\{x(t-\Delta)\}$ and $y(t-\Delta)$ and report NRMSE for each circuit.}
+\evidencebox{2.2in}{Step 2.2 Evidence: MATLAB TI overlays and NRMSE summary}
+
+\disECE{If a mismatch appears, determine whether it is from non-TI behavior, trigger alignment error, finite sampling effects, or threshold drift.}
+
+\subsubsection{Step 2.3 Causality and Stability Checks}
+\cpECE{Execute bounded test inputs and confirm no anticipatory output behavior.}
+
+\textbf{Procedure:}
+\begin{enumerate}
+    \item Apply bounded step/chirp/sinusoid inputs within $\pm A_{max}$.
+    \item Verify output remains bounded and note any saturation limits.
+    \item Use a delayed input onset and inspect output before onset to assess causality.
+\end{enumerate}
+
+\delECE{Submit scope evidence for causality check and bounded-output behavior for each circuit.}
+\evidencebox{2.2in}{Step 2.3 Evidence: Scope captures for causality and BIBO checks}
+
+\disECE{State practical limits of your conclusions: tested amplitude range, bandwidth, and operating region.}
+
+\clearpage
+
+\subsection{Phase 3: MATLAB Verification from Captured Data}
+\cpECE{Run your verification scripts using only acquired hardware data files.}
+
+\subsubsection{Step 3.1 Data Import and Alignment}
+\delECE{Submit MATLAB code snippets that import your captured datasets and align time bases for fair comparison.}
+\evidencebox{1.8in}{Step 3.1 Evidence: MATLAB import/alignment code screenshot}
+
+\subsubsection{Step 3.2 Numerical Property Metrics}
+\delECE{Compute and report per-circuit NRMSE for linearity and time-invariance tests.}
+
+\begin{table}[H]
+\centering
+\caption{Numerical Verification Summary}
+\begin{tabularx}{\linewidth}{l l l}
+\toprule
+\textbf{Circuit} & \textbf{Linearity NRMSE (\%)} & \textbf{TI NRMSE (\%)} \\
+\midrule
+RC filter & \underline{\hspace{3cm}} & \underline{\hspace{3cm}} \\
+Diode clipper & \underline{\hspace{3cm}} & \underline{\hspace{3cm}} \\
+Comparator & \underline{\hspace{3cm}} & \underline{\hspace{3cm}} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsubsection{Step 3.3 Property Truth Table}
+\delECE{Complete a handwritten truth table (Linear/TI/Causal/Stable) for each circuit and upload a scan/photo with your ID visible.}
+
+\begin{table}[H]
+\centering
+\caption{System Property Truth Table (Final Conclusions)}
+\begin{tabularx}{\linewidth}{l c c c c X}
+\toprule
+\textbf{System} & \textbf{Linear} & \textbf{TI} & \textbf{Causal} & \textbf{BIBO Stable} & \textbf{One-Sentence Justification} \\
+\midrule
+RC filter &  &  &  &  &  \\
+Diode clipper &  &  &  &  &  \\
+Comparator &  &  &  &  &  \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\evidencebox{1.8in}{Step 3.3 Evidence: Handwritten truth table image with student ID}
+
+\clearpage
+
+\section{Discussion and Interpretation}
+\disECE{For each circuit, explain the dominant mechanism that determines property outcomes (memory, thresholding, clipping, or switching).}
+
+\disECE{Why can a system be causal and stable but still non-linear? Provide one example from your measured circuits.}
+
+\disECE{Describe one case where numerical verification might falsely suggest a property due to poor synchronization or insufficient input diversity.}
+
+\disECE{Connect your findings to model validity: when is an LTI approximation useful, and when does it fail for real hardware?}
+
+\section{Final Submission Checklist}
+\begin{itemize}
+    \item[\(\square\)] Physical circuit photo(s) with student ID visible.
+    \item[\(\square\)] Unique test input definitions (with assigned seed values).
+    \item[\(\square\)] Scope evidence for RC, clipper, comparator baseline behavior.
+    \item[\(\square\)] MATLAB linearity verification plots and NRMSE values.
+    \item[\(\square\)] MATLAB time-invariance verification plots and NRMSE values.
+    \item[\(\square\)] Causality and stability evidence captures.
+    \item[\(\square\)] Handwritten property truth table with justifications and scope references.
+    \item[\(\square\)] MATLAB scripts used for verification with captured data file references.
+\end{itemize}
+
+\section{Grading Rubric (100 points)}
+\begin{table}[H]
+\centering
+\caption{Lab 03 Evaluation Rubric}
+\begin{tabularx}{\linewidth}{l c X}
+\toprule
+\textbf{Category} & \textbf{Points} & \textbf{Criteria} \\
+\midrule
+Pre-lab quality & 15 & Correct predictions, clear derivations, and feasible test design. \\
+Circuit implementation and evidence & 20 & Functional RC/clipper/comparator with clear annotated measurements. \\
+Linearity verification & 15 & Proper superposition experiments with quantitative error analysis. \\
+Time-invariance verification & 15 & Shift-based tests with correct alignment and numerical support. \\
+Causality and stability evaluation & 15 & Convincing bounded-input and no-anticipation evidence. \\
+Truth table and technical justification & 10 & Handwritten table accurate and defensible with data links. \\
+Code quality and data authenticity & 10 & MATLAB uses captured data, reproducible workflow, readable scripts. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\end{document}
