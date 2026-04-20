@@ -1,0 +1,483 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{enumitem}
+
+\input{ECE280F24header}
+
+% Fallbacks in case custom macros are not provided by ECE280F24header
+\providecommand{\pldECE}[1]{\textcolor{BrickRed}{\textbf{Pre-lab Deliverable:} #1}}
+\providecommand{\cpECE}[1]{\textcolor{OliveGreen}{\textbf{Checkpoint:} #1}}
+\providecommand{\disECE}[1]{\textcolor{Plum}{\textbf{Discussion:} #1}}
+\providecommand{\delECE}[1]{\textcolor{BlueViolet}{\textbf{Deliverable:} #1}}
+\newcommand{\evidencebox}[2]{%
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][#1][c]{0.92\textwidth}{\centering \textbf{#2}}}
+\end{figure}}
+
+\begin{document}
+
+\begin{center}
+\huge{\bf Laboratory 5:}\\
+\large{\bf Signals and Systems}\\
+\large{\bf First-Order LTI Systems in Hardware}\\
+\large{\bf RC/RL Impulse and Step Responses}
+\end{center}
+
+\tableofcontents
+\clearpage
+
+%--------------------------------------------------------------
+\section*{Grading and Authenticity Requirements}
+%--------------------------------------------------------------
+\delECE{This is a graded laboratory assignment. Include your \textbf{name and student ID} in all required screenshots and photographs.}
+
+\delECE{All curve fitting and MATLAB verification must use waveform data acquired from your own physical circuit. Pre-computed synthetic traces are not accepted.}
+
+\cpECE{Before submission, verify that each MATLAB figure includes axis labels with units, a legend, and your name/student ID in the title (or \texttt{sgtitle}).}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Learning Objectives}
+%--------------------------------------------------------------
+
+By the end of this lab, you should be able to:
+\begin{enumerate}
+    \item Derive and interpret first-order differential equations for RC and RL circuits.
+    \item Predict and measure time constants for step and impulse-like inputs.
+    \item Implement practical approximations of $u(t)$ and $\delta(t)$ using an Arduino digital output.
+    \item Acquire time-stamped ADC data and convert raw counts to volts in MATLAB.
+    \item Estimate empirical time constants $\hat{\tau}$ from measured data and quantify percent error versus theory.
+\end{enumerate}
+
+%--------------------------------------------------------------
+\section{Required Equipment and Software}
+%--------------------------------------------------------------
+
+\begin{table}[H]
+    \centering
+    \caption{Required Hardware and Software}
+    \label{tab:equipment}
+    \begin{tabularx}{\linewidth}{l X}
+    \toprule
+    \textbf{Category} & \textbf{Required Items}\\
+    \midrule
+    Controller & Arduino Uno (preferred) or Mega, USB cable\\
+    RC components & Bench-assigned resistor $R$, capacitor $C$\\
+    RL components & Bench-assigned resistor $R_{\mathrm{ext}}$, inductor $L$ with winding resistance $R_L$\\
+    Protection & Flyback diode (1N4148 or 1N4001), mandatory for RL circuit\\
+    Measurement & Bench multimeter (resistance and capacitance modes)\\
+    Prototyping & Breadboard and jumper wires\\
+    Software & Arduino IDE and MATLAB R2021a or later\\
+    Provided skeletons & \texttt{FastADC\_Stream.ino}, \texttt{Lab05\_Serial\_Reader.m}\\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection*{Arduino Pin Roles}
+
+\begin{table}[H]
+    \centering
+    \caption{Pin Assignments}
+    \label{tab:pins}
+    \begin{tabularx}{\linewidth}{l l l X}
+    \toprule
+    \textbf{Signal} & \textbf{Pin} & \textbf{Direction} & \textbf{Purpose}\\
+    \midrule
+    Input source $x(t)$ & D7 & OUTPUT & Drives step/impulse-like input\\
+    Sense input & A0 & INPUT & Measures circuit node voltage\\
+    Trigger indicator & D13 & OUTPUT & LED toggles at acquisition start\\
+    Serial link & USB & TX/RX & 115200 baud stream to MATLAB\\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+%--------------------------------------------------------------
+\section{Safety and Critical Wiring Notes}
+%--------------------------------------------------------------
+
+\begin{itemize}
+    \item Keep Arduino ADC input A0 within 0--5 V at all times.
+    \item Never power the RL circuit before installing and verifying the flyback diode orientation.
+    \item Disconnect USB power before rewiring between RC and RL circuits.
+    \item Confirm a common ground between Arduino GND and breadboard ground rail.
+\end{itemize}
+
+\textbf{Flyback diode orientation for RL setup:}
+\begin{itemize}[nosep]
+    \item Diode anode $\rightarrow$ GND side of inductor.
+    \item Diode cathode (striped end) $\rightarrow$ node between $R_{\mathrm{ext}}$ and $L$.
+\end{itemize}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Background and Theory (Main Concepts)}
+%--------------------------------------------------------------
+
+\subsection{What You Need in the Main Body}
+
+A first-order causal LTI system is governed by
+\begin{equation}
+\tau\frac{dy(t)}{dt} + y(t) = Kx(t).
+\end{equation}
+The time constant $\tau$ sets the speed of response:
+\begin{itemize}
+    \item At $t=\tau$, a rising step response reaches about 63.2\% of its final value.
+    \item At $t=\tau$, a decaying exponential falls to about 36.8\% of its initial value.
+\end{itemize}
+
+\subsection{RC Circuit Model}
+
+For the RC low-pass circuit with output across the capacitor,
+\begin{equation}
+RC\frac{dV_C}{dt} + V_C = x(t), \qquad \tau_{RC}=RC.
+\end{equation}
+For $x(t)=V_su(t)$,
+\begin{equation}
+V_C(t)=V_s\left(1-e^{-t/\tau_{RC}}\right).
+\end{equation}
+
+\subsection{RL Circuit Model Used in This Lab}
+
+The RL hardware wiring is series $R_{\mathrm{ext}}$--$L$ to ground, with A0 sensing the \emph{junction node} between $R_{\mathrm{ext}}$ and $L$. That node is the inductor-side voltage.
+
+To match the analysis objective (response across $R_{\mathrm{ext}}$), compute in MATLAB:
+\begin{equation}
+V_{R_{\mathrm{ext}}}(t) = V_{in}(t) - V_{node}(t),
+\end{equation}
+where $V_{node}(t)$ is measured by A0 and $V_{in}(t)$ is the known Arduino output level (approximately 5 V during the step window).
+
+With inductor winding resistance $R_L$,
+\begin{equation}
+R_{\mathrm{eff}}=R_{\mathrm{ext}}+R_L, \qquad \tau_{RL}=\frac{L}{R_{\mathrm{eff}}}, \qquad K=\frac{R_{\mathrm{ext}}}{R_{\mathrm{eff}}}.
+\end{equation}
+
+\subsection{Impulse Approximation in Hardware}
+
+A finite pulse approximates an impulse only when $T_p \ll \tau$. In this lab, use TA-assigned $T_p$ and verify $T_p/\tau \le 0.1$ when possible.
+
+\subsection{Where Full Derivations Are}
+
+Full RC/RL derivations, detailed log-linearization equations, and extended mathematical notes are moved to Appendix A.
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Pre-Lab Preparation}
+%--------------------------------------------------------------
+
+\subsection{Bench Measurements (Complete at Start of Session)}
+
+\begin{table}[H]
+    \centering
+    \caption{Measured Component Values}
+    \label{tab:bench_components}
+    \begin{tabularx}{\linewidth}{l X l}
+    \toprule
+    \textbf{Symbol} & \textbf{Description} & \textbf{Measured Value}\\
+    \midrule
+    $R$ & RC resistor & \underline{\hspace{3.2cm}} $\Omega$ \\
+    $C$ & RC capacitor & \underline{\hspace{3.2cm}} $\mu$F \\
+    $R_{\mathrm{ext}}$ & RL external resistor & \underline{\hspace{3.2cm}} $\Omega$ \\
+    $L$ & Inductor & \underline{\hspace{3.2cm}} mH \\
+    $R_L$ & Inductor winding resistance & \underline{\hspace{3.2cm}} $\Omega$ \\
+    $R_{\mathrm{eff}}$ & $R_{\mathrm{ext}} + R_L$ & \underline{\hspace{3.2cm}} $\Omega$ \\
+    $T_p$ & TA-assigned pulse width & \underline{\hspace{3.2cm}} $\mu$s \\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection{Required Pre-Lab Work}
+
+\pldECE{Complete the following before running hardware:}
+\begin{enumerate}
+    \item Compute $\tau_{RC}=RC$ and $\tau_{RL}=L/(R_{\mathrm{ext}}+R_L)$ using measured values.
+    \item Write analytical step-response expressions for RC and RL cases.
+    \item Compute expected impulse-approximation peak values using your TA-assigned $T_p$.
+    \item Generate a pre-lab MATLAB theory figure showing RC/RL step and impulse predictions.
+\end{enumerate}
+
+\cpECE{Show handwritten derivations and numerical time constants to the TA for CP-1 sign-off.}
+
+\evidencebox{2.1in}{CP-1 Evidence: Handwritten derivations with name/student ID, including numerical $\tau_{RC}$ and $\tau_{RL}$.}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Lab Procedure (In-Lab Execution)}
+%--------------------------------------------------------------
+
+\subsection{Part 1: Build and Verify RC Circuit}
+
+\begin{enumerate}
+    \item Wire D7 $\rightarrow$ $R$ $\rightarrow$ node $\rightarrow$ $C$ $\rightarrow$ GND.
+    \item Connect A0 to the node between $R$ and $C$.
+    \item Connect Arduino GND to breadboard GND.
+    \item Before power-on, visually verify one complete current path and one common ground.
+\end{enumerate}
+
+\cpECE{Power on and trigger one acquisition. Confirm serial data values change over time (not constant).}
+
+\evidencebox{1.8in}{RC Wiring Evidence: Photo with visible student ID and labeled RC node measured by A0.}
+
+\subsection{Part 2: Build and Verify RL Circuit}
+
+\begin{enumerate}
+    \item Rewire as D7 $\rightarrow$ $R_{\mathrm{ext}}$ $\rightarrow$ node $\rightarrow$ $L$ $\rightarrow$ GND.
+    \item Connect A0 to the same node between $R_{\mathrm{ext}}$ and $L$.
+    \item Install flyback diode: anode to inductor GND side, cathode to the node.
+    \item Verify diode orientation with stripe on cathode side before power-on.
+\end{enumerate}
+
+\cpECE{TA must verify diode orientation and node wiring before USB power is applied.}
+
+\evidencebox{1.8in}{RL Wiring Evidence: Photo with diode orientation clearly visible and student ID present.}
+
+\subsection{Part 3: Configure and Run Arduino Skeleton}
+
+Open \texttt{FastADC\_Stream.ino}. Only edit configuration constants.
+
+\begin{itemize}
+    \item Set \texttt{SAMPLE\_RATE\_HZ} so that $f_s \ge 10/\tau_{\min}$.
+    \item Set \texttt{N\_SAMPLES} to capture at least $5\tau$.
+    \item Set \texttt{PULSE\_WIDTH\_US} to TA-assigned $T_p$.
+    \item Run separate bursts for \texttt{STEP} and \texttt{IMPULSE}.
+\end{itemize}
+
+\cpECE{In Serial Monitor (115200 baud), send \texttt{s} and confirm at least 10 lines of \texttt{timestamp\_us,adc\_count}.}
+
+\evidencebox{1.8in}{CP-2 Evidence: Serial Monitor screenshot showing burst data after trigger.}
+
+\subsection{Part 4: MATLAB Acquisition and Analysis Workflow}
+
+\textbf{Use \texttt{Lab05\_Serial\_Reader.m} skeleton.} Keep acquisition code unchanged; implement analysis blocks.
+
+\subsubsection*{Task 1: Overlay Measured vs Theory}
+
+For each waveform (RC step, RC impulse, RL step, RL impulse):
+\begin{enumerate}
+    \item Plot measured voltage versus time.
+    \item Overlay theoretical curve.
+    \item Add axis labels (units), legend, and name/student ID in title.
+\end{enumerate}
+
+\textbf{Important RL correction:}
+\begin{itemize}
+    \item A0 measures node voltage $V_{node}(t)$.
+    \item Compute resistor response with $V_{R_{\mathrm{ext}}}(t)=V_{in}(t)-V_{node}(t)$ before fitting RL step/impulse models.
+\end{itemize}
+
+\subsubsection*{Task 2: Extract $\hat{\tau}$ via Log-Linearization}
+
+\begin{enumerate}
+    \item Select post-transient fitting window.
+    \item Remove baseline offset.
+    \item Apply log transform to positive-valued transformed signal.
+    \item Use \texttt{polyfit} to get slope $m$ and compute $\hat{\tau}=-1/m$.
+\end{enumerate}
+
+Generate one diagnostic figure per waveform with:
+\begin{itemize}
+    \item Top: original signal plus fitted exponential.
+    \item Bottom: log-domain data plus regression line.
+\end{itemize}
+
+\subsubsection*{Task 3: Compute Percent Error}
+
+\begin{equation}
+\text{Percent Error} = \left|\frac{\hat{\tau}-\tau_{\mathrm{theory}}}{\tau_{\mathrm{theory}}}\right|\times 100\%.
+\end{equation}
+
+Report RC step, RC impulse, RL step, RL impulse in one summary table.
+
+\cpECE{Show TA: one overlay figure, one diagnostic fit figure, and your printed summary table for CP-3.}
+
+\evidencebox{1.9in}{CP-3 Evidence: MATLAB window showing fitted $\hat{\tau}$ values and percent-error table.}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Post-Lab Analysis and Deliverables}
+%--------------------------------------------------------------
+
+\subsection{Required Discussion Questions}
+
+Answer each in 3--6 sentences with numerical evidence:
+\begin{enumerate}
+    \item Compare RC and RL energy storage mechanisms and explain why RL DC gain includes $R_L$.
+    \item Evaluate impulse approximation quality using $T_p/\tau$ for both circuits.
+    \item Identify two non-ideal effects that cause log-domain curvature and describe mitigation.
+    \item Compute worst-case $\tau_{RC}$ bounds using tolerance assumptions and compare with measured $\hat{\tau}_{RC}$.
+    \item Numerically compare $h(t)$ and $ds(t)/dt$ from measured data and explain mismatch sources.
+\end{enumerate}
+
+\subsection{Submission Checklist}
+
+\begin{itemize}
+    \item[$\square$] Pre-lab theory figure (2x2) with name/student ID.
+    \item[$\square$] Handwritten pre-lab derivations (RC and RL).
+    \item[$\square$] RC and RL circuit photographs (ID visible).
+    \item[$\square$] Serial data screenshot from CP-2.
+    \item[$\square$] Four overlay plots (Task 1).
+    \item[$\square$] Four log-linearization diagnostics (Task 2).
+    \item[$\square$] Percent-error summary output (Task 3).
+    \item[$\square$] Completed results table and TA sign-off page.
+    \item[$\square$] MATLAB source code appendix.
+\end{itemize}
+
+\subsection{Time-Constant Results Table}
+
+\begin{table}[H]
+    \centering
+    \caption{Measured vs Theoretical Time Constants}
+    \label{tab:results}
+    \begin{tabularx}{\linewidth}{l c c c}
+    \toprule
+    \textbf{Waveform} & $\tau_{\mathrm{theory}}$ (ms) & $\hat{\tau}_{\mathrm{measured}}$ (ms) & \textbf{Percent Error (\%)}\\
+    \midrule
+    RC step response & \underline{\hspace{2.2cm}} & \underline{\hspace{2.2cm}} & \underline{\hspace{2.2cm}} \\
+    RC impulse response & \underline{\hspace{2.2cm}} & \underline{\hspace{2.2cm}} & \underline{\hspace{2.2cm}} \\
+    RL step response & \underline{\hspace{2.2cm}} & \underline{\hspace{2.2cm}} & \underline{\hspace{2.2cm}} \\
+    RL impulse response & \underline{\hspace{2.2cm}} & \underline{\hspace{2.2cm}} & \underline{\hspace{2.2cm}} \\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection{TA Checkpoint Sign-Off}
+
+\begin{table}[H]
+    \centering
+    \caption{TA Checkpoint Sign-Off Sheet}
+    \label{tab:checkpoints}
+    \begin{tabularx}{\linewidth}{l X c c}
+    \toprule
+    \textbf{CP} & \textbf{Requirement} & \textbf{Target Time} & \textbf{TA Initials}\\
+    \midrule
+    CP-1 & Pre-lab derivations complete with measured component values and computed $\tau$ values. & 0:00--0:15 & \underline{\hspace{2cm}} \\
+    CP-2 & RC and RL hardware verified; RL diode orientation approved before power. & 0:15--1:05 & \underline{\hspace{2cm}} \\
+    CP-3 & MATLAB overlays, log-linear fit, and percent-error summary shown. & 1:05--1:45 & \underline{\hspace{2cm}} \\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section*{Appendix A: Full Theory Derivations (Reference)}
+\addcontentsline{toc}{section}{Appendix A: Full Theory Derivations (Reference)}
+%--------------------------------------------------------------
+
+\subsection*{A.1 RC Derivation}
+
+Starting from KVL,
+\begin{equation}
+x(t)=V_R(t)+V_C(t)=RC\frac{dV_C}{dt}+V_C(t).
+\end{equation}
+Hence,
+\begin{equation}
+RC\frac{dV_C}{dt}+V_C=x(t), \qquad \tau_{RC}=RC.
+\end{equation}
+For step input $x(t)=V_su(t)$,
+\begin{equation}
+V_C(t)=V_s\left(1-e^{-t/\tau_{RC}}\right)u(t).
+\end{equation}
+For impulse response,
+\begin{equation}
+h_{RC}(t)=\frac{1}{\tau_{RC}}e^{-t/\tau_{RC}}u(t).
+\end{equation}
+
+\subsection*{A.2 RL Derivation}
+
+With $R_{\mathrm{eff}}=R_{\mathrm{ext}}+R_L$ and current $i(t)$,
+\begin{equation}
+x(t)=L\frac{di}{dt}+R_{\mathrm{eff}}i(t).
+\end{equation}
+Output across the external resistor is
+\begin{equation}
+y(t)=V_{R_{\mathrm{ext}}}(t)=R_{\mathrm{ext}}i(t).
+\end{equation}
+Then,
+\begin{equation}
+\frac{L}{R_{\mathrm{eff}}}\frac{dy}{dt}+y(t)=\frac{R_{\mathrm{ext}}}{R_{\mathrm{eff}}}x(t),
+\end{equation}
+so
+\begin{equation}
+\tau_{RL}=\frac{L}{R_{\mathrm{eff}}}, \qquad K=\frac{R_{\mathrm{ext}}}{R_{\mathrm{eff}}}.
+\end{equation}
+For step input,
+\begin{equation}
+y(t)=KV_s\left(1-e^{-t/\tau_{RL}}\right)u(t).
+\end{equation}
+
+\subsection*{A.3 Log-Linearization}
+
+For decay $y(t)=Ae^{-t/\tau}+C$,
+\begin{equation}
+\ln(y-C)=\ln A-\frac{t}{\tau}.
+\end{equation}
+For rise $y(t)=Y_\infty(1-e^{-t/\tau})$,
+\begin{equation}
+\ln(Y_\infty-y)=\ln Y_\infty-\frac{t}{\tau}.
+\end{equation}
+In both cases, slope $m=-1/\tau$, so $\hat{\tau}=-1/m$.
+
+%--------------------------------------------------------------
+\section*{Appendix B: Arduino Configuration and Example Logic}
+\addcontentsline{toc}{section}{Appendix B: Arduino Configuration and Example Logic}
+%--------------------------------------------------------------
+
+\begin{verbatim}
+// Core user-editable constants in FastADC_Stream.ino
+#define OUT_PIN        7
+#define ADC_PIN        A0
+#define SAMPLE_RATE_HZ 5000
+#define N_SAMPLES      2000
+#define PULSE_WIDTH_US 500
+#define INPUT_TYPE     STEP    // STEP or IMPULSE
+\end{verbatim}
+
+\noindent Set sample rate using $f_s \ge 10/\tau_{\min}$ and acquisition length for at least $5\tau$.
+
+%--------------------------------------------------------------
+\section*{Appendix C: MATLAB Analysis Templates}
+\addcontentsline{toc}{section}{Appendix C: MATLAB Analysis Templates}
+%--------------------------------------------------------------
+
+\subsection*{C.1 RL Node-to-Resistor Conversion}
+
+\begin{verbatim}
+% A0 measures node voltage V_node at junction of Rext and L.
+% For RL analysis across Rext:
+V_in = 5.0;              % during step-high window
+V_Rext = V_in - V_node;  % use this signal for RL curve fitting
+\end{verbatim}
+
+\subsection*{C.2 Percent Error Template}
+
+\begin{verbatim}
+pct_err = @(hat, theory) abs(hat - theory) / theory * 100;
+\end{verbatim}
+
+%--------------------------------------------------------------
+\section*{Appendix D: Troubleshooting}
+\addcontentsline{toc}{section}{Appendix D: Troubleshooting}
+%--------------------------------------------------------------
+
+\begin{itemize}
+    \item MATLAB hangs at \texttt{readline}: verify trigger character \texttt{s} is sent and sample counts match between Arduino and MATLAB.
+    \item Flat trace at 0 V: A0 is not connected to the measurement node.
+    \item Log plot is curved: baseline not removed, impulse too wide, or strong noise pickup.
+    \item RL percent error much larger than RC: revisit $R_L$ measurement and diode wiring; report non-ideal inductor effects in discussion.
+\end{itemize}
+
+\end{document}
