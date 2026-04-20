@@ -1,0 +1,106 @@
+% This file should be for packages and shortcuts.
+% Update semester and style file to be included
+%\usepackage[T1, T2A]{fontenc}
+%\usepackage{unicode-math} % causes symbol issue - needed?
+% 6/2024 poll indicates CMRR is the way to go!
+%\setmainfont{GFS Neohellenic}
+%\setmathfont{GFS Neohellenic Math}
+
+% \usepackage{doc} not needed
+\usepackage[dvipsnames]{xcolor}
+\usepackage[english]{babel}
+%\usepackage[utf8x]{inputenc}
+\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{ulem}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage[parfill]{parskip}
+\usepackage[margin=1in]{geometry}
+%\usepackage{times}
+\usepackage[numbers,super]{natbib}
+\usepackage{array}
+\usepackage{subcaption}
+\usepackage{pdfpages}
+\usepackage[labelsep=period]{caption}
+\usepackage[american,siunitx]{circuitikz}
+\usepackage{listings}
+\usepackage{lscape}
+\usepackage{placeins}
+\usepackage{comment, verbatim}
+\usepackage{hyperref}% linked TOC
+\usepackage{latexsym}
+\usepackage{soul} % \hl for highlighting
+% \usepackage{Karnaugh} % probably not needed
+\hypersetup{
+    colorlinks=true, %set true if you want colored links
+    linktoc=all,     %set to all if you want both sections and subsections linked
+    linkcolor=blue,  %choose some color if you want links to stand out
+    filecolor=magenta,      
+    urlcolor=blue,
+}
+\usepackage{totcount}
+
+\urlstyle{same}
+\hypersetup{linktocpage}
+\usepackage{lipsum}
+\usepackage{enumitem} % adds [nosep] and [noitemsep]
+
+\usepackage{fancyhdr}
+\setlength{\headheight}{15pt}
+\rhead{}
+\chead{ECE 280L - Spring 2025} % change date
+\lhead{}
+\rfoot{}
+\cfoot{Copyright 2026: Wanghley Martins, et al.\\ \thepage} % change date
+\lfoot{}
+
+\pagestyle{fancy} 
+\fancypagestyle{plain}{%
+\fancyhf{} %
+\fancyhead[c]{ECE 280L - Spring 2025} % % change date
+\fancyfoot[c]{Copyright 2026: Wanghley Martins, et al.\\ \thepage}} % change date
+
+% Shortcuts:
+\newcommand{\E}[2]{#1_{\mathrm{#2}}}
+\newcommand{\Eb}[2]{\mathrm{#1}_{\mathrm{#2}}}
+\newcommand{\ARDcard}{Arduino Mega 2560}
+\newcommand{\ARDchip}{ATmega2560}
+\newcommand{\PDLT}{PDLT}
+\newcommand{\WebPage}{Robotics with the Board of Education Shield for Arduino}
+\newcommand{\bBOT}{BOE-Bot}
+\newcommand{\sBOT}{Shield-Bot}
+\newcommand{\cBOT}{CX-Bot}
+\newcommand{\acad}{AutoDesk\textsuperscript{\textregistered}}
+\newcommand{\semester}{Spring 2025}
+
+%% Roman unit names
+\newcommand{\UnitV}{\mbox{V}}
+\newcommand{\UnitmA}{\mbox{mA}}
+\newcommand{\UnitA}{\mbox{A}}
+\newcommand{\UnitOhm}{\Omega}
+\newcommand{\UnitkOhm}{\mbox{k}\Omega}
+\newcommand{\UnituF}{\mu\mbox{F}}
+\newcommand{\UnitF}{\mbox{F}}
+\newcommand{\UnitnF}{\mbox{nF}}
+\newcommand{\UnitpF}{\mbox{pF}}
+
+%Logic
+\newcommand{\T}[1]{\mbox{#1}}
+\newcommand{\F}[1]{\overline{\mbox{#1}}}
+
+% Compressed spacing with bold headers intact
+\titleformat{\chapter}[display]{\LARGE\bf\center}{\TheDivision\ \thechapter}{0pt}{}
+\titleformat{\section}{\Large\bf}{\thesection}{0.5em}{}
+\titleformat{\subsection}{\large\bf}{\thesubsection}{0.5em}{}
+\titlespacing*{\chapter}{0pt}{-30pt}{15pt}
+\titlespacing*{\section}{0pt}{10pt}{5pt}
+\titlespacing*{\subsection}{0pt}{10pt}{5pt}
+\titlespacing*{\subsubsection}{0pt}{10pt}{5pt}
+
+% For image processing labs:
+\newcommand{\ex}[1]{%\addcontentsline{toc}{subsubsection}{#1}
+\subsubsection*{\color{OliveGreen}#1\color{black}}}
+\newcommand{\exe}[1]{\addcontentsline{toc}{subsubsection}{#1}
+\subsubsection*{\color{Mahogany}\textit{#1}\color{black}}}
+
+\usepackage{ECE280F24Style}

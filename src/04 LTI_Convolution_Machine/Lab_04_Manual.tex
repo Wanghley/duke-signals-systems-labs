@@ -1,0 +1,979 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{enumitem}
+
+\input{ECE280F24header}
+
+% Fallbacks in case custom macros are not provided by ECE280F24header
+\providecommand{\pldECE}[1]{\textcolor{BrickRed}{\textbf{Pre-lab Deliverable:} #1}}
+\providecommand{\cpECE}[1]{\textcolor{OliveGreen}{\textbf{Checkpoint:} #1}}
+\providecommand{\disECE}[1]{\textcolor{Plum}{\textbf{Discussion:} #1}}
+\providecommand{\delECE}[1]{\textcolor{BlueViolet}{\textbf{Deliverable:} #1}}
+\newcommand{\evidencebox}[2]{%
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][#1][c]{0.92\textwidth}{\centering \textbf{#2}}}
+\end{figure}}
+
+\begin{document}
+
+\begin{center}
+\huge{\bf Laboratory 4:}\\
+\large{\bf Signals and Systems}\\
+\large{\bf LTI Systems \& The Convolution Machine}\\
+\large{\bf Hardware-in-the-Loop Discrete-Time Convolution}
+\end{center}
+
+\tableofcontents
+\clearpage
+
+\section*{Graded Assignment and Authenticity Requirement}
+\delECE{This is a graded laboratory assignment. Include your \textbf{name and student ID} in all required screenshots and photographs. Work submitted without identifying information may receive reduced credit.}
+
+\delECE{All MATLAB verification must use data captured from your own hardware setup. Convolution results computed entirely in MATLAB without physical Arduino acquisition are \emph{not} accepted as hardware verification evidence.}
+
+\cpECE{Before submission, verify that all screenshots are legible, include properly labeled axes, and display your identifying information where applicable.}
+
+\section*{Note on Prompts}
+Throughout this lab manual, four prompt types indicate required work.
+\begin{itemize}
+    \item \color{BrickRed}\textbf{Pre-lab Deliverable ($N$): }Work to complete before entering lab.\color{black}
+    \item \color{OliveGreen}\textbf{Checkpoint ($N$): }Evidence to show your TA during lab for in-session sign-off.\color{black}
+    \item \color{Plum}\textbf{Discussion ($N$): }Analysis questions to answer in your post-lab submission.\color{black}
+    \item \color{BlueViolet}\textbf{Deliverable ($N$): }Required artifacts for grading.\color{black}
+\end{itemize}
+
+\section*{A Note on Skeleton Code and Time Management}
+
+\textbf{This lab provides skeleton code for two tasks that would otherwise consume the entire 2-hour lab window.} Download both files from Canvas \emph{before arriving at lab}:
+\begin{itemize}
+    \item \texttt{Lab04\_Skeleton.ino} --- Arduino sketch with \texttt{setup()}/\texttt{loop()} structure, \texttt{Serial.begin()}, LED output driver, and pin-mode initialization pre-written. You fill in the convolution function body, the DIP-switch read logic, and the pushbutton read logic.
+    \item \texttt{Lab04\_MATLAB\_Skeleton.m} --- MATLAB script with serial port initialization, raw-line reading via \texttt{readline()}, and ASCII string parser pre-written. You fill in the \texttt{conv()} verification call, the \texttt{stem()} subplot formatting, and the inner animation math.
+\end{itemize}
+
+\noindent The skeleton code is intentionally incomplete. You must write the core algorithmic content in both files. The infrastructure (serial handshaking, port configuration, LED indexing, string splitting) is provided so your 2-hour window is spent on \emph{convolution} --- not serial debugging.
+
+\noindent\textbf{Suggested time allocation:}
+\begin{itemize}[nosep]
+    \item \textbf{0:00--0:15} \quad Receive TA assignment, review pre-lab calculations, begin wiring.
+    \item \textbf{0:15--0:40} \quad Complete wiring, TA wiring check, flash skeleton sketch.
+    \item \textbf{0:40--1:00} \quad Implement convolution function; achieve CP-2 (hardware demo to TA).
+    \item \textbf{1:00--1:40} \quad MATLAB Tasks 1--3; record video; complete CP-3.
+    \item \textbf{1:40--2:00} \quad Final screenshots, clean up bench, TA sign-off on Table~\ref{tab:checkpoints}.
+\end{itemize}
+
+\subsection*{How This Manual Is Organized}
+\begin{itemize}[nosep]
+    \item \textbf{Main sections (quick execution path):} what to build, what to run, and what to show at CP-1/CP-2/CP-3.
+    \item \textbf{Appendix A--B:} optional encoding mode and troubleshooting.
+    \item \textbf{Appendix C--D:} full Arduino and MATLAB reference templates moved out of the main flow for faster in-lab navigation.
+\end{itemize}
+
+\clearpage
+
+%------------------------------------------------------------------
+\section{Abstract}
+%------------------------------------------------------------------
+
+This laboratory transforms the abstract mathematics of discrete-time (DT) convolution into a physical, observable machine. You will build a hardware system called the \emph{Convolution Machine}: an Arduino-based circuit that reads a finite-duration impulse response $h[n]$ from a bank of DIP switches, accepts an input sequence $x[n]$ through momentary pushbuttons, computes the full convolution sum
+\[
+    y[n] = x[n] * h[n] = \sum_{k=-\infty}^{\infty} x[k]\, h[n - k]
+\]
+in firmware, and displays the output $y[n]$ on a 10-segment LED bar graph. Simultaneously, the Arduino streams all three sequences over a USB-UART serial link to MATLAB, where you will verify the hardware result using the built-in \texttt{conv()} function, produce publication-quality stem plots, and animate the ``flip--shift--multiply--sum'' interpretation of convolution frame by frame.
+
+By the end of this lab, the convolution sum will no longer be a formula you manipulate symbolically; it will be a process you have wired, implemented, debugged, and watched.
+
+%------------------------------------------------------------------
+\section{Learning Objectives}
+%------------------------------------------------------------------
+
+By the end of this laboratory, you should be able to:
+\begin{enumerate}
+    \item \textbf{Compute DT convolution by hand} using the flip--shift--multiply--sum procedure, explicitly tracking each output sample $y[n_0]$ for every index $n_0$ in the output support.
+    \item \textbf{Implement the convolution sum in embedded C++} on an Arduino, reading hardware inputs (DIP switches, pushbuttons) and driving hardware outputs (LED bar graph) to form a closed-loop real-time system.
+    \item \textbf{Verify hardware convolution results} with MATLAB's \texttt{conv()} function, identify potential sources of discrepancy, and quantify agreement between physical and software output.
+    \item \textbf{Construct and interpret stem plots} of $x[n]$, $h[n]$, and $y[n]$ in a properly formatted MATLAB figure with labeled axes and correct discrete-time index ranges.
+    \item \textbf{Animate the flip--shift--multiply--sum process} in MATLAB to build an intuitive graphical understanding of how the flipped kernel $h[-k]$ sweeps across the input $x[k]$ to produce each successive output sample.
+\end{enumerate}
+
+%------------------------------------------------------------------
+\section{Theoretical Background}
+%------------------------------------------------------------------
+
+\subsection{LTI Systems and the Impulse Response}
+
+A system $\mathcal{T}\{\cdot\}$ is \emph{Linear and Time-Invariant} (LTI) if it satisfies two properties simultaneously:
+\begin{itemize}
+    \item \textbf{Linearity (Superposition):}
+    \[
+        \mathcal{T}\{a\,x_1[n] + b\,x_2[n]\} = a\,\mathcal{T}\{x_1[n]\} + b\,\mathcal{T}\{x_2[n]\}
+    \]
+    for all scalars $a, b$ and admissible inputs $x_1, x_2$.
+    \item \textbf{Time Invariance:} If $y[n] = \mathcal{T}\{x[n]\}$, then $\mathcal{T}\{x[n - n_0]\} = y[n - n_0]$ for every integer shift $n_0$.
+\end{itemize}
+
+The power of LTI theory lies in a remarkable fact: an LTI system is \textbf{completely characterized} by its \emph{impulse response} $h[n]$, defined as the system output when the input is the unit impulse $\delta[n]$:
+\[
+    h[n] \triangleq \mathcal{T}\{\delta[n]\}.
+\]
+Once $h[n]$ is known, the response to \emph{any} input $x[n]$ can be determined without re-analyzing the system's internals---this is one of the most powerful tools in all of signals and systems.
+
+\subsection{Discrete-Time Convolution}
+
+The input--output relationship for any LTI system is given by the \textbf{convolution sum}:
+\begin{equation}
+    y[n] = x[n] * h[n] = \sum_{k=-\infty}^{\infty} x[k]\, h[n - k].
+    \label{eq:conv}
+\end{equation}
+For finite-support sequences---which is always the case in this lab and in virtually all real digital signal processing---the sum has finitely many nonzero terms. If $x[n]$ is nonzero for $n = 0, 1, \ldots, L_x - 1$ (length $L_x$) and $h[n]$ is nonzero for $n = 0, 1, \ldots, L_h - 1$ (length $L_h$), then $y[n]$ is nonzero for $n = 0, 1, \ldots, L_y - 1$ where:
+\begin{equation}
+    L_y = L_x + L_h - 1.
+    \label{eq:output_length}
+\end{equation}
+This length formula is one of the most useful facts you will internalize in this course. Verify your hand calculations against it before touching the hardware.
+
+\subsection{The Flip--Shift--Multiply--Sum Interpretation}
+
+Equation~(\ref{eq:conv}) has a beautiful graphical interpretation that gives convolution its intuitive meaning. To compute a single output sample $y[n_0]$ for a fixed index $n_0$:
+
+\begin{enumerate}
+    \item \textbf{Flip:} Reflect $h[k]$ about the vertical axis to obtain $h[-k]$.
+    \item \textbf{Shift:} Slide the flipped sequence right by $n_0$ samples to obtain $h[n_0 - k]$.
+    \item \textbf{Multiply:} Compute the element-wise product $x[k] \cdot h[n_0 - k]$ for all $k$.
+    \item \textbf{Sum:} Add all products to obtain the scalar $y[n_0] = \sum_{k} x[k]\,h[n_0 - k]$.
+\end{enumerate}
+
+Repeating this procedure for every integer $n_0$ in the output support sweeps $h[-k]$ from left to right across $x[k]$. This sliding-kernel picture is exactly what the MATLAB animation in Phase 3 will bring to life.
+
+\subsection{Output Length and Support}
+
+Table~\ref{tab:support} summarizes how the support of $y[n]$ is determined from those of $x[n]$ and $h[n]$.
+
+\begin{table}[H]
+    \centering
+    \caption{Support and Length of Convolution Output}
+    \label{tab:support}
+    \begin{tabularx}{\linewidth}{l X}
+    \toprule
+    \textbf{Fact} & \textbf{Details}\\
+    \midrule
+    Output length     & $L_y = L_x + L_h - 1$; always longer than either input alone.\\
+    Start of support  & $n_{\min} = $ start of $x[n]$ $+$ start of $h[n]$ (both 0 in this lab).\\
+    End of support    & $n_{\max} = n_{\min} + L_y - 1$.\\
+    First/last frames & The first frame ($n_0 = 0$) and last frame ($n_0 = L_y - 1$) have only one nonzero term in the sum; maximum-overlap frames are in the middle.\\
+    LED display limit & This circuit displays indices $n = 0$ through $6$ (7 LEDs). The overflow LED activates when $L_y > 7$.\\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection{Convolution Properties}
+
+Three properties will appear implicitly in your hardware experiment:
+\begin{itemize}
+    \item \textbf{Commutativity:} $x[n] * h[n] = h[n] * x[n]$. You could swap the roles of DIP switches and pushbuttons without changing the numerical output.
+    \item \textbf{Associativity:} $(x * g) * h = x * (g * h)$. Two LTI systems in cascade can be combined into one by convolving their impulse responses.
+    \item \textbf{Distributivity over Addition:} $x * (g + h) = x * g + x * h$. Two LTI systems in parallel can be combined by adding their impulse responses.
+\end{itemize}
+
+\subsection{Convolution as a Finite Impulse Response (FIR) Filter}
+
+Every finite-length $h[n]$ defines an FIR digital filter. The shape of $h[n]$ determines the system's ``character'': a uniform $h[n] = \frac{1}{L}\{1, 1, \ldots, 1\}$ is a moving-average (low-pass) filter, while an alternating $h[n] = \{1, -1\}$ highlights rapid changes (high-pass / edge detector). Your TA-assigned $h[n]$ is designed to exhibit a recognizable filtering behavior; identifying it is part of your post-lab analysis.
+
+\clearpage
+
+%------------------------------------------------------------------
+\section{Pre-Laboratory Assignment}
+%------------------------------------------------------------------
+
+\textbf{Complete the pre-lab before arriving at lab. You will show your handwritten worksheet to the TA as Checkpoint CP-1 (target: first 15 minutes).}
+
+\subsection{Part A: Receiving Your TA-Assigned Sequences}
+
+At the \textbf{start of the lab session}, your TA will assign a unique pair of sequences to your group. Record them immediately in Table~\ref{tab:assigned_seqs}.
+
+\begin{table}[H]
+    \centering
+    \caption{TA-Assigned Convolution Sequences --- Record at Start of Lab}
+    \label{tab:assigned_seqs}
+    \begin{tabularx}{\linewidth}{l X l}
+    \toprule
+    \textbf{Symbol} & \textbf{Description} & \textbf{Assigned Values}\\
+    \midrule
+    $h[n]$ & Impulse response, encoded on DIP switches & \underline{\hspace{5cm}}\\[0.4cm]
+    $x[n]$ & Input sequence, entered via pushbuttons & \underline{\hspace{5cm}}\\[0.4cm]
+    $L_h$ & Length of $h[n]$ & \underline{\hspace{5cm}}\\[0.4cm]
+    $L_x$ & Length of $x[n]$ & \underline{\hspace{5cm}}\\[0.4cm]
+    $L_y = L_x + L_h - 1$ & Expected output length & \underline{\hspace{5cm}}\\[0.2cm]
+    Random Seed & Unique pair identifier & \underline{\hspace{5cm}}\\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\noindent\textbf{Encoding note:} Each DIP switch ON ($= 1$) or OFF ($= 0$) represents one sample of $h[n]$. Pushbuttons similarly produce binary entries for $x[n]$ (pressed $= 1$, released $= 0$). If your TA assigns non-binary coefficients (values 0--3), consult Appendix~A for the two-switch encoding convention.
+
+\subsection{Part B: Hand Calculation Worksheet}
+
+\pldECE{Using your assigned $h[n]$ and $x[n]$, compute every output sample $y[n_0]$ by hand using the explicit flip--shift--multiply--sum procedure. You must show the four-step work (Flip $\to$ Shift $\to$ Multiply $\to$ Sum) \emph{individually for each} $n_0 = 0, 1, \ldots, L_y - 1$. Answers without shown work receive zero credit.}
+
+\noindent\textbf{Format to follow for each output sample:}
+
+For each $n_0$, write out:
+\begin{enumerate}
+    \item The index axis $k$ spanning all nonzero values of $x[k]$ and $h[n_0 - k]$.
+    \item The row of values $x[k]$ (fixed for all $n_0$, just re-copy it each time).
+    \item The row of values $h[n_0 - k]$ (the flipped-and-shifted kernel at the current position).
+    \item The row of element-wise products $x[k] \cdot h[n_0 - k]$.
+    \item The sum of those products, clearly boxed as $y[n_0] = \boxed{\ }$.
+\end{enumerate}
+
+\noindent\textbf{Worked example (not your actual sequences) --- study this format carefully:}
+
+\noindent Let $h[n] = \{2, 1, 3\}$ for $n = 0, 1, 2$ and $x[n] = \{1, 0, 2\}$ for $n = 0, 1, 2$. Then $L_y = 3 + 3 - 1 = 5$.
+
+\medskip
+\noindent\textit{Computing $y[2]$:} Flip $h[k]$ to get $h[-k] = \{3, 1, 2\}$, then shift right by 2 to place $h[0]$ at $k = 2$:
+\[
+    \begin{array}{r|ccccc}
+    k:       & 0 & 1 & 2 & 3 & 4 \\ \hline
+    x[k]:    & 1 & 0 & 2 & 0 & 0 \\
+    h[2-k]:  & 3 & 1 & 2 & 0 & 0 \\
+    \text{product:} & 3 & 0 & 4 & 0 & 0
+    \end{array}
+    \qquad y[2] = 3 + 0 + 4 = \boxed{7}
+\]
+Repeat for $y[0], y[1], y[3], y[4]$ to complete the full output sequence.
+
+\vspace{0.15in}
+\noindent Record all of your hand calculations in the box below. Your TA will review this at CP-1.
+
+\evidencebox{5.0in}{PRE-LAB WORKSHEET: Flip--Shift--Multiply--Sum hand calculations for all output samples $y[n_0],\ n_0 = 0,\ldots,L_y-1$. Show the four-step table for each sample. Write your name and student ID at the top of this box.}
+
+\subsection{Part C: Pre-Lab MATLAB Verification}
+
+\pldECE{Before arriving at lab, verify your hand calculation in MATLAB using the built-in \texttt{conv()} function. If you discover a discrepancy, correct your hand calculation and note the error source.}
+
+\begin{verbatim}
+% Replace these example sequences with your TA-assigned values:
+h = [2, 1, 3];       % h[n]  -- TA assigned
+x = [1, 0, 2];       % x[n]  -- TA assigned
+
+y_prelab = conv(x, h);
+n_y      = 0 : length(y_prelab) - 1;
+
+stem(n_y, y_prelab, 'filled');
+xlabel('n'); ylabel('y[n]'); grid on;
+title(['Pre-Lab Verification: y[n] = x[n] * h[n] | ', ...
+       'YOUR NAME & STUDENT ID HERE']);
+\end{verbatim}
+
+\delECE{Submit a screenshot of your pre-lab \texttt{stem()} plot. Your name and student ID must appear in the \texttt{title()} string. Note in your report whether your hand calculation matched or disagreed with \texttt{conv()}, and if it disagreed, state which sample(s) were wrong and why.}
+
+\evidencebox{2.0in}{Pre-Lab Deliverable: MATLAB conv() verification stem plot with name/student ID in title}
+
+\disECE{(Pre-lab question) If your hand calculation and MATLAB's \texttt{conv()} disagreed, identify the specific output index $n_0$ where the error occurred. Trace through the flip--shift--multiply--sum steps at that index to find the arithmetic mistake. Describe the error in two to three sentences.}
+
+\clearpage
+
+%------------------------------------------------------------------
+\section{Equipment \& Setup}
+%------------------------------------------------------------------
+
+\begin{table}[H]
+    \centering
+    \caption{Required Hardware and Software}
+    \label{tab:equipment}
+    \begin{tabularx}{\linewidth}{l X}
+    \toprule
+    \textbf{Category} & \textbf{Required Items}\\
+    \midrule
+    Microcontroller   & Arduino Mega 2560 (required for full pin map), USB Type-A to Type-B cable\\
+    $h[n]$ Input      & 8-position DIP switch bank (e.g., CTS Series 206, or equivalent slide-switch array)\\
+    $x[n]$ Input      & 4 momentary normally-open pushbuttons (through-hole breadboard type)\\
+    $y[n]$ Display    & 10-segment LED bar graph module (e.g., Kingbright DC-10EWA or equivalent)\\
+    Resistors         & $10\;\mathrm{k}\Omega \times 12$ (pull-down resistors for DIP switches and buttons), $220\;\Omega \times 8$ (LED current-limiting resistors)\\
+    Prototyping       & Full-size solderless breadboard, assorted jumper wires\\
+    Software          & Arduino IDE (v1.8 or v2.x), MATLAB R2021a or later\\
+    Skeleton files    & \texttt{Lab04\_Skeleton.ino} and \texttt{Lab04\_MATLAB\_Skeleton.m} (download from Canvas before lab)\\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection{Circuit Overview}
+
+Figure~\ref{fig:block_diagram} shows the signal flow of the Convolution Machine. The DIP switch bank supplies $h[n]$ coefficients on digital input pins D2--D9. Four pushbuttons supply $x[n]$ samples on pins D10--D13. The Arduino firmware computes $y[n] = x[n] * h[n]$ and drives the 10-segment LED bar graph to display the output. Simultaneously, the firmware formats an ASCII string and transmits it at 115200~baud over USB to MATLAB for software verification and animation.
+
+\begin{figure}[H]
+    \centering
+    \vspace{0.35in}
+    \fbox{\parbox{0.88\textwidth}{\centering
+        \textbf{[INSERT SYSTEM BLOCK DIAGRAM HERE]}\\[0.5cm]
+        \small{DIP Switches (D2--D9) $\;\xrightarrow{h[n]}\;$ \textbf{Arduino} $\;\xrightarrow{y[n]}\;$ LED Bar Graph (A0--A5, D22--D23)}\\[0.3cm]
+        \small{Pushbuttons (D10--D13) $\;\xrightarrow{x[n]}\;$ \textbf{Arduino}}\\[0.3cm]
+        \small{\textbf{Arduino} $\;\xrightarrow{\text{USB / UART @ 115200 baud}}\;$ MATLAB (PC)}\\[0.4cm]
+        \small{\textit{Replace this box with a block diagram showing the three signal paths:}}\\
+        \small{\textit{DIP switches $\to$ Arduino, pushbuttons $\to$ Arduino, Arduino $\to$ LED bar, Arduino $\to$ PC.}}
+    }}
+    \vspace{0.1in}
+    \caption{Convolution Machine system block diagram. Three data paths converge at the Arduino: two hardware inputs ($h[n]$ and $x[n]$) and two hardware outputs (LED bar graph and serial port).}
+    \label{fig:block_diagram}
+\end{figure}
+
+\subsection{Pin Assignment Reference}
+
+\begin{table}[H]
+    \centering
+    \caption{Arduino Pin Assignments for the Convolution Machine}
+    \label{tab:pins}
+    \begin{tabularx}{\linewidth}{l l l X}
+    \toprule
+    \textbf{Signal} & \textbf{Arduino Pin(s)} & \textbf{Direction} & \textbf{Notes}\\
+    \midrule
+    $h[0]$--$h[7]$ & D2--D9   & INPUT  & DIP switches; $10\;\mathrm{k}\Omega$ pull-down to GND\\
+    $x[0]$--$x[3]$ & D10--D13 & INPUT  & Pushbuttons; $10\;\mathrm{k}\Omega$ pull-down to GND\\
+    $y[0]$--$y[5]$ & A0--A5   & OUTPUT & LED bar segments 1--6 via $220\;\Omega$ series resistors\\
+    $y[6]$         & D22      & OUTPUT & LED bar segment 7 via $220\;\Omega$ series resistor\\
+    Overflow LED   & D23      & OUTPUT & Illuminates if $L_y > 7$ (output exceeds display range)\\
+    Serial TX      & USB (built-in) & OUTPUT & 115200~baud, 8N1, CR/LF line terminator\\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\noindent\textbf{Board note:} This pin map requires an Arduino Mega so that LED outputs use dedicated pins (D22 and D23) and do not conflict with DIP inputs. If your section uses an Uno, use the TA-provided reduced-pin variant and corresponding skeleton constants.
+
+\clearpage
+
+\subsection{Step-by-Step Wiring Instructions}
+
+Work through the four wiring steps in order. Do not power the Arduino until Step~W4 is complete and your TA has visually verified the circuit.
+
+\subsubsection{Step W1: DIP Switch Bank \texorpdfstring{($h[n]$ Inputs)}{(h[n] Inputs)}}
+
+\begin{enumerate}
+    \item Orient the 8-position DIP switch bank across the center gap of the breadboard (one row of pins on each side of the gap).
+    \item Connect the \textbf{common rail} side (all left-hand pins) of the DIP switch to the breadboard's $+5\;\mathrm{V}$ power rail.
+    \item From the output side (right-hand pins, positions 1--8), run one jumper wire to each Arduino pin D2 through D9 respectively (switch position 1 $\to$ D2, position 2 $\to$ D3, \ldots, position 8 $\to$ D9).
+    \item Install a $10\;\mathrm{k}\Omega$ pull-down resistor from each Arduino input pin (D2--D9) to GND. This ensures the pin reads a clean logic LOW when the switch is open; without pull-downs, the pin floats and reads unpredictably.
+\end{enumerate}
+
+\begin{figure}[H]
+    \centering
+    \vspace{0.3in}
+    \fbox{\parbox{0.85\textwidth}{\centering
+        \textbf{[INSERT DIP SWITCH WIRING DIAGRAM HERE]}\\[0.4cm]
+        \small{\textit{Schematic showing: 8-position DIP switch bank, 5\,V rail connection on the common side,}}\\
+        \small{\textit{signal lines from output side to Arduino D2--D9,}}\\
+        \small{\textit{and $10\;\mathrm{k}\Omega$ pull-down resistors from each signal line to GND.}}\\[0.2cm]
+        \small{Switch OFF $\Rightarrow$ Pin reads 0\,V (logic 0). \quad Switch ON $\Rightarrow$ Pin reads 5\,V (logic 1).}
+    }}
+    \vspace{0.1in}
+    \caption{DIP switch bank wiring for $h[n]$ coefficient input. Each switch position encodes one sample of $h[n]$: ON $= 1$, OFF $= 0$.}
+    \label{fig:dip_wiring}
+\end{figure}
+
+\subsubsection{Step W2: Pushbutton Inputs \texorpdfstring{($x[n]$ Inputs)}{(x[n] Inputs)}}
+
+\begin{enumerate}
+    \item Place 4 momentary pushbuttons in a row on the breadboard with at least one empty column between buttons to avoid accidental bridging.
+    \item Connect one terminal of each button to the $+5\;\mathrm{V}$ rail.
+    \item Connect the other terminal of each button to Arduino pins D10, D11, D12, and D13 (for $x[0]$, $x[1]$, $x[2]$, $x[3]$ respectively).
+    \item Install a $10\;\mathrm{k}\Omega$ pull-down resistor from each signal line (D10--D13) to GND.
+    \item \textbf{Label each button} with a small piece of tape: ``$x[0]$'', ``$x[1]$'', ``$x[2]$'', ``$x[3]$''. Correct labeling prevents input errors during the live demonstration.
+\end{enumerate}
+
+\begin{figure}[H]
+    \centering
+    \vspace{0.3in}
+    \fbox{\parbox{0.85\textwidth}{\centering
+        \textbf{[INSERT PUSHBUTTON WIRING DIAGRAM HERE]}\\[0.4cm]
+        \small{\textit{Schematic showing: 4 normally-open pushbuttons, 5\,V supply on one terminal,}}\\
+        \small{\textit{signal lines from the other terminal to Arduino D10--D13,}}\\
+        \small{\textit{and $10\;\mathrm{k}\Omega$ pull-down resistors from each signal line to GND.}}\\[0.2cm]
+        \small{Button released $\Rightarrow$ D10--D13 read 0\,V (logic 0). \quad Button pressed $\Rightarrow$ reads 5\,V (logic 1).}
+    }}
+    \vspace{0.1in}
+    \caption{Pushbutton wiring for $x[n]$ sample input. Pressing button $k$ holds $x[k] = 1$ for the duration of the press; releasing returns it to 0.}
+    \label{fig:button_wiring}
+\end{figure}
+
+\subsubsection{Step W3: LED Bar Graph Output \texorpdfstring{($y[n]$ Display)}{(y[n] Display)}}
+
+\begin{enumerate}
+    \item Place the 10-segment LED bar graph module on the breadboard. Check the datasheet (or the label on the module) to identify the anode (positive) and cathode (negative/common) pins.
+    \item Connect all cathode pins to GND.
+    \item Place a $220\;\Omega$ current-limiting resistor in series with each of the 7 active anode pins (LED segments 1--7).
+    \item Connect the free end of each $220\;\Omega$ resistor to the Arduino output pins as specified in Table~\ref{tab:pins}: segment 1 $\to$ A0, segment 2 $\to$ A1, \ldots, segment 6 $\to$ A5, segment 7 $\to$ D22.
+    \item Connect LED segment 8 (the overflow indicator) to Arduino D23 through its own $220\;\Omega$ resistor.
+    \item Leave LED segments 9--10 unconnected.
+\end{enumerate}
+
+\begin{figure}[H]
+    \centering
+    \vspace{0.3in}
+    \fbox{\parbox{0.85\textwidth}{\centering
+        \textbf{[INSERT LED BAR GRAPH WIRING DIAGRAM HERE]}\\[0.4cm]
+        \small{\textit{Schematic showing: 10-segment LED bar graph, shared cathode to GND,}}\\
+        \small{\textit{$220\;\Omega$ series resistors on segments 1--8,}}\\
+        \small{\textit{connections to Arduino A0--A5 (segments 1--6), D22 (segment 7), D23 (overflow).}}\\[0.2cm]
+        \small{LED lit $\Rightarrow$ $y[n] \neq 0$ (non-zero output sample). \quad LED off $\Rightarrow$ $y[n] = 0$.}
+    }}
+    \vspace{0.1in}
+    \caption{LED bar graph wiring for $y[n]$ output display. Segments 1--7 represent output samples $y[0]$--$y[6]$. The overflow LED (segment 8) indicates that the output sequence extends beyond 7 samples.}
+    \label{fig:led_wiring}
+\end{figure}
+
+\subsubsection{Step W4: Pre-Power Verification Checklist}
+
+Before connecting the Arduino to USB, perform this checklist:
+
+\begin{itemize}
+    \item[$\square$] \textbf{DIP pull-downs:} 8 resistors present, one per switch, each running from the Arduino input pin to GND.
+    \item[$\square$] \textbf{Button pull-downs:} 4 resistors present, one per button, each running from the Arduino input pin to GND.
+    \item[$\square$] \textbf{LED series resistors:} 8 resistors present (segments 1--7 and overflow). \textbf{No LED anode is directly connected to 5\,V or to an Arduino output without a series resistor} --- this will burn out the LED.
+    \item[$\square$] \textbf{No 5\,V to GND short:} No jumper wire directly connecting the power rail to the GND rail.
+    \item[$\square$] \textbf{Total resistor count:} $8 + 4 + 8 = 20$ resistors on the breadboard.
+\end{itemize}
+
+\cpECE{Show your completed, unpowered circuit to your TA before plugging in the USB cable. The TA will visually verify the pull-down network and LED resistor chain. Photo the assembled circuit with your student ID visible in the frame.}
+
+\evidencebox{2.2in}{Checkpoint W (Wiring): TA verifies circuit before power-on. Photograph of assembled circuit with student ID card visible in frame.}
+
+\begin{figure}[H]
+    \centering
+    \vspace{0.3in}
+    \fbox{\parbox{0.87\textwidth}{\centering
+        \textbf{[INSERT COMPLETE ASSEMBLED CIRCUIT PHOTOGRAPH HERE]}\\[0.4cm]
+        \small{\textit{Full breadboard photo showing: DIP switch bank (top-left), pushbutton row (center),}}\\
+        \small{\textit{LED bar graph (top-right), Arduino (right), and all wiring. Student ID card visible.}}\\[0.2cm]
+        \small{\textit{Use this reference photo to verify your own assembly matches the expected layout.}}
+    }}
+    \vspace{0.1in}
+    \caption{Reference photograph of the complete Convolution Machine circuit. Your circuit should closely match this layout before powering on.}
+    \label{fig:full_circuit}
+\end{figure}
+
+\clearpage
+
+%------------------------------------------------------------------
+\section{Software Implementation --- Arduino (Phase 2)}
+%------------------------------------------------------------------
+
+\textbf{Open \texttt{Lab04\_Skeleton.ino} from Canvas.} The skeleton provides \texttt{setup()} with all \texttt{pinMode()} calls, \texttt{Serial.begin(115200)}, and the LED driver function \texttt{displayOutput()}. Your task is to implement the four clearly marked \texttt{// --- YOUR CODE HERE ---} regions:
+\begin{enumerate}[nosep]
+    \item \texttt{readDIPSwitches()} --- fills the \texttt{h[]} array from pins D2--D9.
+    \item \texttt{readPushbuttons()} --- fills the \texttt{x\_in[]} array from pins D10--D13.
+    \item \texttt{computeConvolution()} --- implements the nested-loop convolution sum.
+    \item The serial output formatter in \texttt{loop()}.
+\end{enumerate}
+
+\subsection{Reading the DIP Switches and Pushbuttons}
+
+Implement two short loops:
+\begin{itemize}[nosep]
+    \item \texttt{readDIPSwitches()}: read D2--D9 into \texttt{h[0..7]}.
+    \item \texttt{readPushbuttons()}: read D10--D13 into \texttt{x\_in[0..3]}.
+\end{itemize}
+Use direct \texttt{digitalRead()} values (0/1) and preserve index-to-pin ordering. Full reference code is in Appendix~C.
+
+\subsection{Implementing the Convolution Sum in C++}
+
+The convolution sum in Equation~(\ref{eq:conv}) translates directly into two nested \texttt{for} loops. The outer loop iterates over output index $n$ from 0 to $L_y - 1$; the inner loop iterates over input index $k$ from 0 to $L_x - 1$, accumulating $x[k] \cdot h[n-k]$ whenever \texttt{0 <= n-k < lh\_actual}. Keep this boundary check exactly. Full template code is in Appendix~C.
+
+\disECE{Explain why the boundary check \texttt{0 <= n-k < lh\_actual} is necessary. What would happen mathematically if you omitted it and accessed \texttt{h[n-k]} for $n - k < 0$? What does C++ actually do when you read an array out of bounds? Connect your answer to the physical meaning of a \emph{causal} impulse response (one defined only for $n \geq 0$).}
+
+\subsection{Displaying \texorpdfstring{$y[n]$}{y[n]} on the LED Bar Graph}
+
+The LED driver in the skeleton lights segment $n$ if $y[n] > 0$ and turns it off if $y[n] = 0$. The overflow LED on D23 should light if any nonzero sample appears beyond index 6. If overflow is lit, use MATLAB for full-vector verification. Reference implementation remains in Appendix~C.
+
+\subsection{Serial Output to MATLAB}
+
+After computing and displaying $y[n]$, the Arduino must transmit one line in this exact schema:
+\begin{verbatim}
+H:h0,h1,...;X:x0,x1,...;Y:y0,y1,...
+\end{verbatim}
+Keep labels \texttt{H:}, \texttt{X:}, \texttt{Y:} and semicolon delimiters unchanged so the MATLAB parser works. Full serial-format function template is in Appendix~C.
+
+\cpECE{Flash the completed Arduino sketch. Open the Serial Monitor at 115200~baud. Flip DIP switches and press buttons while watching the output lines. Verify: (1)~the line format matches the reference exactly, (2)~the $h[n]$ field changes when you toggle DIP switches, and (3)~the $x[n]$ field changes when you press/release buttons.}
+
+\evidencebox{2.0in}{Checkpoint A (Arduino Serial): Serial Monitor screenshot showing correctly formatted output lines with live DIP/button updates. Student ID visible in the Serial Monitor window title or typed in the send field.}
+
+\cpECE{With your TA-assigned sequences set on the DIP switches and pushbuttons, confirm that the LED bar graph displays the same nonzero pattern as your hand-calculated $y[n]$ from the Pre-Lab. Show this live to your TA for CP-2 sign-off.}
+
+\evidencebox{2.2in}{Checkpoint CP-2 (Hardware Demo): Photo or video clip showing LED bar graph with TA-assigned sequences applied. LED pattern must match pre-lab hand calculation. TA initials obtained on Table~\ref{tab:checkpoints}.}
+
+\clearpage
+
+%------------------------------------------------------------------
+\section{Software Implementation --- MATLAB (Phase 3)}
+%------------------------------------------------------------------
+
+\textbf{Open \texttt{Lab04\_MATLAB\_Skeleton.m} from Canvas.} The skeleton handles serial port initialization, raw-line reading via \texttt{readline()}, and the ASCII string parser. Implement the three tasks in the \texttt{\% --- YOUR CODE HERE ---} sections.
+
+\subsection{Connecting to the Arduino}
+
+Set \texttt{port} for your OS, open \texttt{serialport(..., 115200)}, and parse one line into \texttt{h\_hw}, \texttt{x\_hw}, and \texttt{y\_hw}. Close Arduino Serial Monitor first so MATLAB can claim the port. Full parser reference is in Appendix~D.
+
+\subsection{Task 1 --- MATLAB Verification with \texttt{conv()}}
+
+Using the parsed \texttt{h\_hw} and \texttt{x\_hw} vectors received from the Arduino, compute the convolution independently in MATLAB and compare it to the Arduino's computed result \texttt{y\_hw}.
+
+Implement exactly these checks:
+\begin{itemize}[nosep]
+    \item \texttt{y\_matlab = conv(x\_hw, h\_hw);} 
+    \item \texttt{max\_err = max(abs(y\_hw - y\_matlab));}
+    \item Print a PASS/FAIL report with vectors and \texttt{max\_err}.
+\end{itemize}
+Full Task 1 code template is in Appendix~D.
+
+\delECE{Submit a MATLAB Command Window screenshot showing the complete Task 1 verification report. Your name and student ID must be visible (type them in the Command Window prompt, or add a \texttt{fprintf} header line with your name). If disagreements exist, explain which sample(s) differed and propose a hardware or firmware root cause.}
+
+\evidencebox{1.8in}{Task 1 Evidence: MATLAB Command Window showing conv() verification report with max-abs-error result and PASS/FAIL statement}
+
+\disECE{If \texttt{y\_hw} and \texttt{y\_matlab} disagree, identify at least three distinct causes. Consider: DIP switch contact bounce, floating input pins (missing pull-down), integer overflow in the C++ \texttt{int} accumulator, and Serial transmission errors. Classify each as a \emph{systematic} error (same sample always wrong) or a \emph{sporadic} error (mismatch varies between reads).}
+
+\subsection{Task 2 --- Stem Plots: \texorpdfstring{$x[n]$, $h[n]$, and $y[n]$}{x[n], h[n], and y[n]}}
+
+Create a single MATLAB figure containing a $1 \times 3$ array of \texttt{stem()} subplots. This figure is the primary visual record of your lab experiment.
+
+Build a single \texttt{1x3} figure with:
+\begin{itemize}[nosep]
+    \item Subplot 1: \texttt{x[n]} stem plot with labels and grid.
+    \item Subplot 2: \texttt{h[n]} stem plot with labels and grid.
+    \item Subplot 3: overlaid \texttt{y\_matlab} and \texttt{y\_hw} with legend.
+\end{itemize}
+Add name and student ID in \texttt{sgtitle(...)}. Full Task 2 template is in Appendix~D.
+
+\delECE{Submit the completed $1\times3$ stem subplot figure. Requirements: name/student ID in \texttt{sgtitle}; all three subplots have labeled \texttt{'n'} x-axes and descriptive y-axis labels; grid enabled on all subplots; the $y[n]$ subplot overlays both hardware and MATLAB results with a legend.}
+
+\evidencebox{2.5in}{Task 2 Evidence: $1\times3$ MATLAB stem subplot figure showing x[n], h[n], and y[n] (hardware vs. MATLAB overlay). Student name/ID in the figure title.}
+
+\begin{figure}[H]
+    \centering
+    \vspace{0.3in}
+    \fbox{\parbox{0.88\textwidth}{\centering
+        \textbf{[INSERT SCREENSHOT OF COMPLETED MATLAB STEM SUBPLOT FIGURE HERE]}\\[0.4cm]
+        \small{\textit{Expected layout: three side-by-side stem plots for $x[n]$ (blue), $h[n]$ (blue), and $y[n]$ (blue + red overlay).}}\\
+        \small{\textit{Figure title reads: ``Convolution Machine --- Lab 4 | [Name] | ID: [ID]''.}}\\
+        \small{\textit{$y[n]$ subplot legend distinguishes MATLAB conv() (blue) from Arduino hardware (red dashed).}}
+    }}
+    \vspace{0.1in}
+    \caption{Target output for Task 2. Your completed figure should match this general layout. Use your actual TA-assigned sequences, not the example values shown here.}
+    \label{fig:matlab_subplot_target}
+\end{figure}
+
+\subsection{Task 3 --- Animating the Flip--Shift--Multiply--Sum}
+
+This task builds a frame-by-frame animation that shows $h[-k]$ (the flipped kernel) sliding across $x[k]$ and accumulating the output $y[n]$ one sample at a time. The animation skeleton provides the figure window setup and the loop structure; you implement the mathematical content inside the loop.
+
+\subsubsection{What Each Animation Frame Must Show}
+
+For output index $n_0 = 0, 1, \ldots, L_y - 1$, each frame must display:
+\begin{enumerate}
+    \item \textbf{Top subplot:} $x[k]$ as fixed blue stems; $h[n_0 - k]$ as red stems at the current shift position; a text annotation showing $y[n_0] = $ (the current output value).
+    \item \textbf{Bottom subplot:} The growing output sequence $y[0], y[1], \ldots, y[n_0]$ as green stems, extending by one new sample per frame.
+\end{enumerate}
+
+Implementation checklist for each frame $n_0$:
+\begin{itemize}[nosep]
+    \item Build shifted kernel samples \texttt{h[n0-k]} on a common \texttt{k\_axis}.
+    \item Top subplot: overlay fixed \texttt{x[k]} and shifted kernel with frame title showing \texttt{y[n0]}.
+    \item Bottom subplot: plot accumulated output \texttt{y[0:n0]}.
+\end{itemize}
+Full Task 3 animation template is in Appendix~D.
+
+\begin{figure}[H]
+    \centering
+    \vspace{0.3in}
+    \fbox{\parbox{0.88\textwidth}{\centering
+        \textbf{[INSERT SCREENSHOT OF MATLAB ANIMATION --- MIDDLE FRAME ($n_0 = \lceil L_y/2 \rceil$) HERE]}\\[0.4cm]
+        \small{\textit{Top subplot: $x[k]$ (blue stems, fixed) overlaid with $h[n_0 - k]$ (red stems, shifted kernel at current position).}}\\
+        \small{\textit{Bottom subplot: accumulated $y[n]$ (green stems) for $n = 0$ through $n_0$.}}\\
+        \small{\textit{Frame title reads: ``Frame $n_0 = X$: $y[X] = $[value]''.}}\\
+        \small{\textit{The red kernel is clearly positioned at the middle of its sweep across $x[k]$.}}
+    }}
+    \vspace{0.1in}
+    \caption{Target layout for a single animation frame at the midpoint of the sweep. Capture this frame as a screenshot for your report.}
+    \label{fig:matlab_animation_target}
+\end{figure}
+
+\delECE{Record a continuous screen-capture video of the full animation running for your TA-assigned sequences. The video must show: (1)~the red $h[n_0 - k]$ kernel visibly shifting one position right between frames, (2)~the green $y[n]$ output growing by exactly one new sample per frame, and (3)~the final frame displaying a complete output sequence that numerically matches your hand calculation and your hardware LED pattern.}
+
+\delECE{Capture a static screenshot of the animation at frame $n_0 = \lceil L_y / 2 \rceil$ (the middle frame) and include it in your written report. Label the frame in a title or annotation so the grader can identify which $n_0$ it represents.}
+
+\disECE{In the animation, identify the frame $n_0^*$ that produces the largest output sample $y[n_0^*]$ (the ``maximum energy'' frame). Explain in terms of the \emph{overlap area} between $x[k]$ and $h[n_0^* - k]$ why this frame maximizes the product sum. Briefly distinguish DT convolution from DT \emph{cross-correlation}: in what single step do they differ, and how would the animation change if you were animating cross-correlation instead of convolution?}
+
+\clearpage
+
+%------------------------------------------------------------------
+\section{Discussion and Analysis}
+%------------------------------------------------------------------
+
+Answer all discussion questions in your post-lab report. Each response should be 3--6 sentences supported by numerical evidence from your hardware measurements and MATLAB output.
+
+\disECE{Compare your pre-lab hand-calculated $y[n]$ to (a)~the LED bar graph pattern observed on the hardware and (b)~MATLAB's \texttt{conv()} output. Report all output sample values numerically. If any discrepancy exists between any two of the three results, identify the specific index, the magnitude of the error, and a plausible root cause.}
+
+\disECE{The output length $L_y = L_x + L_h - 1$ is always \emph{strictly greater} than both $L_x$ and $L_h$ (when both are $\geq 2$). Explain intuitively why the output is longer than either input alone. In terms of the animation frames: which frames have only a partial overlap between $x[k]$ and the shifted kernel (the ``ramp-up'' and ``ramp-down'' zones), and which frames have full overlap?}
+
+\disECE{The Arduino convolution function uses C++ \texttt{int} arithmetic (typically 16-bit on Uno, 32-bit on Mega). Construct a specific example: give values of $h[n]$, $x[n]$, their lengths, and the worst-case product term that could overflow a 16-bit signed integer ($\max = 32767$). Propose a firmware-level fix using \texttt{long} or \texttt{int32\_t}, and explain why integer overflow is an especially dangerous bug in embedded systems (hint: it is silent and non-exception-throwing in C++).}
+
+\disECE{Convolution is commutative: $x[n] * h[n] = h[n] * x[n]$. This means you could swap the sequences---set your assigned $x[n]$ on the DIP switches and enter $h[n]$ via pushbuttons. Verify this claim numerically for your assigned sequences by computing \texttt{conv(h\_hw, x\_hw)} in MATLAB and comparing it to \texttt{conv(x\_hw, h\_hw)}. Do the two results agree exactly? Would the LED bar graph display an identical or merely equivalent pattern? Note any indexing differences carefully.}
+
+\disECE{Examine the shape of your assigned $h[n]$. Does it resemble a moving-average filter (all positive coefficients of similar magnitude), a high-pass filter (alternating signs), an edge-detection kernel (e.g., $\{-1, 1\}$), or something else? Predict in words how this $h[n]$ would modify a long, smoothly varying input signal. What would happen to a rapidly oscillating input? (You do not need hardware data to answer this---use your understanding of the overlap-and-accumulate picture from the animation.)}
+
+\clearpage
+
+%------------------------------------------------------------------
+\section{Deliverables \& TA Sign-Off Sheet}
+%------------------------------------------------------------------
+
+\subsection{In-Lab Checkpoints}
+
+Complete all three checkpoints \textbf{during the lab session}. Your TA must initial Table~\ref{tab:checkpoints} for the hardware checkpoints to count toward your grade.
+
+\begin{table}[H]
+    \centering
+    \caption{TA Checkpoint Sign-Off Sheet --- Keep This Page and Submit a Photograph of It}
+    \label{tab:checkpoints}
+    \begin{tabularx}{\linewidth}{l >{\raggedright\arraybackslash}X c c}
+    \toprule
+    \textbf{CP} & \textbf{Requirement for Sign-Off} & \textbf{Target Time} & \textbf{TA Initials}\\
+    \midrule
+    \textbf{CP-1}
+        \newline Pre-Lab
+        & Hand-written flip--shift--multiply--sum worksheet for \emph{all} $L_y$ output samples, shown open to the TA. Four-step format (flip, shift, multiply, sum) visible for each sample. Values match the TA-assigned sequences. Calculator-only or answer-only pages do not qualify.
+        & 0:00--0:15
+        & \underline{\hspace{2cm}}\\[0.6cm]
+    \textbf{CP-2}
+        \newline Hardware Demo
+        & Powered Arduino with the assigned DIP switch configuration and pushbutton states: LED bar graph displays the correct $y[n]$ pattern. Serial Monitor (or TA-observed screen) shows correctly formatted output lines. TA compares LED pattern to CP-1 hand calculation.
+        & 0:40--1:00
+        & \underline{\hspace{2cm}}\\[0.6cm]
+    \textbf{CP-3}
+        \newline MATLAB Demo
+        & MATLAB script running live: (a)~Command Window shows Task 1 PASS/FAIL report; (b)~$1\times3$ stem subplot figure is open and complete; (c)~animation runs at least one full pass from $n_0 = 0$ to $n_0 = L_y - 1$ with the kernel visibly sliding.
+        & 1:00--1:45
+        & \underline{\hspace{2cm}}\\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\medskip
+\noindent\textbf{Group member name 1:} \underline{\hspace{5.2cm}}\\[0.15cm]
+\noindent\textbf{Group member name 2:} \underline{\hspace{5.2cm}}
+
+\noindent\textbf{TA name:} \underline{\hspace{5cm}} \quad \textbf{Lab section / Date:} \underline{\hspace{4cm}}
+
+\vspace{0.3in}
+
+\subsection{Video Recording Requirements}
+
+\cpECE{Before leaving lab, record a \emph{single continuous} screen-and-camera video (maximum 4 minutes). It must include, in order:}
+\begin{enumerate}
+    \item A clear close-up of the DIP switch bank with your assigned $h[n]$ configuration visible; state aloud which switches are ON.
+    \item A clear close-up of the pushbutton row with your assigned $x[n]$ configuration held; state aloud which buttons are pressed.
+    \item The LED bar graph fully visible, showing the resulting $y[n]$ pattern.
+    \item Switch to the MATLAB window and pan across the completed $1\times3$ stem subplot figure.
+    \item The animation running from frame 0 to the final frame (speed up if needed, but all frames must be visible).
+    \item Briefly hold your student ID card toward the camera.
+\end{enumerate}
+
+\delECE{Upload the video file (MP4 or MOV, max 500~MB) to Canvas using the filename format \texttt{Lab04\_[LastName]\_[StudentID].mp4}. Late video submissions without prior TA approval will be penalized.}
+
+\subsection{Written Report Submission Checklist}
+
+\begin{itemize}
+    \item[$\square$] Pre-lab hand calculation worksheet (scanned or photographed, name and student ID visible at the top).
+    \item[$\square$] Pre-lab MATLAB \texttt{conv()} stem plot with name/student ID in the plot title.
+    \item[$\square$] Pre-lab discussion answer: did your hand calculation match \texttt{conv()}? If not, what was the error?
+    \item[$\square$] Circuit photograph with student ID visible (taken at CP-2 sign-off).
+    \item[$\square$] Serial Monitor screenshot confirming correct formatted output (CP-2 evidence).
+    \item[$\square$] Task 1: Command Window screenshot showing max-abs-error verification report (PASS or FAIL).
+    \item[$\square$] Task 2: $1\times3$ stem subplot figure with name and student ID in \texttt{sgtitle}.
+    \item[$\square$] Task 3: Animation middle-frame screenshot (frame $n_0 = \lceil L_y/2 \rceil$) with frame number labeled.
+    \item[$\square$] Video uploaded to Canvas separately (not embedded in the report PDF).
+    \item[$\square$] Answers to all five \textcolor{Plum}{\textbf{Discussion}} questions (one paragraph each, with numerical evidence).
+    \item[$\square$] Photograph of the signed Table~\ref{tab:checkpoints} (TA must have initialed all three CP rows).
+    \item[$\square$] Arduino \texttt{.ino} source code with your added functions in an Appendix.
+    \item[$\square$] MATLAB \texttt{.m} source code (completed skeleton) in an Appendix.
+\end{itemize}
+
+%------------------------------------------------------------------
+\section{Grading Rubric (100 Points)}
+%------------------------------------------------------------------
+
+\begin{table}[H]
+    \centering
+    \caption{Lab 04 Evaluation Rubric}
+    \begin{tabularx}{\linewidth}{l c >{\raggedright\arraybackslash}X}
+    \toprule
+    \textbf{Category} & \textbf{Points} & \textbf{Criteria}\\
+    \midrule
+    Pre-lab hand calculation
+        & 20
+        & All $L_y$ output samples computed with explicit four-step flip--shift--multiply--sum work. Arithmetic correct. Full table format shown for each sample. TA CP-1 initials present.\\[0.2cm]
+    Pre-lab MATLAB verification
+        & 5
+        & Stem plot submitted with name/ID in title. Agreement or discrepancy with hand calculation noted; discrepancies diagnosed.\\[0.2cm]
+    Hardware implementation (CP-2)
+        & 20
+        & Functional circuit, TA CP-2 initials present. LED pattern matches correct convolution for assigned sequences. Serial Monitor screenshot in correct format. Circuit photograph with student ID.\\[0.2cm]
+    Task 1 --- \texttt{conv()} verification
+        & 10
+        & Verification script correctly implemented. PASS/FAIL report printed with max-abs-error. Any discrepancy diagnosed in the report with a plausible root cause.\\[0.2cm]
+    Task 2 --- Stem subplot figure
+        & 15
+        & All three subplots present, labeled axes, grid enabled, student name/ID in \texttt{sgtitle}. $y[n]$ subplot overlays hardware and MATLAB results with legend. Both results visible and distinguishable.\\[0.2cm]
+    Task 3 --- Animation \& video
+        & 15
+        & Animation implements correct flip, shift, and accumulation logic. Red kernel visibly slides right each frame. Green output grows one sample per frame. Video meets all six checklist requirements. Middle-frame screenshot submitted.\\[0.2cm]
+    Discussion questions
+        & 15
+        & All five questions answered in 3--6 sentences each, supported by numerical values from lab data. Technically precise; no qualitative-only responses.\\
+    \midrule
+    \textbf{Total} & \textbf{100} & \\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\clearpage
+
+%------------------------------------------------------------------
+\section*{Appendix A: Two-Switch Coefficient Encoding}
+\addcontentsline{toc}{section}{Appendix A: Two-Switch Coefficient Encoding}
+%------------------------------------------------------------------
+
+If your TA assigns $h[n]$ coefficients with values in $\{0, 1, 2, 3\}$ (richer than the standard binary $\{0, 1\}$), the DIP switch bank encodes each coefficient using consecutive pairs of switches in simple binary. Table~\ref{tab:two_switch} shows the mapping; the extended skeleton's \texttt{readDIPSwitches()} function already handles this decoding when the macro \texttt{TWO\_SWITCH\_MODE} is defined.
+
+\begin{table}[H]
+    \centering
+    \caption{Two-Switch Binary Encoding for Coefficients 0--3}
+    \label{tab:two_switch}
+    \begin{tabular}{ccc}
+    \toprule
+    \textbf{Coefficient Value} & \textbf{SW\textsubscript{A} (MSB)} & \textbf{SW\textsubscript{B} (LSB)}\\
+    \midrule
+    0 & OFF & OFF\\
+    1 & OFF & ON\\
+    2 & ON  & OFF\\
+    3 & ON  & ON\\
+    \bottomrule
+    \end{tabular}
+\end{table}
+
+\noindent With 8 DIP switches grouped into 4 pairs, this encoding supports a length-4 $h[n]$ with values 0--3. If your TA assigns a length-8 binary $h[n]$, all 8 switches are used in single-switch mode (no pairing required).
+
+%------------------------------------------------------------------
+\section*{Appendix B: Troubleshooting Guide}
+\addcontentsline{toc}{section}{Appendix B: Troubleshooting Guide}
+%------------------------------------------------------------------
+
+\begin{itemize}
+    \item \textbf{All LEDs stay ON regardless of DIP switch position.} Missing pull-down resistors cause input pins to float at an undefined voltage, which the Arduino often reads as logic~1. Measure the voltage at each input pin with a multimeter: it should read 0\,V (switch OFF) or 5\,V (switch ON). Install the $10\;\mathrm{k}\Omega$ pull-downs if missing.
+
+    \item \textbf{Serial Monitor shows garbled characters.} Verify that both the Arduino \texttt{Serial.begin()} call and the Serial Monitor baud-rate dropdown are set to exactly \texttt{115200}. Also confirm your USB cable is a data cable, not a charge-only cable (charge-only cables carry no data signals).
+
+    \item \textbf{MATLAB throws \texttt{serialport: cannot open port}.} Only one application can hold the serial port at a time. Close the Arduino IDE Serial Monitor window before running the MATLAB script. On macOS, run \texttt{ls /dev/cu.*} in Terminal to identify the current port name, which changes each time the Arduino is re-plugged.
+
+    \item \textbf{\texttt{y\_hw} and \texttt{y\_matlab} disagree by exactly $\pm 1$ for one sample.} Intermittent DIP switch contact is the most common cause. Toggle the suspect switch fully to its ON or OFF position and re-read. Worn breadboard contacts can also produce a logic level between 0 and 5\,V, which the Arduino may read inconsistently.
+
+    \item \textbf{The animation subplot is blank or shows only one sample.} Verify that \texttt{y\_matlab} is populated before entering the loop (type \texttt{disp(y\_matlab)} to check). Also confirm \texttt{k\_axis} is wide enough: it must span from \texttt{k\_min = -(Lh-1)} to \texttt{k\_max = (Lx-1)+(Lh-1)} to accommodate all shift positions.
+
+    \item \textbf{The overflow LED (D23) is lit.} This means $L_y = L_x + L_h - 1 > 7$, so the output sequence extends beyond the 7-LED display. All output values are still computed and transmitted serially---use the complete \texttt{y\_hw} vector in MATLAB for full verification. The LED display shows only $y[0]$--$y[6]$.
+
+    \item \textbf{Animation is too fast to observe the sliding kernel.} Increase the \texttt{pause()} duration in the loop (e.g., \texttt{pause(1.2)} for slower playback). When recording, use a screen capture tool that records at a minimum of 15 frames per second to ensure the video is viewable.
+\end{itemize}
+
+%------------------------------------------------------------------
+\section*{Appendix C: Arduino Reference Templates}
+\addcontentsline{toc}{section}{Appendix C: Arduino Reference Templates}
+%------------------------------------------------------------------
+
+\begin{verbatim}
+// ---- Pin definitions (Mega full map; no pin conflicts) ----
+const int DIP_PINS[8] = {2, 3, 4, 5, 6, 7, 8, 9};
+const int BTN_PINS[4] = {10, 11, 12, 13};
+const int LED_PINS[7] = {A0, A1, A2, A3, A4, A5, 22};
+const int LED_OVF_PIN = 23;
+
+const int LH_MAX = 8;
+const int LX_MAX = 4;
+
+int h[LH_MAX];
+int x_in[LX_MAX];
+int y_out[LH_MAX + LX_MAX - 1];
+int Ly;
+
+void readDIPSwitches() {
+    for (int i = 0; i < LH_MAX; i++) {
+        h[i] = digitalRead(DIP_PINS[i]);
+    }
+}
+
+void readPushbuttons() {
+    for (int i = 0; i < LX_MAX; i++) {
+        x_in[i] = digitalRead(BTN_PINS[i]);
+    }
+}
+
+void computeConvolution(int lh_actual, int lx_actual) {
+    Ly = lh_actual + lx_actual - 1;
+    for (int n = 0; n < Ly; n++) y_out[n] = 0;
+
+    for (int n = 0; n < Ly; n++) {
+        for (int k = 0; k < lx_actual; k++) {
+            int hk = n - k;
+            if (hk >= 0 && hk < lh_actual) {
+                y_out[n] += x_in[k] * h[hk];
+            }
+        }
+    }
+}
+
+void displayOutput() {
+    for (int n = 0; n < 7 && n < Ly; n++) {
+        digitalWrite(LED_PINS[n], (y_out[n] > 0) ? HIGH : LOW);
+    }
+
+    bool overflow = false;
+    for (int n = 7; n < Ly; n++) {
+        if (y_out[n] != 0) overflow = true;
+    }
+    digitalWrite(LED_OVF_PIN, overflow ? HIGH : LOW);
+}
+
+void sendSerialData(int lh_actual, int lx_actual) {
+    Serial.print("H:");
+    for (int i = 0; i < lh_actual; i++) {
+        Serial.print(h[i]);
+        if (i < lh_actual - 1) Serial.print(",");
+    }
+    Serial.print(";X:");
+    for (int i = 0; i < lx_actual; i++) {
+        Serial.print(x_in[i]);
+        if (i < lx_actual - 1) Serial.print(",");
+    }
+    Serial.print(";Y:");
+    for (int i = 0; i < Ly; i++) {
+        Serial.print(y_out[i]);
+        if (i < Ly - 1) Serial.print(",");
+    }
+    Serial.println();
+}
+\end{verbatim}
+
+%------------------------------------------------------------------
+\section*{Appendix D: MATLAB Reference Templates}
+\addcontentsline{toc}{section}{Appendix D: MATLAB Reference Templates}
+%------------------------------------------------------------------
+
+\begin{verbatim}
+% --- Serial setup (skeleton-compatible) ---
+port = 'COM3';
+baud = 115200;
+
+s = serialport(port, baud);
+configureTerminator(s, "CR/LF");
+flush(s);
+pause(2);
+
+raw_line = readline(s);
+parts    = strsplit(raw_line, ';');
+
+h_str = strsplit(erase(parts{1}, 'H:'), ',');
+x_str = strsplit(erase(parts{2}, 'X:'), ',');
+y_str = strsplit(erase(parts{3}, 'Y:'), ',');
+
+h_hw = str2double(h_str);
+x_hw = str2double(x_str);
+y_hw = str2double(y_str);
+
+% --- Task 1: verification ---
+y_matlab = conv(x_hw, h_hw);
+max_err = max(abs(y_hw - y_matlab));
+
+fprintf('=== Task 1: Hardware vs. MATLAB Verification ===\n');
+fprintf('h[n]     = %s\n', num2str(h_hw));
+fprintf('x[n]     = %s\n', num2str(x_hw));
+fprintf('y_matlab = %s\n', num2str(y_matlab));
+fprintf('y_hw     = %s\n', num2str(y_hw));
+fprintf('Max abs error: %d\n', max_err);
+if max_err == 0
+    fprintf('RESULT: PASS -- hardware matches MATLAB exactly.\n');
+else
+    fprintf('RESULT: FAIL -- discrepancy detected.\n');
+end
+
+% --- Task 2: 1x3 stem plot ---
+figure('Position', [100 100 1100 380]);
+
+subplot(1, 3, 1);
+n_x = 0 : length(x_hw)-1;
+stem(n_x, x_hw, 'filled', 'b');
+xlabel('n'); ylabel('x[n]'); title('Input x[n]'); grid on;
+
+subplot(1, 3, 2);
+n_h = 0 : length(h_hw)-1;
+stem(n_h, h_hw, 'filled', 'b');
+xlabel('n'); ylabel('h[n]'); title('Impulse Response h[n]'); grid on;
+
+subplot(1, 3, 3);
+n_y = 0 : length(y_matlab)-1;
+stem(n_y, y_matlab, 'b', 'filled', 'DisplayName', 'MATLAB conv()');
+hold on;
+stem(n_y + 0.15, y_hw, 'r--', 'DisplayName', 'Arduino hardware');
+xlabel('n'); ylabel('y[n]'); title('Output y[n] = x[n] * h[n]');
+legend('Location', 'best'); grid on;
+
+sgtitle(sprintf('Convolution Machine --- Lab 4 | %s | ID: %s', ...
+        'YOUR NAME', 'YOUR STUDENT ID'));
+
+% --- Task 3: animation skeleton ---
+Lx = length(x_hw); Lh = length(h_hw); Ly_v = Lx + Lh - 1;
+k_min = -(Lh - 1); k_max = (Lx - 1) + (Lh - 1); k_axis = k_min:k_max;
+Nk = length(k_axis);
+
+x_ext = zeros(1, Nk);
+for kk = 0:Lx-1
+    idx = find(k_axis == kk);
+    x_ext(idx) = x_hw(kk + 1);
+end
+
+h_flip = fliplr(h_hw);
+figure('Name', 'Convolution Animation', 'Position', [50 50 960 600]);
+
+for n0 = 0:Ly_v-1
+    clf;
+    h_shifted = zeros(1, Nk);
+    for ii = 0:Lh-1
+        k_val = n0 - ii;
+        idx = find(k_axis == k_val);
+        if ~isempty(idx), h_shifted(idx) = h_flip(ii + 1); end
+    end
+
+    subplot(2, 1, 1);
+    stem(k_axis, x_ext, 'b', 'filled', 'DisplayName', 'x[k]'); hold on;
+    stem(k_axis, h_shifted, 'r', 'LineWidth', 2, ...
+         'DisplayName', sprintf('h[%d-k]', n0));
+    title(sprintf('Frame n_0 = %d : y[%d] = %.0f', n0, n0, y_matlab(n0+1)));
+    xlabel('k'); ylabel('Amplitude'); legend('Location', 'best');
+    grid on; xlim([k_min-0.5, k_max+0.5]);
+
+    subplot(2, 1, 2);
+    n_out = 0:n0;
+    stem(n_out, y_matlab(1:n0+1), 'g', 'filled', 'LineWidth', 1.8);
+    xlabel('n'); ylabel('y[n]'); title('Output y[n] (accumulated so far)');
+    xlim([-0.5, Ly_v - 0.5]); ylim([0, max(y_matlab) + 1]); grid on;
+
+    drawnow;
+    pause(0.6);
+end
+\end{verbatim}
+
+\end{document}
