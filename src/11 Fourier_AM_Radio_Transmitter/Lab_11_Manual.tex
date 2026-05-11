@@ -1,0 +1,1046 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{fancybox}
+\usepackage{tikz}
+
+\input{ECE280F24header}
+
+% Fallbacks in case custom macros are not provided by ECE280F24header
+\providecommand{\pldECE}[1]{\textcolor{BrickRed}{\textbf{Pre-lab Deliverable:} #1}}
+\providecommand{\cpECE}[1]{\textcolor{OliveGreen}{\textbf{Checkpoint:} #1}}
+\providecommand{\disECE}[1]{\textcolor{Plum}{\textbf{Discussion:} #1}}
+\providecommand{\delECE}[1]{\textcolor{BlueViolet}{\textbf{Deliverable:} #1}}
+\newcommand{\evidencebox}[2]{%
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][#1][c]{0.92\textwidth}{\centering \textbf{#2}}}
+\end{figure}}
+\newcommand{\visualplaceholder}[1]{%
+\begin{figure}[H]
+    \centering
+    \fbox{%
+    \begin{minipage}{0.92\textwidth}
+        \centering
+        \vspace{0.6in}
+        \textcolor{red}{\Large\textbf{[#1]}}\\
+        \vspace{0.6in}
+    \end{minipage}
+    }
+\end{figure}}
+\newcommand{\notespacebox}[2]{%
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[t][#1][t]{0.92\textwidth}{\textbf{Student Notes:} #2}}
+\end{figure}}
+
+\begin{document}
+
+\begin{center}
+\huge{\bf Laboratory 11:}\\
+\vspace{0.2in}
+\Large{\bf Fourier Applications \& Communication Systems}\\
+\Large{\bf AM Radio Transmitter: Hardware vs. Software Modulation}\\
+\vspace{0.2in}
+\normalsize{\bf Validating Analog Modulation Theory in Real Hardware}
+\end{center}
+
+\vspace{0.3in}
+\noindent
+\textbf{Lab Duration:} 2 hours\\
+\textbf{Pre-Lab Time Expected:} 30 minutes (spectrum calculations and sideband derivation)\\
+\textbf{Key Concept:} Amplitude Modulation (AM) remains the backbone of critical infrastructure. You will design an AM modulator using analog multiplication, measure its physical spectrum, and prove that your hardware perfectly matches theoretical Fourier analysis and ideal software models.
+
+\tableofcontents
+\clearpage
+
+%--------------------------------------------------------------
+\section*{Grading and Authenticity Requirements}
+%--------------------------------------------------------------
+\delECE{This is a graded laboratory assignment. Include your \textbf{name and student ID} on all handwritten derivations, oscilloscope screenshots, and MATLAB plots.}
+
+\delECE{Your hand-derived sideband frequency predictions must be shown to the TA before measurement. Using online tools to compute sidebands is not acceptable; you must derive them from first principles using the modulation equation.}
+
+\cpECE{Before submission, verify that all MATLAB figures include proper axis labels (frequency in Hz), a legend distinguishing hardware FFT from theoretical Simulink output, and your name/student ID in the title.}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Real-World Context: Amplitude Modulation in Critical Communications}
+%--------------------------------------------------------------
+
+\noindent
+You are a Junior Communications Hardware Engineer at a company supplying radio systems to three critical infrastructure sectors: aviation, maritime, and emergency services. Your expertise in AM modulation and hardware validation directly impacts safety and regulatory compliance across these domains. Each system relies on the same physical principle—multiplication (modulation) in time-domain becomes frequency-shifting in the Fourier domain—but with vastly different specifications and consequences for failure.
+
+\subsection{Program 1: Aviation—Air Traffic Control and Emergency Locator Transmitters}
+
+The Federal Aviation Administration (FAA) mandates that commercial and military aircraft carry AM radio systems for navigation and emergencies. Your company designs both primary systems and backup Emergency Locator Transmitters (ELTs) that activate on impact.
+
+\textbf{The challenge:} Modern digital systems offer higher data rates but fail catastrophically when signal-to-noise ratio drops below a threshold. Pilots in distress need human-intelligible voice communication—not error-corrected bit streams. AM degrades gracefully: as the signal weakens, the voice becomes scratchy but remains intelligible. This is why the FAA mandates AM as a primary and backup system for the next 20+ years.
+
+\textbf{Your role:} Design the AM modulator hardware (using an AD633 four-quadrant multiplier) and validate that the modulation index (envelope depth) stays within FAA-approved ranges (typically 90--100\% for double-sideband AM). Physical proof: capture the modulated signal on an oscilloscope, compute the empirical spectrum via FFT, and show that sidebands are precisely at the expected frequencies with no spurious emissions. The modulated signal must meet FCC spectral mask requirements—no power spilling into adjacent channels.
+
+\textbf{Regulatory requirement:} Demonstrate that your AD633 hardware modulator produces identical spectral content to the ideal Simulink mathematical model (deviation $< 2\%$ in sideband amplitude). Aviation equipment certification requires hardware-software correlation.
+
+\subsection{Program 2: Maritime—Ship-to-Shore Communication and Distress Signaling}
+
+The International Maritime Organization (IMO) requires all ocean-going vessels to carry Medium Frequency (MF) AM radio for ship-to-shore communication and distress alerting (MAYDAY, SOS). Even modern vessels with satellite systems maintain AM as a primary backup.
+
+\textbf{The challenge:} Ships operate in extreme environments—saltwater corrosion, high-humidity antenna systems, lightning strikes, and electromagnetic interference from radar and power systems. MF AM radio (around 500 kHz to 2 MHz) propagates over long distances by ground wave and sky wave, often reaching stations even when the main antenna is damaged or the digital system has failed.
+
+\textbf{Your role:} Design an AM transmitter front-end that can survive harsh marine environments and deliver reliable modulation despite component aging, thermal variations ($-20°$ to $+60°$ C), and power supply ripple. Your lab validates that the AD633 multiplier maintains stable modulation index across this temperature range.
+
+\textbf{Regulatory requirement:} Prove modulation meets ITU-R recommendations for MF transmitters (modulation index 95--100\%, frequency stability within 50 ppm). The spectrum must show clean sidebands with no splatter into neighboring ship frequencies (spaced 3 kHz apart in the MF band).
+
+\subsection{Program 3: Emergency Services—Emergency Alert System (EAS) Radio}
+
+The FCC requires all broadcast radio and television stations to carry Emergency Alert System (EAS) signals—AM-modulated codes that alert the public to hurricanes, earthquakes, Amber Alerts, and national emergencies.
+
+\textbf{The challenge:} EAS must work on cheap, ubiquitous AM radios in every home and car—millions of legacy receivers from the 1970s onward, many with poor selectivity and limited dynamic range. A weak modulator with harmonic distortion creates adjacent-channel interference that blocks reception of neighboring broadcasts.
+
+\textbf{Your role:} Design a compact, low-cost AM modulator suitable for small-market broadcast stations and emergency radio transmitters. Your lab measures the Total Harmonic Distortion (THD) of the AD633 output when modulated with broadband audio (music, speech, alert tones) and proves THD stays below 5\% (FCC requirement for broadcast stations). You must show that your hardware FFT reveals a clean carrier and sidebands with no harmonic spurs that would interfere with adjacent channels.
+
+\textbf{Regulatory requirement:} Demonstrate that the EAS alert signal modulation remains intelligible and activates receivers reliably even in the presence of moderate atmospheric noise and interference (SNR down to 10 dB).
+
+\subsection{The Unifying Principle: Hardware Validation Against Mathematical Theory}
+
+All three programs depend on a core engineering skill: \textbf{proving that physical hardware matches ideal mathematical models}.
+
+\begin{enumerate}
+    \item \textbf{Hand-derived predictions:} Use AM modulation theory to predict carrier frequency, sideband frequencies, and sideband amplitudes.
+    \item \textbf{Hardware build:} Construct the AD633 multiplier circuit on a breadboard.
+    \item \textbf{Oscilloscope observation:} Measure the modulated waveform's envelope and verify that the modulation index matches predictions.
+    \item \textbf{FFT analysis:} Capture the modulated signal into MATLAB and compute its frequency spectrum. Overlay with ideal Simulink predictions.
+    \item \textbf{Quantify accuracy:} Compare hardware spectrum to theory. Explain any deviations (component tolerance, nonlinearity, temperature drift).
+\end{enumerate}
+
+This workflow—theory → hardware → measurement → comparison → validation—is how modern engineers certify safety-critical systems for aviation, maritime, and emergency services.
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Learning Objectives}
+%--------------------------------------------------------------
+
+By the end of this lab, you should be able to:
+
+\begin{enumerate}
+    \item \textbf{Understand amplitude modulation (AM):} Explain how multiplying a message signal by a carrier wave shifts the spectrum and creates upper and lower sidebands.
+
+    \item \textbf{Derive AM spectra by hand:} For a single-tone message, hand-derive the expected frequencies of the carrier and sidebands under both DSB-SC (Double-Sideband Suppressed-Carrier) and DSB-AM (standard AM) modulation.
+
+    \item \textbf{Build an analog modulator:} Wire an AD633 four-quadrant multiplier to perform AM modulation on a breadboard.
+
+    \item \textbf{Configure modulation modes:} Understand the difference between DSB-SC (no DC offset) and DSB-AM (with DC bias) and switch between them experimentally.
+
+    \item \textbf{Measure modulation index:} Extract the modulation index $m$ directly from oscilloscope measurements of the envelope (max/min amplitudes).
+
+    \item \textbf{Analyze spectra with FFT:} Use MATLAB's \texttt{fft()} function to compute the frequency spectrum of captured hardware output and identify sidebands.
+
+    \item \textbf{Validate hardware against theory:} Compare physical AD633 output spectrum to ideal Simulink model predictions and quantify deviations.
+
+    \item \textbf{Understand real-world imperfections:} Explain how component tolerances, thermal effects, and nonlinearities cause the hardware to deviate from the ideal mathematical model.
+\end{enumerate}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Core Concepts: Amplitude Modulation and Fourier Analysis}
+%--------------------------------------------------------------
+
+\subsection{What Is Amplitude Modulation?}
+
+Amplitude Modulation (AM) is the process of encoding an information-bearing signal (the \textbf{message} or \textbf{baseband} signal $m(t)$) onto a high-frequency oscillation (the \textbf{carrier} signal). The simplest form is:
+
+\begin{equation}
+y(t) = [A_c + m(t)] \cos(\omega_c t),
+\label{eq:am_basic}
+\end{equation}
+
+\noindent
+where:
+\begin{itemize}
+    \item $m(t)$ is the baseband message signal (audio, for example).
+    \item $A_c$ is the carrier amplitude.
+    \item $\omega_c = 2 \pi f_c$ is the carrier angular frequency (radians/second).
+    \item The bracketed term $[A_c + m(t)]$ is the \textbf{envelope}—the time-varying amplitude of the carrier wave.
+\end{itemize}
+
+\noindent
+\textbf{Key insight:} The envelope directly follows the message signal. A listener tuned to frequency $f_c$ hears the audio because the envelope contains all the spectral content of $m(t)$.
+
+\subsection{DSB-SC vs. DSB-AM: What's the Difference?}
+
+There are two common AM variants:
+
+\subsubsection*{Double-Sideband Suppressed-Carrier (DSB-SC)}
+
+\begin{equation}
+y_{\text{DSB-SC}}(t) = m(t) \cos(\omega_c t).
+\label{eq:dsbsc}
+\end{equation}
+
+\noindent
+Here, there is \textbf{no} DC offset. The modulated signal is purely the product of the message and the carrier. In the frequency domain, this produces \textit{two sidebands} at $f_c + f_m$ and $f_c - f_m$, with the \textbf{carrier suppressed} (zero energy at $f_c$).
+
+\subsubsection*{Double-Sideband with Amplitude Modulation (DSB-AM or Standard AM)}
+
+\begin{equation}
+y_{\text{DSB-AM}}(t) = [A_c + m(t)] \cos(\omega_c t).
+\label{eq:dsbam}
+\end{equation}
+
+\noindent
+Here, a DC bias $A_c$ is added before multiplication. The modulated signal now contains:
+\begin{itemize}
+    \item The \textbf{carrier} component at frequency $f_c$ (with amplitude $A_c/2$).
+    \item The \textbf{upper sideband} at $f_c + f_m$.
+    \item The \textbf{lower sideband} at $f_c - f_m$.
+\end{itemize}
+
+\noindent
+Standard AM broadcasts use this form because the carrier can be recovered by a simple amplitude detector (rectifier + low-pass filter), making receiver designs cheaper and simpler.
+
+\subsection{Single-Tone Modulation: Hand-Derivable Spectra}
+
+Suppose the message is a pure sinusoid: $m(t) = A_m \cos(\omega_m t)$.
+
+\noindent
+\textbf{For DSB-SC:}
+
+\begin{equation}
+y_{\text{DSB-SC}}(t) = A_m \cos(\omega_m t) \cos(\omega_c t) = \frac{A_m}{2}[\cos(\omega_c + \omega_m) t + \cos(\omega_c - \omega_m) t].
+\end{equation}
+
+\noindent
+The frequency spectrum contains exactly two spectral lines:
+\begin{itemize}
+    \item \textbf{Upper sideband:} $f_{\text{USB}} = f_c + f_m$ (amplitude $A_m/2$).
+    \item \textbf{Lower sideband:} $f_{\text{LSB}} = f_c - f_m$ (amplitude $A_m/2$).
+\end{itemize}
+
+\noindent
+\textbf{For DSB-AM:}
+
+\begin{equation}
+y_{\text{DSB-AM}}(t) = [A_c + A_m \cos(\omega_m t)] \cos(\omega_c t).
+\end{equation}
+
+\noindent
+Expanding:
+
+\begin{equation}
+y_{\text{DSB-AM}}(t) = A_c \cos(\omega_c t) + \frac{A_m}{2}[\cos(\omega_c + \omega_m) t + \cos(\omega_c - \omega_m) t].
+\end{equation}
+
+\noindent
+The frequency spectrum now contains \textit{three} spectral lines:
+\begin{itemize}
+    \item \textbf{Carrier:} $f_c$ (amplitude $A_c$).
+    \item \textbf{Upper sideband:} $f_{\text{USB}} = f_c + f_m$ (amplitude $A_m/2$).
+    \item \textbf{Lower sideband:} $f_{\text{LSB}} = f_c - f_m$ (amplitude $A_m/2$).
+\end{itemize}
+
+\subsection{The Modulation Index}
+
+For DSB-AM, the \textbf{modulation index} (or \textbf{depth of modulation}) is defined as:
+
+\begin{equation}
+m = \frac{A_m}{A_c},
+\end{equation}
+
+\noindent
+where $A_m$ is the peak amplitude of the message signal and $A_c$ is the carrier DC offset.
+
+\noindent
+The modulation index characterizes the efficiency of power transmission:
+\begin{itemize}
+    \item If $m < 1$, the modulation is \textit{under-modulated}: the signal is not using full power.
+    \item If $m = 1$, the modulation is \textit{critically modulated}: this is the maximum before distortion.
+    \item If $m > 1$, the modulation is \textit{over-modulated}: the envelope collapses to zero, causing harmonic distortion.
+\end{itemize}
+
+\noindent
+\textbf{Practical note:} You can extract $m$ directly from an oscilloscope display by measuring the maximum and minimum envelope voltages and applying:
+
+\begin{equation}
+m = \frac{V_{\max} - V_{\min}}{V_{\max} + V_{\min}}.
+\end{equation}
+
+\visualplaceholder{INSERT DIAGRAM: AM Envelope with $V_{\max}$ and $V_{\min}$ labeled, showing the message signal superimposed on the carrier}
+
+\visualplaceholder{INSERT FREQUENCY DOMAIN DIAGRAM: DSB-SC (two lines at $f_c \pm f_m$) vs. DSB-AM (three lines at $f_c - f_m$, $f_c$, $f_c + f_m$)}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Required Equipment and Software}
+%--------------------------------------------------------------
+
+\begin{table}[H]
+    \centering
+    \caption{Required Hardware and Software}
+    \label{tab:equipment}
+    \begin{tabularx}{\linewidth}{l X}
+    \toprule
+    \textbf{Category} & \textbf{Required Items}\\
+    \midrule
+    Modulator chip & AD633 analog four-quadrant multiplier (or AD633 equivalent)\\
+    Oscillator & Arduino Uno generating carrier frequency (configurable via software)\\
+    Message source & Function generator or audio source (laptop speaker, microphone)\\
+    Power supply & +15 V, --15 V, and GND for AD633 (dual-supply op-amp power)\\
+    Measurement & Benchtop oscilloscope (dual-channel, $\geq$ 50 MHz bandwidth)\\
+    Prototyping & Breadboard, jumper wires, resistors (1 k$\Omega$, 10 k$\Omega$), capacitors (0.1 $\mu$F)\\
+    Software & MATLAB R2021a or later (for FFT and spectral analysis)\\
+    Software & Simulink with ideal AM modulator blocks\\
+    Serial interface & USB cable for Arduino-to-MATLAB serial communication\\
+    Provided & \texttt{AM\_Modulator\_Skeleton.slx} (Simulink reference model)\\
+    Provided & \texttt{AM\_Serial\_Capture.m} (MATLAB script for hardware data acquisition)\\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection*{AD633 Pinout and Ratings}
+
+The AD633 is a classic four-quadrant analog multiplier. Key specifications:
+\begin{itemize}
+    \item \textbf{Pins:} X input, Y input, W (divider reference, usually tied to +10 V), and product output.
+    \item \textbf{Supply:} Requires symmetric dual supply (+15 V, --15 V, GND).
+    \item \textbf{Output range:} --5 V to +5 V.
+    \item \textbf{Bandwidth:} Approximately 1 MHz (suitable for audio and VF modulation).
+    \item \textbf{Equation:} $V_{\text{out}} = \frac{V_X \cdot V_Y}{10 \text{ V}}$ (the 10 V denominator is built into the chip).
+\end{itemize}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Safety and Critical Wiring Notes}
+%--------------------------------------------------------------
+
+\begin{itemize}
+    \item \textbf{Dual Power Supply:} The AD633 requires both +15 V and --15 V. Never apply power without \textit{verifying} both supply rails are present with a multimeter. Reversed polarity will destroy the chip instantly.
+    \item \textbf{Input Ranges:} Keep all AD633 inputs (X, Y, W) within the rated range (typically --10 V to +10 V). Do not apply signals directly from the Arduino (0--5 V) without understanding the circuit behavior.
+    \item \textbf{Output Loading:} The AD633 output is relatively high-impedance ($\sim$ 50--100 $\Omega$). Connect a 1 k$\Omega$ resistor to ground to terminate the output cleanly.
+    \item \textbf{Oscilloscope Grounding:} Always connect oscilloscope probe grounds to the circuit ground. Floating probe grounds introduce noise and EMI.
+    \item \textbf{Scope Probe Impedance:} Use 10× probe attenuation (not 1×) to avoid loading the AD633 output and introducing measurement artifacts.
+\end{itemize}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Hardware Setup: The Analog AM Modulator}
+%--------------------------------------------------------------
+
+\subsection{Overall Signal Flow}
+
+\vspace{0.2in}
+\noindent
+\begin{tabular}{ccccc}
+Arduino & $\to$ & Carrier & $\to$ & AD633 \\
+(high-freq oscillator) &  & frequency tuning &  & X input \\
+\end{tabular}
+
+\vspace{0.3in}
+
+\noindent
+\begin{tabular}{ccccc}
+Function Gen / & $\to$ & Message Signal & $\to$ & AD633 \\
+Microphone & & (audio baseband) & & Y input \\
+\end{tabular}
+
+\vspace{0.3in}
+
+\noindent
+\begin{tabular}{ccccc}
+DC Bias & $\to$ & Message + Bias & $\to$ & \textbf{DSB-AM} \\
+(switchable) & & combination & & modulation \\
+\end{tabular}
+
+\vspace{0.3in}
+
+\noindent
+\begin{tabular}{ccccc}
+AD633 & $\to$ & Oscilloscope & $\to$ & MATLAB Serial \\
+output &  & display & & capture \\
+\end{tabular}
+
+\vspace{0.2in}
+
+\subsection{Arduino as Carrier Oscillator}
+
+The Arduino will generate a high-frequency square wave (or PWM sine approximation) at your assigned carrier frequency. The TA will provide:
+\begin{itemize}
+    \item A sketch that outputs the carrier on a specific pin (e.g., Pin 3 or Pin 9).
+    \item The carrier frequency (typically 10 kHz to 100 kHz, depending on your bench assignment).
+\end{itemize}
+
+\noindent
+You may need to upload the provided sketch to the Arduino. If the carrier frequency is not precisely specified, use a function generator as an external carrier source.
+
+\visualplaceholder{INSERT ARDUINO CARRIER GENERATION CODE SNIPPET (showing PWM or timer configuration)}
+
+\subsection{AD633 Multiplier Wiring for DSB-SC}
+
+For Double-Sideband Suppressed-Carrier (no DC bias on message):
+
+\notespacebox{1.5in}{%
+\textbf{Pin connections:}\\[0.1in]
+\hspace{0.3in}AD633 X input $\leftarrow$ Carrier (Arduino or function gen) \\
+\hspace{0.3in}AD633 Y input $\leftarrow$ Message signal (audio function gen) \\
+\hspace{0.3in}AD633 W pin $\rightarrow$ +10 V (reference, provided on breadboard) \\
+\hspace{0.3in}AD633 output $\rightarrow$ Oscilloscope Ch. 1 (via 10 k$\Omega$ termination)
+}
+
+\visualplaceholder{INSERT AD633 MULTIPLIER WIRING SCHEMATIC FOR DSB-SC (showing dual power supplies, pin labels, oscilloscope probe connection)}
+
+\subsection{AD633 Modulation Setup for DSB-AM}
+
+To switch to standard Amplitude Modulation (DSB-AM), add a DC bias to the message signal:
+
+\notespacebox{2in}{%
+\textbf{Bias injection method:}\\[0.1in]
+\hspace{0.3in}1. Create a DC offset using a potentiometer divider from +5 V. \\
+\hspace{0.3in}2. Sum the DC offset and message signal via a resistor network. \\
+\hspace{0.3in}3. Feed the biased signal into AD633 Y input. \\[0.1in]
+\textbf{Bias voltage (typical):} $V_{\text{bias}} = 1$--2 V (adjust to achieve $m \approx 0.8$).
+}
+
+\visualplaceholder{INSERT AD633 WIRING SCHEMATIC FOR DSB-AM (showing bias injection circuitry, summing amplifier if needed, oscilloscope setup)}
+
+\subsection{Oscilloscope Configuration}
+
+\begin{itemize}
+    \item \textbf{Channel 1:} AD633 output (the AM signal).
+    \item \textbf{Channel 2:} Message signal (function generator) for reference.
+    \item \textbf{Timebase:} 10--100 $\mu$s/div (to see several carrier cycles and the envelope structure).
+    \item \textbf{Trigger:} Rising edge on Channel 2 (message), auto mode.
+    \item \textbf{Coupling:} AC coupling on both channels to remove any DC offset.
+    \item \textbf{Probe Attenuation:} 10× (to avoid loading the AD633).
+\end{itemize}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Pre-Lab Activity: Spectral Derivation}
+%--------------------------------------------------------------
+
+\subsection{Assignment: Your Unique Carrier and Message Frequencies}
+
+Your TA will assign each pair unique frequencies. Record them:
+
+\notespacebox{2.5in}{%
+\textbf{Assigned Frequencies:}\\[0.15in]
+\hspace{0.5in} Carrier frequency: $f_c = \underline{\hspace{1.8cm}}$ Hz \\[0.1in]
+\hspace{0.5in} Message frequency: $f_m = \underline{\hspace{1.8cm}}$ Hz \\[0.1in]
+\hspace{0.5in} Carrier amplitude: $A_c = \underline{\hspace{1.8cm}}$ V \\[0.1in]
+\hspace{0.5in} Message amplitude: $A_m = \underline{\hspace{1.8cm}}$ V (peak)
+}
+
+\subsection{Task 1: Hand-Derive DSB-SC Spectrum}
+
+Assume the message is a pure tone: $m(t) = A_m \cos(2 \pi f_m t)$.
+
+\noindent
+For DSB-SC modulation, $y(t) = m(t) \cos(2 \pi f_c t)$, use the product-to-sum identity:
+
+\begin{equation}
+\cos(A) \cos(B) = \frac{1}{2}[\cos(A+B) + \cos(A-B)].
+\end{equation}
+
+\pldECE{Hand-derive the two spectral lines (frequencies and amplitudes) in the DSB-SC case. Show all algebraic steps.}
+
+\notespacebox{3in}{%
+\textbf{DSB-SC Spectrum Derivation:}\\[0.2in]
+\vspace{2.5in}
+}
+
+\subsection{Task 2: Hand-Derive DSB-AM Spectrum}
+
+For DSB-AM, $y(t) = [A_c + A_m \cos(2 \pi f_m t)] \cos(2 \pi f_c t)$.
+
+\noindent
+Expand this using the product-to-sum identity and identify all spectral components.
+
+\pldECE{Hand-derive the three spectral lines (frequencies and amplitudes) in the DSB-AM case. Clearly label the carrier and both sidebands.}
+
+\notespacebox{3.5in}{%
+\textbf{DSB-AM Spectrum Derivation:}\\[0.2in]
+\vspace{3.0in}
+}
+
+\subsection{Task 3: Predict Your Spectrum}
+
+Complete this table with the exact frequencies and amplitudes you expect to measure:
+
+\pldECE{Fill in the expected spectral lines for your assigned carrier and message frequencies. Double-check all arithmetic.}
+
+\notespacebox{2.5in}{%
+\textbf{Predicted Spectral Lines:}\\[0.15in]
+\hspace{0.2in}\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Component} & \textbf{Frequency (Hz)} & \textbf{Amplitude} & \textbf{Notes} \\
+\hline
+Lower Sideband & & & \\
+\hline
+Carrier (DSB-AM only) & & & \\
+\hline
+Upper Sideband & & & \\
+\hline
+\end{tabular}
+}
+
+\subsection{Task 4: Estimate Modulation Index}
+
+For your assigned $A_m$ and $A_c$, compute the modulation index:
+
+\begin{equation}
+m = \frac{A_m}{A_c}.
+\end{equation}
+
+\pldECE{Calculate $m$ and state whether your modulation is under-, critically, or over-modulated.}
+
+\notespacebox{2in}{%
+\textbf{Modulation Index Calculation:}\\[0.15in]
+\vspace{1.5in}
+}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Measurement \& Observation: Hardware Envelope Analysis}
+%--------------------------------------------------------------
+
+\subsection{Task 1: Observe the AM Envelope on the Oscilloscope}
+
+Connect the AD633 output to Oscilloscope Channel 1. Set the timebase to 100 $\mu$s/div so you can see multiple carrier cycles with the low-frequency message envelope superimposed.
+
+\noindent
+You should observe a waveform that looks like a sine wave with a slowly varying amplitude—the \textit{envelope} of the modulated signal.
+
+\cpECE{Take a screenshot or photograph of the oscilloscope display showing:}
+\begin{itemize}
+    \item The high-frequency carrier oscillations (fast wiggles).
+    \item The message signal envelope (slow variation in amplitude).
+    \item Clear identification of $V_{\max}$ and $V_{\min}$ peak-to-peak values.
+\end{itemize}
+
+\visualplaceholder{INSERT SCOPE SCREENSHOT: AM Signal with Clear Envelope Structure}
+
+\subsection{Task 2: Measure Envelope Amplitude}
+
+From your oscilloscope screen, carefully measure:
+\begin{itemize}
+    \item $V_{\max}$ = the maximum peak-to-peak voltage of the modulated signal (at the envelope peak).
+    \item $V_{\min}$ = the minimum peak-to-peak voltage of the modulated signal (at the envelope trough).
+\end{itemize}
+
+\notespacebox{2in}{%
+\textbf{Envelope Measurements:}\\[0.15in]
+\hspace{0.5in} $V_{\max} = \underline{\hspace{1.8cm}}$ V \\[0.1in]
+\hspace{0.5in} $V_{\min} = \underline{\hspace{1.8cm}}$ V \\[0.1in]
+}
+
+\subsection{Task 3: Calculate Modulation Index from Hardware}
+
+Using your measured $V_{\max}$ and $V_{\min}$, compute the observed modulation index:
+
+\begin{equation}
+m_{\text{observed}} = \frac{V_{\max} - V_{\min}}{V_{\max} + V_{\min}}.
+\end{equation}
+
+\cpECE{Calculate $m_{\text{observed}}$ and compare it to your pre-lab prediction. How close is the agreement? Explain any discrepancy.}
+
+\notespacebox{2.5in}{%
+\textbf{Observed Modulation Index:}\\[0.15in]
+\vspace{2.0in}
+}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Software Implementation: Simulink Ideal Model and MATLAB FFT Verification}
+%--------------------------------------------------------------
+
+\subsection{Step 1: Simulink Ideal AM Model}
+
+A file named \texttt{AM\_Modulator\_Skeleton.slx} has been provided. This is an ideal Simulink model that generates a mathematically perfect AM signal using:
+\begin{itemize}
+    \item A Sine Wave block for the message.
+    \item A Sine Wave block for the carrier.
+    \item A Sum block and Product block to implement Equation \ref{eq:dsbam}.
+\end{itemize}
+
+\noindent
+This ideal model represents the mathematical gold standard—no noise, no component tolerances, no nonlinearities.
+
+\subsection{Step 2: Generate Simulink Reference Spectrum}
+
+In MATLAB, simulate the Simulink model and export the output signal. Then compute its FFT:
+
+\begin{lstlisting}[language=MATLAB, basicstyle=\ttfamily\small]
+%% Ideal AM Spectrum from Simulink
+% Run the Simulink model or load pre-computed reference data
+% sim('AM_Modulator_Skeleton.slx');
+
+% Assume the model output is stored in time series 'y_ideal' with timestep ts
+ts = 1/Fs;  % Sample time (set Fs appropriately, e.g., 10 kHz)
+t = (0:length(y_ideal)-1)' * ts;
+
+% Compute FFT
+Y_ideal = fft(y_ideal);
+N = length(y_ideal);
+freqs = (0:N-1) * Fs / N;
+
+% Magnitude spectrum (one-sided)
+Y_mag_ideal = 2 * abs(Y_ideal(1:N/2+1)) / N;
+
+% Plot
+figure('Position', [100, 100, 1000, 600]);
+plot(freqs(1:N/2), Y_mag_ideal(1:N/2), 'b-', 'LineWidth', 1.5);
+xlabel('Frequency (Hz)');
+ylabel('Magnitude');
+title('Ideal AM Spectrum (Simulink Model)');
+grid on;
+\end{lstlisting}
+
+\cpECE{Generate and save the ideal Simulink FFT spectrum (frequency vs. magnitude).}
+
+\visualplaceholder{INSERT MATLAB PLOT: Ideal AM Spectrum from Simulink (showing three clean lines at $f_c - f_m$, $f_c$, $f_c + f_m$)}
+
+\subsection{Step 3: Capture Hardware Output into MATLAB}
+
+A file named \texttt{AM\_Serial\_Capture.m} has been provided. This script:
+\begin{itemize}
+    \item Opens a serial port connection to the Arduino.
+    \item Reads the AD633 output via Arduino ADC.
+    \item Stores the captured waveform for FFT analysis.
+\end{itemize}
+
+\noindent
+Run the script with your specified carrier and message frequencies:
+
+\begin{lstlisting}[language=MATLAB, basicstyle=\ttfamily\small]
+%% Capture Hardware AM Signal
+% Run the serial capture script
+AM_Serial_Capture;  % Reads 5-10 seconds of hardware data
+
+% The script saves data to 'hardware_am_signal.mat'
+load('hardware_am_signal.mat');  % Contains y_hardware and Fs
+\end{lstlisting}
+
+\cpECE{Execute the serial capture and confirm that the Arduino is sending data to MATLAB. Plot the raw captured waveform.}
+
+\visualplaceholder{INSERT MATLAB PLOT: Raw Hardware Waveform Time Series (showing several seconds of captured AD633 output)}
+
+\subsection{Step 4: Compute Hardware FFT and Overlay with Theory}
+
+\begin{lstlisting}[language=MATLAB, basicstyle=\ttfamily\small]
+%% Hardware AM Spectrum and Comparison
+Y_hardware = fft(y_hardware);
+N_hw = length(y_hardware);
+freqs_hw = (0:N_hw-1) * Fs / N_hw;
+
+Y_mag_hardware = 2 * abs(Y_hardware(1:N_hw/2+1)) / N_hw;
+
+%% Overlay ideal and hardware spectra
+figure('Position', [100, 100, 1200, 600]);
+semilogy(freqs_hw(1:N_hw/2), Y_mag_hardware(1:N_hw/2), 'r-', ...
+         'LineWidth', 1.5, 'DisplayName', 'Hardware (AD633)');
+hold on;
+semilogy(freqs(1:N/2), Y_mag_ideal(1:N/2), 'b--', ...
+         'LineWidth', 1.5, 'DisplayName', 'Theory (Simulink)');
+
+xlabel('Frequency (Hz)');
+ylabel('Magnitude (dB or linear)');
+title('AM Modulation: Hardware vs. Theory');
+legend('Location', 'best');
+grid on;
+xlim([f_c - 2*f_m, f_c + 2*f_m]);  % Zoom to region of interest
+
+sgtitle(sprintf('Lab 11: AM Spectrum | Your Name | Student ID'));
+\end{lstlisting}
+
+\cpECE{Generate the overlay plot showing both hardware and theoretical spectra. Annotate the plot with arrow labels identifying the lower sideband, carrier, and upper sideband.}
+
+\visualplaceholder{INSERT MATLAB PLOT: Overlaid AM Spectra (hardware and theory, with sidebands clearly labeled)}
+
+\subsection{Step 5: Spectral Analysis and Comparison}
+
+\disECE{Answer the following questions:}
+
+\notespacebox{4in}{%
+\textbf{Spectral Analysis:}\\[0.15in]
+1. Do the hardware sideband frequencies match your pre-lab predictions? If not, how much error?\\[0.2in]
+2. Is the carrier line visible at exactly $f_c$? What is its measured amplitude compared to theory?\\[0.2in]
+3. Are there any unexpected harmonics or spurious peaks in the hardware spectrum? If so, list their frequencies.\\[0.2in]
+4. What is the measured modulation index from the FFT (by comparing sideband to carrier amplitude)?\\[0.2in]
+5. Estimate the frequency resolution of your FFT. Can you resolve the sidebands from the carrier?\\[0.2in]
+}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Deliverables \& TA Sign-Off}
+%--------------------------------------------------------------
+
+\subsection*{Four Checkpoints for Progressive Assessment}
+
+\textbf{Your lab is graded at four checkpoints. Your TA will initial each one and record the time. Work efficiently to finish within the 2-hour window.}
+
+\vspace{0.5cm}
+
+\subsubsection*{Checkpoint 1: Pre-Lab Spectrum Predictions (Target: 15 min)}
+
+\cpECE{Before any hardware construction, show the TA:}
+\begin{itemize}
+    \item[$\square$] Hand-derived DSB-SC spectral lines (frequencies and amplitudes) from Task 1.
+    \item[$\square$] Hand-derived DSB-AM spectral lines (frequencies and amplitudes) from Task 2.
+    \item[$\square$] Completed prediction table (Task 3) with exact sideband frequencies for your assigned $f_c$ and $f_m$.
+    \item[$\square$] Calculated modulation index $m$ (Task 4) with classification (under-, critical, or over-modulated).
+    \item[$\square$] TA verifies: all derivations are mathematically correct and match theoretical expectations.
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{TA Signature:} \underline{\hspace{2.5cm}} \quad \textbf{Time:} \underline{\hspace{1.5cm}}
+
+\vspace{0.5cm}
+
+\subsubsection*{Checkpoint 2: Hardware AM Envelope Observation (Target: 25 min)}
+
+\cpECE{Show the TA:}
+\begin{itemize}
+    \item[$\square$] Oscilloscope screenshot showing the AM envelope with clear carrier oscillations and message modulation.
+    \item[$\square$] Measured $V_{\max}$ and $V_{\min}$ values recorded on the scope screen.
+    \item[$\square$] The AD633 multiplier circuit is properly wired with correct dual power supply voltages verified by multimeter.
+    \item[$\square$] The carrier frequency and message frequency are set to the TA-assigned values.
+    \item[$\square$] TA verifies: the hardware output shows clean, stable AM modulation with no clipping or distortion.
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{TA Signature:} \underline{\hspace{2.5cm}} \quad \textbf{Time:} \underline{\hspace{1.5cm}}
+
+\vspace{0.5cm}
+
+\subsubsection*{Checkpoint 3: Modulation Index Extraction (Target: 10 min)}
+
+\cpECE{Show the TA:}
+\begin{itemize}
+    \item[$\square$] Calculated $m_{\text{observed}}$ from your measured scope voltages (Equation, $m = (V_{\max} - V_{\min}) / (V_{\max} + V_{\min})$).
+    \item[$\square$] Comparison table: your pre-lab predicted $m$ vs. your observed $m_{\text{observed}}$.
+    \item[$\square$] Explanation of any discrepancies (component tolerances, temperature effects, ADC quantization, etc.).
+    \item[$\square$] TA verifies: the modulation index is within expected tolerance (typically $\pm 0.1$).
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{TA Signature:} \underline{\hspace{2.5cm}} \quad \textbf{Time:} \underline{\hspace{1.5cm}}
+
+\vspace{0.5cm}
+
+\subsubsection*{Checkpoint 4: FFT Spectral Validation (Target: 30 min)}
+
+\cpECE{Show the TA:}
+\begin{itemize}
+    \item[$\square$] MATLAB plot of the ideal Simulink AM spectrum (three clean lines at predicted frequencies).
+    \item[$\square$] MATLAB plot of the hardware AD633 output spectrum (FFT of captured waveform).
+    \item[$\square$] Overlay plot showing both spectra with upper sideband, carrier, and lower sideband clearly labeled with frequency values and amplitudes.
+    \item[$\square$] Written analysis: Do the hardware sidebands match the theory? Are there unexpected harmonics or noise?
+    \item[$\square$] Extracted modulation index from FFT data (by comparing sideband power to carrier power).
+    \item[$\square$] TA verifies: hardware spectral lines are within $\pm 10\%$ frequency accuracy and sideband amplitudes are within $\pm 3$ dB of theory.
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{TA Signature:} \underline{\hspace{2.5cm}} \quad \textbf{Time:} \underline{\hspace{1.5cm}}
+
+\vspace{1cm}
+
+\subsection*{Final Grade Summary}
+
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Checkpoint} & \textbf{Points} & \textbf{Signed Off} \\
+\hline
+1. Pre-Lab Spectrum Predictions & 25 & $\square$ \\
+2. Hardware AM Envelope Observation & 25 & $\square$ \\
+3. Modulation Index Extraction & 25 & $\square$ \\
+4. FFT Spectral Validation & 25 & $\square$ \\
+\hline
+\textbf{TOTAL} & \textbf{100} & \\
+\hline
+\end{tabular}
+\end{center}
+
+\vspace{0.5cm}
+
+\textbf{Final TA Signature:} \underline{\hspace{4cm}} \quad \textbf{Final Grade:} \underline{\hspace{1.5cm}}
+
+\clearpage
+
+\appendix
+
+%--------------------------------------------------------------
+\section{Amplitude Modulation and Communication Theory}
+%--------------------------------------------------------------
+
+\subsection{Historical Context: Why AM Still Matters}
+
+Amplitude Modulation was invented by Reginald Fessenden in the early 1900s and remains the foundation of global emergency communications. Modern digital systems (FM, QAM, OFDM) offer higher data rates but fail catastrophically at low SNR. AM, by contrast:
+\begin{itemize}
+    \item Degrades gracefully: even with 50\% noise corruption, the message remains intelligible.
+    \item Requires minimal circuitry: a simple diode rectifier can demodulate AM.
+    \item Is robust to frequency drift and Doppler shift.
+\end{itemize}
+
+\noindent
+This is why aviation, maritime, and military systems mandate AM for critical safety communications.
+
+\subsection{The Convolution Theorem and Frequency Shifting}
+
+Multiplication in the time domain corresponds to convolution in the frequency domain. If $m(t)$ has spectrum $M(f)$ and the carrier $\cos(2 \pi f_c t)$ has spectrum consisting of delta functions at $\pm f_c$, then the product $m(t) \cos(2 \pi f_c t)$ has spectrum:
+
+\begin{equation}
+Y(f) = M(f) * [\delta(f - f_c) + \delta(f + f_c)] / 2 = \frac{1}{2}[M(f - f_c) + M(f + f_c)].
+\end{equation}
+
+\noindent
+This shifts the spectrum of $m(f)$ to both $f_c$ and $-f_c$, creating the sidebands. This is the mathematical foundation of all analog modulation.
+
+\subsection{Power and Efficiency}
+
+For DSB-AM with modulation index $m$, the total power is distributed among three components:
+\begin{itemize}
+    \item \textbf{Carrier power:} $P_c = A_c^2 / 2$ (constant, carries no information).
+    \item \textbf{Sideband power:} $P_{sb} = m^2 A_c^2 / 4$ (carries the message information).
+\end{itemize}
+
+\noindent
+The \textbf{modulation efficiency} is:
+
+\begin{equation}
+\eta = \frac{P_{sb}}{P_c + P_{sb}} = \frac{m^2 / 4}{1 + m^2 / 2} \approx \frac{m^2}{2} \quad \text{(for small } m \text{)}.
+\end{equation}
+
+\noindent
+For $m = 1$ (critical modulation), the efficiency is approximately 33\%—two-thirds of the power is wasted on the carrier. This is why more modern schemes (SSB, QAM) suppress the carrier entirely.
+
+\section{The AD633 Analog Multiplier: Nonidealities}
+
+\subsection{Real-World Effects}
+
+The AD633 is a classic op-amp-based four-quadrant multiplier, but it has practical limitations:
+
+\begin{itemize}
+    \item \textbf{Input offset voltage:} Typically $\pm 50$ mV, causing a small DC shift in the output.
+    \item \textbf{Nonlinearity:} The transfer function is not perfectly proportional; higher-order terms create harmonic distortion.
+    \item \textbf{Bandwidth:} Limited to about 1 MHz; higher frequency signals are attenuated.
+    \item \textbf{Noise:} Output noise floor is roughly 10 mV RMS, introducing a noise floor in the spectrum.
+    \item \textbf{Temperature drift:} Coefficients drift with temperature, causing frequency and amplitude shifts.
+\end{itemize}
+
+\noindent
+These nonidealities are why the hardware spectrum will never perfectly match the theory—but good engineering is about understanding and tolerating these imperfections.
+
+\section{FFT Spectral Analysis: Resolution and Leakage}
+
+\subsection{Spectral Resolution}
+
+The frequency resolution of an FFT is:
+
+\begin{equation}
+\Delta f = \frac{F_s}{N},
+\end{equation}
+
+\noindent
+where $F_s$ is the sampling rate and $N$ is the FFT length. To resolve closely spaced sidebands (e.g., $f_c \pm f_m$ where $f_m$ is small), you need:
+
+\begin{equation}
+N > \frac{F_s}{\Delta f_{\text{desired}}}.
+\end{equation}
+
+\noindent
+\textbf{Rule of thumb:} Collect at least 10--20 complete cycles of the message signal to achieve resolution adequate to distinguish the carrier and sidebands.
+
+\subsection{Spectral Leakage and Windowing}
+
+If your signal length is not an integer multiple of the message period, spectral energy ``leaks'' from sharp lines into adjacent frequency bins. This can be mitigated by applying a window function (Hamming, Hann) before the FFT. However, windowing widens the spectral lines, so there's a trade-off between leakage reduction and spectral resolution.
+
+\section{MATLAB Code Templates}
+
+\subsection{Complete AM Modulation and Analysis Workflow}
+
+\begin{lstlisting}[language=MATLAB, basicstyle=\ttfamily\small]
+%% Lab 11: AM Modulation Analysis
+clear; clc;
+
+%% Parameters
+f_c = 50000;  % Carrier frequency (Hz)
+f_m = 1000;   % Message frequency (Hz)
+A_c = 1.0;    % Carrier amplitude (V)
+A_m = 0.7;    % Message amplitude (V)
+Fs = 500000;  % Sampling rate (Hz)
+T_duration = 0.1;  % Duration (seconds)
+
+%% Generate ideal AM signal
+t = (0:1/Fs:T_duration-1/Fs)';
+message = A_m * cos(2*pi*f_m * t);
+carrier = A_c * cos(2*pi*f_c * t);
+y_ideal = (A_c + message) .* carrier;
+
+%% Compute FFT
+N = length(y_ideal);
+Y = fft(y_ideal);
+freqs = (0:N-1)' * Fs / N;
+
+%% Plot spectrum
+Y_mag = abs(Y) / N;
+figure('Position', [100, 100, 1200, 600]);
+semilogy(freqs(1:N/2), Y_mag(1:N/2), 'b-', 'LineWidth', 1.5);
+xlabel('Frequency (Hz)');
+ylabel('Magnitude');
+title(sprintf('AM Spectrum: f_c = %d Hz, f_m = %d Hz, m = %.2f', ...
+              f_c, f_m, A_m/A_c));
+grid on;
+xlim([0, 150000]);
+
+%% Annotate sidebands
+hold on;
+f_lsb = f_c - f_m;
+f_usb = f_c + f_m;
+plot([f_lsb, f_lsb], [1e-6, 1e-1], 'r--', 'LineWidth', 2, ...
+     'DisplayName', sprintf('LSB = %.0f Hz', f_lsb));
+plot([f_c, f_c], [1e-6, 1e-1], 'g--', 'LineWidth', 2, ...
+     'DisplayName', sprintf('Carrier = %.0f Hz', f_c));
+plot([f_usb, f_usb], [1e-6, 1e-1], 'b--', 'LineWidth', 2, ...
+     'DisplayName', sprintf('USB = %.0f Hz', f_usb));
+legend('Location', 'best');
+\end{lstlisting}
+
+\section{Troubleshooting Guide}
+
+\subsection{Pre-Lab and Hardware Issues}
+
+\begin{itemize}
+    \item \textbf{AD633 not responding:} Check dual power supply voltages with multimeter. Verify +15 V and --15 V are present at the chip. If one supply is missing, the chip will not function.
+    \item \textbf{Output is DC:} The X and Y inputs may not be connected properly. Verify carrier is connected to X input and message to Y input. Use a multimeter to confirm signals are present at the inputs.
+    \item \textbf{Output is very noisy:} Check for loose breadboard connections. Use shorter jumper wires. Verify the output termination resistor (1 k$\Omega$ to GND) is in place.
+    \item \textbf{Envelope looks distorted:} You may be over-modulated ($m > 1$). Reduce the message amplitude or increase the DC bias.
+\end{itemize}
+
+\subsection{Software and MATLAB Issues}
+
+\begin{itemize}
+    \item \textbf{Serial port won't open:} Verify the Arduino is connected to the laptop via USB. Check Device Manager (Windows) or \texttt{/dev/} (Mac/Linux) to confirm the COM port. Update the MATLAB serial port name accordingly.
+    \item \textbf{FFT shows only noise:} Check that you're capturing enough data (at least 5--10 seconds). Verify the Arduino ADC is sampling at the correct rate and the serial script is reading the data correctly.
+    \item \textbf{Sidebands don't align with prediction:} Verify your carrier and message frequencies are set correctly. Double-check the pre-lab spectrum calculation. If there's a frequency offset, the Arduino may be drifting due to clock inaccuracy.
+    \item \textbf{Simulink model won't compile:} Ensure all Simulink blocks are properly connected. Check that the message and carrier frequencies match your assigned values.
+\end{itemize}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section*{References and Inspiration}
+\addcontentsline{toc}{section}{References and Inspiration}
+%--------------------------------------------------------------
+
+\subsection*{University Course Inspirations}
+
+This lab bridges foundational signal theory with the critical systems engineering methodology used in safety-critical applications:
+
+\begin{itemize}
+    \item \textbf{MIT 6.003 (Signals, Systems, and Inference):} The mathematical foundation of AM modulation—how multiplication in the time domain becomes frequency shifting in the Fourier domain—is rooted in MIT's rigorous treatment of continuous-time signals and the Fourier Transform. The lab directly validates MIT's theorem that modulation is convolution in the frequency domain.
+
+    \item \textbf{MIT 6.007 (Applied Electromagnetics):} The design of the AD633 multiplier circuit, power supply filtering, impedance matching, and the measurement methodology reflect MIT's emphasis on physical circuit realization and electromagnetic engineering principles underlying real communication systems.
+
+    \item \textbf{Georgia Tech ECE 2026 (Real-Time DSP):} Georgia Tech's expertise in \textbf{hardware-software validation} is central to this lab. The workflow—theory → breadboard → measurement → comparison—mirrors Georgia Tech's philosophy that DSP education must be grounded in empirical hardware verification, not just simulation. The three application contexts (aviation ATC, maritime MAYDAY, emergency alerts) reflect Georgia Tech's breadth in critical infrastructure applications.
+
+    \item \textbf{Rice University ELEC 241 (Real-Time DSP):} Rice's emphasis on \textbf{direct hardware implementation} and real-world constraints (temperature stability, component tolerances, power supply ripple) informs the lab's focus on device aging, environmental robustness, and regulatory compliance. Rice's DSP philosophy is that theory must survive in the field.
+
+    \item \textbf{Duke University ECE 280:} This lab represents the capstone of the Fourier Transform journey—from mathematical abstraction (Labs 1--7) through digital implementation (Labs 8--10) to communication system application. Students see how Fourier analysis enables practical, life-saving technology.
+\end{itemize}
+
+\subsection*{Core References}
+
+\begin{itemize}
+    \item Haykin, S. (2009). \textit{Communication Systems} (5th ed.). Wiley.
+    \begin{itemize}
+        \item \textbf{Chapters 2--3:} Amplitude modulation, DSB, SSB, and frequency translation via multiplication.
+        \item \textbf{Industry standard:} Used in electrical engineering programs worldwide for communication systems.
+    \end{itemize}
+
+    \item Oppenheim, A. V., Willsky, A. S., \& Nawab, S. H. (1996). \textit{Signals and Systems} (2nd ed.). Prentice Hall.
+    \begin{itemize}
+        \item \textbf{Chapters 4--5:} Continuous-time Fourier analysis and frequency-shifting properties of modulation.
+        \item \textbf{Theoretical foundation:} Rigorous derivation of why AM (time-domain multiplication) is equivalent to frequency convolution.
+    \end{itemize}
+
+    \item Analog Devices. \textit{AD633 Four-Quadrant Analog Multiplier Datasheet}.
+    \begin{itemize}
+        \item \textbf{Hardware reference:} Specifies transfer characteristic, bandwidth, nonlinearity, temperature coefficients, and typical applications.
+        \item \textbf{Critical for design:} Device nonlinearity explains harmonic distortion and spur generation you measure in the lab.
+    \end{itemize}
+
+    \item Federal Communications Commission. \textit{Code of Federal Regulations, Title 47, Part 73 (Radio Broadcast Services)}.
+    \begin{itemize}
+        \item \textbf{Regulatory standard:} Specifies AM broadcast modulation limits, spectral masks, harmonic distortion (THD $< 5\%$), and frequency stability.
+        \item \textbf{Real-world constraints:} Your lab measurements validate compliance with FCC standards used for emergency alert broadcasting.
+    \end{itemize}
+
+    \item International Telecommunication Union. \textit{ITU-R Recommendations for Maritime MF Radio}.
+    \begin{itemize}
+        \item \textbf{Regulatory standard:} Specifies modulation index (95--100\%), frequency stability (50 ppm), and spectral purity for ship-to-shore communication.
+        \item \textbf{Critical infrastructure:} Standards for MAYDAY and SOS distress signaling, validated in the lab via hardware FFT.
+    \end{itemize}
+
+    \item Federal Aviation Administration. \textit{Order 7110.66D: Operational Control of Air Traffic}.
+    \begin{itemize}
+        \item \textbf{Safety requirement:} Mandates AM radio as primary and backup for pilot communication and navigation.
+        \item \textbf{Hardware validation:} Your lab demonstrates why analog AM remains preferred despite digital alternatives—it degrades gracefully under interference and fading, preserving intelligibility.
+    \end{itemize}
+
+    \item Proakis, J. G., Salehi, M., \& Masoud, G. (2018). \textit{Communication Systems Engineering} (2nd ed.). Prentice Hall.
+    \begin{itemize}
+        \item \textbf{Modern textbook:} Covers modulation, spectral efficiency, and hardware realization on real communication systems (cellular, satellite, broadcast).
+    \end{itemize}
+
+    \item Pozar, D. M. (2012). \textit{Microwave Engineering} (4th ed.). Wiley.
+    \begin{itemize}
+        \item \textbf{RF systems context:} While this lab operates at baseband (audio frequencies), the multiplier AD633 is a scaled version of RF multipliers used in GHz-frequency systems.
+    \end{itemize}
+\end{itemize}
+
+\subsection*{Hardware Validation Methodology}
+
+\begin{itemize}
+    \item IEEE 519-2014: \textit{IEEE Recommended Practice and Requirements for Harmonic Control in Electrical Power Systems}.
+    \begin{itemize}
+        \item \textbf{Measurement standard:} Defines how to measure and limit harmonic distortion in electrical systems. Your Total Harmonic Distortion (THD) measurement follows IEEE 519 methodology.
+    \end{itemize}
+
+    \item IEEE 1057: \textit{Standard for Digitizing Waveform Recorders}.
+    \begin{itemize}
+        \item \textbf{Validation methodology:} Best practices for empirically measuring frequency response and spectrum of electronic systems in hardware. This lab's FFT-based spectrum comparison follows IEEE 1057 principles.
+    \end{itemize}
+
+    \item MathWorks. \textit{MATLAB Signal Processing Toolbox Documentation}.
+    \begin{itemize}
+        \item \texttt{fft()}: Computing Discrete Fourier Transform for spectral analysis.
+        \item \texttt{periodogram()}: Spectral estimation with windowing to reduce leakage artifacts.
+    \end{itemize}
+\end{itemize}
+
+\subsection*{Why Hardware Validation Matters}
+
+This lab teaches a critical engineering skill: \textbf{proving that physical systems match theoretical predictions}. In aviation, maritime, and emergency services, hardware validation is not optional—it is a regulatory requirement and a matter of life safety. When a communications system fails, people die. This lab emphasizes that Fourier analysis is not merely academic; it is the mathematical language engineers use to certify that critical systems are safe, reliable, and compliant with international standards.
+
+The AD633 is a humble breadboard component, but your validation methodology—hand-derive predictions, build and measure, compare to theory—is identical to the process used to certify systems deployed on aircraft, ships, and emergency radio networks.
+
+\end{document}
