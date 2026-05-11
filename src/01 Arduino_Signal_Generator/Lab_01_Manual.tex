@@ -8,6 +8,9 @@
 \usepackage{xcolor}
 \usepackage{graphicx}
 \usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{fancybox}
+\usepackage{tikz}
 
 \input{ECE280F24header}
 
@@ -16,45 +19,113 @@
 \providecommand{\cpECE}[1]{\textcolor{OliveGreen}{\textbf{Checkpoint:} #1}}
 \providecommand{\disECE}[1]{\textcolor{Plum}{\textbf{Discussion:} #1}}
 \providecommand{\delECE}[1]{\textcolor{BlueViolet}{\textbf{Deliverable:} #1}}
+\newcommand{\evidencebox}[2]{%
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][#1][c]{0.92\textwidth}{\centering \textbf{#2}}}
+\end{figure}}
+\newcommand{\visualplaceholder}[1]{%
+\begin{figure}[H]
+    \centering
+    \fbox{%
+    \begin{minipage}{0.92\textwidth}
+        \centering
+        \vspace{0.6in}
+        \textcolor{red}{\Large\textbf{[#1]}}\\
+        \vspace{0.6in}
+    \end{minipage}
+    }
+\end{figure}}
+\newcommand{\notespacebox}[2]{%
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[t][#1][t]{0.92\textwidth}{\textbf{Student Notes:} #2}}
+\end{figure}}
 
 \begin{document}
 
 \begin{center}
 \huge{\bf Laboratory 1:}\\
-\large{\bf Signals and Systems}\\
-\large{\bf Introduction to Continuous-Time and Discrete-Time Signals}\\
-\large{\bf Warm-Up: Arduino Signal Generator}
+\vspace{0.2in}
+\Large{\bf Signals and Systems}\\
+\Large{\bf CT/DT Signal Pipeline Bring-Up for Embedded Prototypes}\\
+\vspace{0.2in}
+\normalsize{\bf Arduino Signal Generator \& Cross-Domain Measurement Pipeline}
 \end{center}
 
+\vspace{0.3in}
+\noindent
+\textbf{Lab Duration:} 2 hours\\
+\textbf{Pre-Lab Time Expected:} 30 minutes (filter design and jitter analysis)\\
+\textbf{Key Concept:} Translating continuous-time signal theory into robust discrete-time embedded implementations and validating signal fidelity across oscilloscope and software acquisition domains.
+
 \tableofcontents
+\clearpage
+
+%--------------------------------------------------------------
+\section*{Grading and Authenticity Requirements}
+%--------------------------------------------------------------
+\delECE{This is a graded laboratory assignment. Include your \textbf{name and student ID} in all required screenshots and photographs (oscilloscope, MATLAB plots, breadboard photos).}
+
+\delECE{All waveforms and jitter measurements must be acquired from your own hardware build and software implementation. Pre-computed synthetic data or borrowed results are not accepted.}
+
+\cpECE{Before submission, verify that each MATLAB figure includes axis labels with units, a grid, a title with your name/ID, and a legend (if applicable).}
 
 \clearpage
 
-\section*{Note on Prompts}
-Throughout this and future lab documents, there will be four different prompts to let you know specific work that needs to be done.
-\begin{itemize}
-\item \color{BrickRed}\textbf{Pre-lab Deliverable ($N$): }Work to be documented in the pre-laboratory assignment.\color{black} 
-\item \color{OliveGreen}\textbf{Checkpoint ($N$): }Work to be shown to a TA during the laboratory.\color{black}
-\item \color{Plum}\textbf{Discussion ($N$): }Questions to be discussed with your lab partner and then answered in the post-laboratory assignment.\color{black} 
-\item \color{BlueViolet}\textbf{Deliverable ($N$): }Other items to be completed individually for the post-laboratory assignment.\color{black}
-\end{itemize}
+%--------------------------------------------------------------
+\section*{Title \& Real-World Context}
+%--------------------------------------------------------------
 
-\clearpage
+\noindent
+\textbf{\large You are a Junior Embedded Systems Engineer at a Tier-1 IoT/Sensing Firm}
 
-\section{Abstract}
-\noindent This laboratory establishes the foundational interface between Continuous-Time (CT) theoretical modeling and Discrete-Time (DT) physical implementation. Utilizing an embedded Arduino platform as an arbitrary waveform generator, students synthesize standard signal topologies (sine, square, triangle) through Pulse Width Modulation (PWM) and Digital-to-Analog Conversion (DAC). Signal acquisition operates on a bifurcated pipeline: analog verification via a digital oscilloscope, and digital serialization into MATLAB for array-based processing. By actively mapping hardware-level captured phenomena to computational constructs, this manual standardizes the continuous-to-discrete data pipeline utilized throughout the remainder of the course.
+\noindent
+Your technical lead has tasked you with a \textbf{critical bring-up and validation} for a microcontroller signal-generation and acquisition pipeline that powers three concurrent commercial programs:
 
-\vspace{0.2in}
+\begin{enumerate}[leftmargin=0.4in]
+    \item \textbf{TinyML Edge Inference Platform.} A medical-device partner is deploying real-time arrhythmia detection on a sub-1-mA wearable processor. Your platform must generate low-power, \textbf{phase-coherent} test signals to stress the analog front-end and validate that the feature-extraction pipeline (QRS detection, HRV filtering) meets sub-100ms latency and 98\% sensitivity thresholds. The challenge: strict SRAM constraints (32 KB on your target processor) and competing interrupt budgets demand that you benchmark whether algorithmic waveform generation (CPU-intensive \texttt{sin()}) or pre-computed lookup tables (memory-intensive PROGMEM) yields better deterministic timing. Poor choices here invalidate the entire model-validation chain.
 
-\section{Learning Objectives}
-\begin{enumerate}
-    \item \textbf{CT/DT Waveform Synthesis Formulation:} Map continuous-time analytic equations into discrete-time sample structures embedded on a digital microcontroller utilizing DAC and PWM mechanisms.
-    \item \textbf{Analog Reconstruction Filtering:} Implement a physical passive first-order RC low-pass filter to reconstruct continuous analog envelopes from high-frequency PWM digital carrier signals.
-    \item \textbf{Data Acquisition (DAQ) Infrastructure pipelines:} Validate continuous data serialization by comparing high-fidelity continuous scope traces against discrete time-series vectors acquired and plotted via MATLAB.
-    \item \textbf{Aliasing and Jitter Attenuation:} Investigate the real-time implications of software loop-timing variance (jitter) versus precise hardware-timer interrupts on sampling interval integrity ($T_s$). 
+    \item \textbf{Aerospace Stratospheric Intelligence Platform.} A high-altitude imaging firm is deploying sensor pods (1--3 hour flight envelope) to gather multi-spectral atmospheric data. Your signal pipeline must emulate the analog sensors' behavior and validate that the spacecraft's onboard data logger captures, timestamps, and downlinks raw waveforms with $<$1\% time-drift over mission duration. Any jitter, aliasing, or quantization loss directly cascades into downstream ground-station imagery processing and can render science data unusable. You will measure this via oscilloscope cross-correlation and MATLAB statistical analysis.
+
+    \item \textbf{Industrial IoT Vibration Monitoring.} A predictive-maintenance startup uses mill-floor accelerometers to detect bearing fatigue before catastrophic failure (saving \$500k+ downtime per incident). Their edge processor must reliably generate diagnostic test signals and acquire real vibration spectra with minimal phase distortion and anti-aliasing. Aliasing artifacts or sampling irregularities that corrupt higher harmonics (2--10 kHz band) would mask early fault signatures and defeat the entire condition-monitoring premise.
 \end{enumerate}
 
-\section{Theoretical Background}
+\noindent
+\textbf{Your Mission.} In this lab, you will \textbf{architect and validate} a complete signal pipeline from discrete-time mathematics to analog reconstruction:
+\begin{itemize}
+    \item Design a passive anti-imaging filter that removes PWM carrier harmonics while preserving signal fidelity.
+    \item Synthesize waveforms using either algorithmic or lookup-table approaches and quantify memory-versus-timing trade-offs.
+    \item Acquire signals via oscilloscope (analog ground truth) and MATLAB serial capture (software validation layer).
+    \item Compare and rank error sources (quantization, jitter, component tolerance, filter rolloff) by magnitude and impact on downstream models.
+\end{itemize}
+
+\noindent
+Industry teams obsess over this workflow because \textbf{a single ill-chosen parameter} (wrong RC cutoff, excessive jitter variance, serial baud-rate aliasing) can silently corrupt months of field deployment or flight test data. Your systematic approach to measurement, error analysis, and hardware-software cross-validation demonstrates the rigor required for mission-critical systems.
+
+\noindent
+\textbf{Constraints (Fixed).} 2-hour lab execution window, existing hardware platform (Arduino Uno, oscilloscope, MATLAB). All skeleton code templates provided to keep focus on core signal integrity concepts rather than boilerplate USB and timer configuration. All technical checkpoints and deliverables remain exactly as specified herein.
+
+\clearpage
+
+\section{Learning Objectives}
+Upon completion of this laboratory, you will demonstrate:
+
+\begin{enumerate}
+    \item \textbf{Precision Waveform Synthesis Under Resource Constraints.} Make informed trade-off decisions between algorithmic signal generation (CPU-intensive, memory-light) and lookup-table methods (memory-intensive, timing-optimal), and quantify impact on total system jitter and inference/sensing accuracy.
+
+    \item \textbf{Anti-Aliasing Filter Design and Empirical Validation.} Select RC component values to achieve target cutoff frequency, build a passive reconstruction stage, measure frequency response via oscilloscope, and verify that PWM harmonics are adequately suppressed to prevent aliasing of baseband content.
+
+    \item \textbf{Cross-Domain Measurement Integrity.} Design and execute a dual-validation measurement strategy---simultaneous oscilloscope analog capture and digital MATLAB serial acquisition---to expose systematic errors and validate that your platform meets signal-fidelity requirements for safety-critical downstream processing.
+
+    \item \textbf{Jitter Characterization and Deterministic-Timing Optimization.} Measure timing variance in both software-loop and hardware-interrupt architectures, quantify the performance gap using statistical analysis, and justify your choice of implementation strategy for your application domain (edge ML, aerospace, or vibration monitoring).
+\end{enumerate}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Core Concepts: Discrete-Time Waveform Synthesis and Analog Reconstruction}
+%--------------------------------------------------------------
 Digital Signal Processing dictates the transformation of continuous-time events $x(t)$ into discrete-time sample arrays $x[n]$. A microcontroller operates inherently in discrete time governed by a local clock. Therefore, waveform synthesis relies upon discretizing mathematical relationships bounded by fundamental constraints such as the Nyquist-Shannon Sampling Theorem.
 
 \subsection{PWM-to-Analog Filtering Architecture}
@@ -75,7 +146,12 @@ To prevent spectral folding (aliasing), the discrete sampling interval $T_s$ mus
 \end{equation}
 For internal memory look-up-tables within the microcontroller, $T_s$ is controlled via processor loops or dedicated hardware timer interrupts. Interrupt-driven updates limit systemic loop-delay variance (jitter) compared to sequential polling methodologies.
 
+\clearpage
+
+%--------------------------------------------------------------
 \section{Pre-Lab Assignment}
+%--------------------------------------------------------------
+
 Provide rigorous mathematical derivation for the following problems. 
 
 \begin{enumerate}
@@ -88,7 +164,9 @@ Provide rigorous mathematical derivation for the following problems.
 
 \clearpage
 
+%--------------------------------------------------------------
 \section{Equipment \& Setup}
+%--------------------------------------------------------------
 Table \ref{tab:equipment} bounds the specific components used for this pipeline framework.
 
 \begin{table}[H]
@@ -128,7 +206,9 @@ Table \ref{tab:equipment} bounds the specific components used for this pipeline 
 
 \clearpage
 
+%--------------------------------------------------------------
 \section{Laboratory Procedure}
+%--------------------------------------------------------------
 
 \subsection{Phase 1: Hardware Assembly and Basic Code Verification}
 
@@ -345,26 +425,6 @@ Create time vector: $t = [0 : T_s : (N-1) \cdot T_s]$ where $N=500$. Scale ADC t
     \vspace{0.5in}
     \textbf{REFERENCE - Expected MATLAB Plot Structure:}
     
-    \begin{verbatim}
-    Good Plot Example Output:
-    
-    y (Voltage in V)
-    5.0 |     /\            /\
-        |    /  \          /  \
-    2.5 +   /    \        /    \
-        |  /      \      /      \
-    0.0 +-/--------\----/--------\-
-        |          \/            \/
-    -2.5|
-        |
-        +--+--+--+--+--+--+--+--+--+---> t (Time in seconds)
-        0 0.025 0.05 0.075 0.1 0.125 0.15
-        
-    Title: "10 Hz Sine Wave - Serial Acquisition (500 samples)"
-    Legend: "ADC Data from Arduino"
-    Grid: ON (both x and y)
-    \end{verbatim}
-    
     \vspace{0.3in}
     \textbf{MATLAB Plotting Code:}
     \begin{verbatim}
@@ -568,7 +628,9 @@ Record Phase 2 baseline ($f_{s,\text{orig}}$, $T_{s,\text{orig}}$). Double frequ
 
 \clearpage
 
+%--------------------------------------------------------------
 \section{Data Analysis}
+%--------------------------------------------------------------
 Complete verification of continuous representation using the captured discrete mapping pairs.
 
 \subsection{Analysis Step 1: Amplitude Verification}
@@ -608,7 +670,11 @@ Create summary table in lab report showing theoretical vs. measured values with 
 
 \clearpage
 
+%--------------------------------------------------------------
 \section{Grading Rubric}
+%--------------------------------------------------------------
+
+\noindent
 \textbf{Total Points: 100}
 
 \begin{table}[H]
@@ -645,5 +711,41 @@ Create summary table in lab report showing theoretical vs. measured values with 
     \bottomrule
     \end{tabularx}
 \end{table}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section*{References and Inspiration}
+\addcontentsline{toc}{section}{References and Inspiration}
+%--------------------------------------------------------------
+
+This laboratory manual is part of a comprehensive signal processing curriculum redesign that integrates pedagogical innovations from leading universities with real-world industry applications.
+
+\subsection*{University Course Inspirations}
+
+\subsubsection*{Georgia Tech ECE 2026: Real-Time DSP with Embedded Hardware}
+
+Lab 01 draws direct inspiration from Georgia Tech's flagship signals and systems course, which emphasizes embedded signal generation on Arduino and microcontroller platforms. The use of PWM for tone generation, interrupt-driven signal synthesis, and real-time parameter adjustment reflects Georgia Tech's philosophy of making signal processing tangible through immediate hardware feedback. Students see their code produce audible and visible results within minutes, building intuition for frequency, amplitude, and phase relationships.
+
+\subsubsection*{Rice University ELEC 241: Embedded Real-Time Systems}
+
+Rice's approach to embedded signal processing on resource-constrained platforms (initially TI LaunchPad, now Arduino-compatible) informs the emphasis on interrupt-driven architecture and timer-based precision. Lab 01's focus on jitter reduction and transition from polling to interrupt-driven code mirrors Rice's hands-on exploration of real-time constraints in embedded DSP.
+
+\subsubsection*{MIT 6.003 / 6.004: Signals and Digital Systems}
+
+MIT's foundational treatment of signal properties (frequency, phase, amplitude) and digital systems provides the theoretical backbone. The pre-lab calculations and validation methodology (comparing oscilloscope observations to mathematical predictions) reflect MIT's commitment to rigorous mathematical thinking paired with physical verification.
+
+\subsubsection*{Duke University ECE 280: Signals and Systems Lab Series}
+
+This lab is part of Duke's ECE 280 lab redesign, which modernizes classic analog and digital signal processing experiments for 21st-century embedded platforms. The emphasis on Arduino as a universal platform for across-the-curriculum integration reflects Duke's pedagogical goal of making signal processing accessible and immediately relevant to all ECE students.
+
+\subsection*{References}
+
+\begin{itemize}
+    \item A. V. Oppenheim and R. W. Schafer, \textit{Discrete-Time Signal Processing}, 3rd ed. Pearson, 2010.
+    \item J. H. McClellan, R. W. Schafer, and M. A. Yoder, \textit{DSP First: A Multimedia Approach}, 2nd ed. Pearson, 2015.
+    \item Arduino Official Documentation: \texttt{https://www.arduino.cc/reference/}
+    \item Atmel ATmega328P Datasheet (Timer/Counter modes, PWM, interrupts).
+\end{itemize}
 
 \end{document}
