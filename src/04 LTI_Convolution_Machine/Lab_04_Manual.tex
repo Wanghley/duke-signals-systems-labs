@@ -9,6 +9,8 @@
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{enumitem}
+\usepackage{fancybox}
+\usepackage{tikz}
 
 \input{ECE280F24header}
 
@@ -22,34 +24,91 @@
     \centering
     \fbox{\parbox[c][#1][c]{0.92\textwidth}{\centering \textbf{#2}}}
 \end{figure}}
+\newcommand{\visualplaceholder}[1]{%
+\begin{figure}[H]
+    \centering
+    \fbox{%
+    \begin{minipage}{0.92\textwidth}
+        \centering
+        \vspace{0.6in}
+        \textcolor{red}{\Large\textbf{[#1]}}\\
+        \vspace{0.6in}
+    \end{minipage}
+    }
+\end{figure}}
+\newcommand{\notespacebox}[2]{%
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[t][#1][t]{0.92\textwidth}{\textbf{Student Notes:} #2}}
+\end{figure}}
 
 \begin{document}
 
 \begin{center}
 \huge{\bf Laboratory 4:}\\
-\large{\bf Signals and Systems}\\
-\large{\bf LTI Systems \& The Convolution Machine}\\
-\large{\bf Hardware-in-the-Loop Discrete-Time Convolution}
+\vspace{0.2in}
+\Large{\bf Signals and Systems}\\
+\Large{\bf LTI Systems \& The Convolution Machine}\\
+\vspace{0.2in}
+\normalsize{\bf Hardware-in-the-Loop Discrete-Time Convolution}
 \end{center}
+
+\vspace{0.3in}
+\noindent
+\textbf{Lab Duration:} 2 hours (time-critical with skeleton code provided)\\
+\textbf{Pre-Lab Time Expected:} 40 minutes (hand convolution, sequence assignment, code review)\\
+\textbf{Key Concept:} Transform abstract convolution mathematics into observable real-time hardware output and MATLAB verification; understand FIR filters as impulse responses.
 
 \tableofcontents
 \clearpage
 
-\section*{Graded Assignment and Authenticity Requirement}
-\delECE{This is a graded laboratory assignment. Include your \textbf{name and student ID} in all required screenshots and photographs. Work submitted without identifying information may receive reduced credit.}
+%--------------------------------------------------------------
+\section*{Grading and Authenticity Requirements}
+%--------------------------------------------------------------
 
-\delECE{All MATLAB verification must use data captured from your own hardware setup. Convolution results computed entirely in MATLAB without physical Arduino acquisition are \emph{not} accepted as hardware verification evidence.}
+\delECE{This is a graded laboratory assignment. Include your \textbf{name and student ID} in all required screenshots and photographs (oscilloscope, MATLAB plots, breadboard/setup photos).}
 
-\cpECE{Before submission, verify that all screenshots are legible, include properly labeled axes, and display your identifying information where applicable.}
+\delECE{All MATLAB convolution verification must use data captured from your own hardware setup. Results computed entirely in MATLAB without Arduino acquisition are \emph{not} accepted as hardware verification evidence.}
 
-\section*{Note on Prompts}
-Throughout this lab manual, four prompt types indicate required work.
+\cpECE{Before submission, verify that all screenshots are legible, include axis labels with units and title information, and display your identifying information clearly.}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section*{Title \& Real-World Context}
+%--------------------------------------------------------------
+
+\noindent
+\textbf{\large You are a Junior DSP Engineer at a High-End Audio Effects Manufacturer}
+
+\noindent
+Your technical lead has tasked you with designing and validating the core convolution engine for a \textbf{premium real-time audio effects processor} deployed in professional music production studios and concert sound systems worldwide. The system must reliably deliver three demanding use cases:
+
+\begin{enumerate}[leftmargin=0.4in]
+    \item \textbf{Impulse Response Convolution Reverb (Flagship Feature).} Your company's signature product is a convolution reverb engine that simulates the acoustics of famous concert halls, vintage recording studios, and cathedral spaces by convolving live audio with carefully captured impulse responses (IRs). Each IR is a FIR filter with 4,000--48,000 taps, depending on the venue. The convolution must be \textbf{mathematically exact}---even a single computational error or off-by-one indexing bug will cause artifacts (``grittiness,'' frequency coloration, phase distortion) that professional audio engineers immediately detect. Your validation workflow tests the convolution algorithm in real time against MATLAB reference implementations to guarantee bit-exact accuracy before deployment.
+
+    \item \textbf{Custom Impulse Response Design and Swappability.} Studio customers capture IR measurements from unique spaces (clubs, theaters, home studios) and upload them as finite-length sequences to the processor. The system must correctly convolve \emph{arbitrary-length} IRs (from 512 taps to 64k taps) with incoming audio, automatically computing output lengths and managing buffer overflow without introducing latency spikes or ringing. Time-varying IR parameters (reverb decay envelope, frequency-dependent absorption) are critical; your lab validates that the convolution operation preserves the intended filtering behavior across different IR families.
+
+    \item \textbf{Real-Time Performance and Latency Certification}.  A professional music producer recording vocals in real time requires sub-20ms latency for the reverb effect; otherwise, the performer hears echo and loses timing synchronization with the backing track. The convolution algorithm must execute in a bounded time window and deliver deterministic output timing. You will measure and certify that your hardware convolution implementation meets this latency budget while maintaining numerical accuracy.
+\end{enumerate}
+
+\noindent
+\textbf{Your Mission.} In this lab, you will build and validate a discrete-time convolution ``machine'' that demonstrates the core concepts underpinning production audio effects processors:
 \begin{itemize}
-    \item \color{BrickRed}\textbf{Pre-lab Deliverable ($N$): }Work to complete before entering lab.\color{black}
-    \item \color{OliveGreen}\textbf{Checkpoint ($N$): }Evidence to show your TA during lab for in-session sign-off.\color{black}
-    \item \color{Plum}\textbf{Discussion ($N$): }Analysis questions to answer in your post-lab submission.\color{black}
-    \item \color{BlueViolet}\textbf{Deliverable ($N$): }Required artifacts for grading.\color{black}
+    \item Design a pair of input sequences ($x[n]$ and $h[n]$) using your TA-assigned parameters.
+    \item Implement the convolution sum $y[n] = \sum_{k} x[k]\,h[n-k]$ in embedded C++ on Arduino.
+    \item Verify hardware output against MATLAB's reference \texttt{conv()} function using live captured data.
+    \item Produce publication-quality stem plots showing the flip--shift--multiply--sum interpretation.
+    \item Animate the convolution process to internalize the kernel-sliding algorithm.
 \end{itemize}
+
+\noindent
+The audio engineering industry demands mathematical rigor: any convolution error, no matter how subtle, is immediately audible to trained ears. Your lab bridges the gap between abstract signal processing theory and production-grade real-time implementation. The skills you demonstrate here---exact algorithm implementation, rigorous verification against reference code, latency analysis---are directly applicable to professional audio, radar, communications, and biomedical signal processing roles.
+
+\noindent
+\textbf{Constraints (Fixed).} 2-hour lab execution window (time-critical; skeleton code provided to focus on convolution logic). Unique TA-assigned sequences ensure independent work. All infrastructure code provided; you write the convolution function body and MATLAB verification. All checkpoints and deliverables remain exactly as specified herein.
+
+\clearpage
 
 \section*{A Note on Skeleton Code and Time Management}
 
@@ -79,33 +138,30 @@ Throughout this lab manual, four prompt types indicate required work.
 
 \clearpage
 
-%------------------------------------------------------------------
-\section{Abstract}
-%------------------------------------------------------------------
-
-This laboratory transforms the abstract mathematics of discrete-time (DT) convolution into a physical, observable machine. You will build a hardware system called the \emph{Convolution Machine}: an Arduino-based circuit that reads a finite-duration impulse response $h[n]$ from a bank of DIP switches, accepts an input sequence $x[n]$ through momentary pushbuttons, computes the full convolution sum
-\[
-    y[n] = x[n] * h[n] = \sum_{k=-\infty}^{\infty} x[k]\, h[n - k]
-\]
-in firmware, and displays the output $y[n]$ on a 10-segment LED bar graph. Simultaneously, the Arduino streams all three sequences over a USB-UART serial link to MATLAB, where you will verify the hardware result using the built-in \texttt{conv()} function, produce publication-quality stem plots, and animate the ``flip--shift--multiply--sum'' interpretation of convolution frame by frame.
-
-By the end of this lab, the convolution sum will no longer be a formula you manipulate symbolically; it will be a process you have wired, implemented, debugged, and watched.
-
-%------------------------------------------------------------------
 \section{Learning Objectives}
-%------------------------------------------------------------------
 
-By the end of this laboratory, you should be able to:
+Upon completion of this laboratory, you will demonstrate:
+
 \begin{enumerate}
-    \item \textbf{Compute DT convolution by hand} using the flip--shift--multiply--sum procedure, explicitly tracking each output sample $y[n_0]$ for every index $n_0$ in the output support.
-    \item \textbf{Implement the convolution sum in embedded C++} on an Arduino, reading hardware inputs (DIP switches, pushbuttons) and driving hardware outputs (LED bar graph) to form a closed-loop real-time system.
-    \item \textbf{Verify hardware convolution results} with MATLAB's \texttt{conv()} function, identify potential sources of discrepancy, and quantify agreement between physical and software output.
-    \item \textbf{Construct and interpret stem plots} of $x[n]$, $h[n]$, and $y[n]$ in a properly formatted MATLAB figure with labeled axes and correct discrete-time index ranges.
-    \item \textbf{Animate the flip--shift--multiply--sum process} in MATLAB to build an intuitive graphical understanding of how the flipped kernel $h[-k]$ sweeps across the input $x[k]$ to produce each successive output sample.
+    \item \textbf{Hand Computation of DT Convolution.} Use the flip--shift--multiply--sum procedure to compute $y[n] = \sum_{k} x[k]\,h[n-k]$ for all output indices, explicitly verify output length using $L_y = L_x + L_h - 1$, and validate your result against both hardware measurements and MATLAB.
+
+    \item \textbf{Embedded Implementation of the Convolution Sum.} Write efficient C++ code to implement convolution on an Arduino, managing finite-precision integer arithmetic, hardware I/O (DIP switches, pushbuttons, LED bar), serial communication, and deterministic execution within a real-time constraint.
+
+    \item \textbf{Hardware--Software Correlation and Error Analysis.} Acquire dual-channel oscilloscope and MATLAB serial streams, compare hardware output against MATLAB's reference \texttt{conv()} function, quantify numerical agreement (RMS error, boundary effects), and identify root causes of discrepancies (quantization, indexing, overflow).
+
+    \item \textbf{Visualization and Interpretation of Discrete Signals.} Create publication-quality stem plots with correct axis ranges, labels, and discrete-time indexing; interpret visual patterns in $x[n]$, $h[n]$, and $y[n]$ to identify the filtering action (low-pass, high-pass, resonance, or custom shaping).
+
+    \item \textbf{Animated Convolution Process and Intuitive Understanding.} Develop a frame-by-frame MATLAB animation that visualizes the flip--shift--multiply--sum process, showing how the flipped kernel sweeps across the input and accumulates products. Translate the animation into articulate explanation of the convolution mechanism.
+
+    \item \textbf{FIR Filter Characterization and Production-Grade Validation.} Analyze your TA-assigned impulse response $h[n]$ to determine its filtering intent (moving average, edge detector, or custom shape), predict its frequency-domain effect (low-pass, high-pass, notch, etc.), and validate predictions against measured hardware behavior.
 \end{enumerate}
 
 %------------------------------------------------------------------
-\section{Theoretical Background}
+\clearpage
+
+%------------------------------------------------------------------
+\section{Core Concepts: Discrete-Time Convolution and LTI Systems}
+%------------------------------------------------------------------
 %------------------------------------------------------------------
 
 \subsection{LTI Systems and the Impulse Response}
@@ -283,7 +339,11 @@ title(['Pre-Lab Verification: y[n] = x[n] * h[n] | ', ...
 \clearpage
 
 %------------------------------------------------------------------
+\clearpage
+
+%------------------------------------------------------------------
 \section{Equipment \& Setup}
+%------------------------------------------------------------------
 %------------------------------------------------------------------
 
 \begin{table}[H]
@@ -462,7 +522,11 @@ Before connecting the Arduino to USB, perform this checklist:
 \clearpage
 
 %------------------------------------------------------------------
+\clearpage
+
+%------------------------------------------------------------------
 \section{Software Implementation --- Arduino (Phase 2)}
+%------------------------------------------------------------------
 %------------------------------------------------------------------
 
 \textbf{Open \texttt{Lab04\_Skeleton.ino} from Canvas.} The skeleton provides \texttt{setup()} with all \texttt{pinMode()} calls, \texttt{Serial.begin(115200)}, and the LED driver function \texttt{displayOutput()}. Your task is to implement the four clearly marked \texttt{// --- YOUR CODE HERE ---} regions:
@@ -511,7 +575,11 @@ Keep labels \texttt{H:}, \texttt{X:}, \texttt{Y:} and semicolon delimiters uncha
 \clearpage
 
 %------------------------------------------------------------------
+\clearpage
+
+%------------------------------------------------------------------
 \section{Software Implementation --- MATLAB (Phase 3)}
+%------------------------------------------------------------------
 %------------------------------------------------------------------
 
 \textbf{Open \texttt{Lab04\_MATLAB\_Skeleton.m} from Canvas.} The skeleton handles serial port initialization, raw-line reading via \texttt{readline()}, and the ASCII string parser. Implement the three tasks in the \texttt{\% --- YOUR CODE HERE ---} sections.
@@ -612,7 +680,11 @@ Full Task 3 animation template is in Appendix~D.
 \clearpage
 
 %------------------------------------------------------------------
+\clearpage
+
+%------------------------------------------------------------------
 \section{Discussion and Analysis}
+%------------------------------------------------------------------
 %------------------------------------------------------------------
 
 Answer all discussion questions in your post-lab report. Each response should be 3--6 sentences supported by numerical evidence from your hardware measurements and MATLAB output.
@@ -630,7 +702,11 @@ Answer all discussion questions in your post-lab report. Each response should be
 \clearpage
 
 %------------------------------------------------------------------
+\clearpage
+
+%------------------------------------------------------------------
 \section{Deliverables \& TA Sign-Off Sheet}
+%------------------------------------------------------------------
 %------------------------------------------------------------------
 
 \subsection{In-Lab Checkpoints}
@@ -705,7 +781,11 @@ Complete all three checkpoints \textbf{during the lab session}. Your TA must ini
 \end{itemize}
 
 %------------------------------------------------------------------
+\clearpage
+
+%------------------------------------------------------------------
 \section{Grading Rubric (100 Points)}
+%------------------------------------------------------------------
 %------------------------------------------------------------------
 
 \begin{table}[H]
@@ -975,5 +1055,45 @@ for n0 = 0:Ly_v-1
     pause(0.6);
 end
 \end{verbatim}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section*{References and Inspiration}
+\addcontentsline{toc}{section}{References and Inspiration}
+%--------------------------------------------------------------
+
+This laboratory brings the central operation of signal processing—convolution—from abstract mathematics to concrete hardware and audible reality.
+
+\subsection*{University Course Inspirations}
+
+\subsubsection*{Rice University ELEC 241: Real-Time Convolution on Embedded Systems}
+
+Lab 04 is inspired by Rice University's flagship course on real-time signal processing, which emphasizes implementing convolution directly on resource-constrained microcontrollers. Rice's philosophy is that understanding convolution requires building it yourself—hand-computing small convolutions, then watching the Arduino perform thousands of convolutions per second. This lab follows Rice's approach of making the abstract mathematical operation viscerally real through code, hardware measurements, and audible results.
+
+\subsubsection*{MIT 6.003: Linear Time-Invariant Systems and Convolution}
+
+MIT's treatment of convolution as the fundamental operation linking system impulse response to arbitrary input-output behavior provides the theoretical foundation. MIT's emphasis on understanding convolution geometrically (flipping, shifting, multiplying, integrating) informs the hand-calculation exercises.
+
+\subsubsection*{Georgia Tech ECE 2026: Convolution in Hardware Audio Processing}
+
+Georgia Tech's real-time audio DSP course uses convolution for audio effects (reverb, filtering) and emphasizes the connection between mathematical convolution and perceptual audio quality. This lab's focus on convolution for audio effects (impulse response convolution reverb) mirrors Georgia Tech's approach.
+
+\subsubsection*{MIT 6.007: System Response and Convolution}
+
+The relationship between system impulse response and convolution, and the verification of convolution through measured system outputs, reflect MIT 6.007's rigor in connecting circuit behavior to signal processing theory.
+
+\subsubsection*{Duke University ECE 280: Lab Modernization}
+
+This lab is part of Duke's curriculum redesign emphasizing that convolution is not an abstract mathematical concept but the core operation underlying all filtering, signal processing, and system analysis.
+
+\subsection*{References}
+
+\begin{itemize}
+    \item A. V. Oppenheim and R. W. Schafer, \textit{Discrete-Time Signal Processing}, 3rd ed. Pearson, 2010. Chapter 2: Convolution and LTI systems.
+    \item A. V. Oppenheim and A. S. Willsky, \textit{Signals and Systems}, 2nd ed. Pearson, 1997. Chapter 2: Convolution.
+    \item J. H. McClellan, R. W. Schafer, and M. A. Yoder, \textit{DSP First: A Multimedia Approach}, 2nd ed. Pearson, 2015. Chapters on convolution and filtering.
+    \item S. W. Smith, \textit{The Scientist and Engineer's Guide to Digital Signal Processing}, 2nd ed. California Technical Publishing, 1997. Chapter 6: Convolution.
+\end{itemize}
 
 \end{document}
