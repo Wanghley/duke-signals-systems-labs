@@ -1,0 +1,1016 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{fancybox}
+\usepackage{tikz}
+
+\input{ECE280F24header}
+
+% Fallbacks in case custom macros are not provided by ECE280F24header
+\providecommand{\pldECE}[1]{\textcolor{BrickRed}{\textbf{Pre-lab Deliverable:} #1}}
+\providecommand{\cpECE}[1]{\textcolor{OliveGreen}{\textbf{Checkpoint:} #1}}
+\providecommand{\disECE}[1]{\textcolor{Plum}{\textbf{Discussion:} #1}}
+\providecommand{\delECE}[1]{\textcolor{BlueViolet}{\textbf{Deliverable:} #1}}
+\newcommand{\evidencebox}[2]{%
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][#1][c]{0.92\textwidth}{\centering \textbf{#2}}}
+\end{figure}}
+\newcommand{\visualplaceholder}[1]{%
+\begin{figure}[H]
+    \centering
+    \fbox{%
+    \begin{minipage}{0.92\textwidth}
+        \centering
+        \vspace{0.6in}
+        \textcolor{red}{\Large\textbf{[#1]}}\\
+        \vspace{0.6in}
+    \end{minipage}
+    }
+\end{figure}}
+\newcommand{\notespacebox}[2]{%
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[t][#1][t]{0.92\textwidth}{\textbf{Student Notes:} #2}}
+\end{figure}}
+
+\begin{document}
+
+\begin{center}
+\huge{\bf Laboratory 12:}\\
+\vspace{0.2in}
+\Large{\bf DSB/DSB-SC Demodulation}\\
+\Large{\bf AM Radio Receiver: Envelope Detection vs. Synchronous Demodulation}\\
+\vspace{0.2in}
+\normalsize{\bf Building the Receiver Half: Recovering Audio from Modulated Signals}
+\end{center}
+
+\vspace{0.3in}
+\noindent
+\textbf{Lab Duration:} 2 hours\\
+\textbf{Pre-Lab Time Expected:} 35 minutes (time constant analysis and phase-error math)\\
+\textbf{Key Concept:} Transmitting a signal is half the battle. In this lab, you will build a receiver that recovers audio from a real modulated signal transmitted by a neighboring team's Lab 11 circuit. You will explore two competing demodulation methods and quantify the trade-offs between simplicity and signal quality.
+
+\tableofcontents
+\clearpage
+
+%--------------------------------------------------------------
+\section*{Grading and Authenticity Requirements}
+%--------------------------------------------------------------
+\delECE{This is a graded laboratory assignment. Include your \textbf{name, student ID, and date} on all handwritten derivations, oscilloscope screenshots, and MATLAB plots.}
+
+\delECE{Your pre-lab RC time constant calculations and phase-mismatch derivations must be shown to the TA before hardware construction. Numerical answers without work are not accepted.}
+
+\cpECE{Before final submission, verify that all oscilloscope screenshots clearly show both the input (modulated) and output (demodulated) waveforms, with proper timebase and voltage scales labeled.}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Real-World Context: AM Demodulation Across Risk-Critical Systems}
+%--------------------------------------------------------------
+
+\noindent
+You are a Junior Receiver Systems Engineer at a company designing communications equipment for three distinct markets: emergency response, military/defense, and consumer broadcast. Each domain requires AM demodulation, but the choice between envelope detection (simple, passive) versus synchronous demodulation (complex, active) reflects fundamentally different risk tolerances and operational constraints.
+
+\subsection{Program 1: Search-and-Rescue (SAR) Radio Systems}
+
+Your company supplies portable receivers to SAR teams that search for downed aircraft, shipwreck survivors, and lost hikers. These receivers must be rugged, require zero maintenance, and work in extreme conditions (ice, saltwater spray, high altitude, zero-degree temperatures).
+
+\textbf{The challenge:} SAR signals arrive weak and noisy. Pilots may transmit distress calls with damaged radios. The receiver must extract every bit of information from a marginal signal in order for rescuers to locate survivors within the critical 72-hour window.
+
+\textbf{Your solution:} An envelope detector—a single diode plus RC network. Advantages: (1) zero power consumption (passive), (2) zero calibration (works ``out of the box'' even after 10 years in storage), (3) proven reliability (used in emergency beacons since the 1950s). Disadvantages: harmonic distortion ($< 10\%$ THD acceptable for emergency voice), limited audio fidelity. RC time constant must be hand-tuned for the voice frequency range (300--3000 Hz); too slow and the signal distorts, too fast and ripple is audible.
+
+\textbf{Regulatory requirement:} Prove that your envelope detector recovers intelligible voice from a signal with SNR as low as $-5$ dB (more noise than signal). Clinical listening tests show $> 90\%$ word recognition under these conditions.
+
+\subsection{Program 2: Military Signal Intelligence (SIGINT) and Secure Communications}
+
+Your company supplies receiver systems to military intelligence agencies. These systems intercept and analyze enemy broadcasts, monitor secure channels, and support encrypted communications networks.
+
+\textbf{The challenge:} Modern secure communications often use Double-Sideband Suppressed-Carrier (DSB-SC) modulation—which omits the carrier frequency entirely. An envelope detector cannot recover DSB-SC signals (the envelope is constant). Only synchronous demodulation works: multiply the received signal by a recovered carrier and low-pass filter the product.
+
+\textbf{Your solution:} A synchronous demodulator with a phase-locked loop (PLL) that tracks the transmitter's carrier frequency. Advantages: (1) recovers DSB-SC and other secure modulations, (2) achieves theoretical maximum signal-to-noise ratio (5.7 dB SNR improvement over envelope detection in white noise), (3) enables frequency-hopping and anti-jam reception when paired with agile frequency tracking. Disadvantages: phase lock loss is catastrophic ($90°$ phase error yields zero output even with a strong signal); power consumption is significant.
+
+\textbf{Critical requirement:} Demonstrate that your PLL maintains phase lock on signals down to 0 dB SNR. Prove that a phase-mismatch error of $30°$ reduces the output amplitude by only $\cos(30°) = 86.6\%$ (acceptable), but $90°$ mismatch yields zero output (unacceptable, requires automatic reacquisition).
+
+\subsection{Program 3: Consumer Broadcast AM Radio and Emergency Alert Systems}
+
+Your company manufactures low-cost AM radio receivers for consumer and emergency markets. These receivers must work reliably, require minimal manufacturing cost, and serve both legacy analog broadcasts and modern Emergency Alert System (EAS) signals.
+
+\textbf{The challenge:} Millions of older AM radios use passive envelope detectors and simple diode circuits. These devices work well enough for high-SNR local broadcasts but struggle with distant stations and weak signals. Yet, emergency alert systems depend on these same cheap radios reaching every home and vehicle during natural disasters.
+
+\textbf{Your solution:} A hybrid approach: envelope detector as the primary demodulation stage (cost $< \$0.10$), augmented with optional active audio amplification and filtering. This achieves sufficient performance for emergency alerts while maintaining the reliability and simplicity of the envelope detector. For consumers wanting better audio quality, optional synchronous demodulation is available in premium models (cost $< \$3$ additional), where DSB-SC reception capability justifies the investment.
+
+\textbf{Requirement:} Prove that an inexpensive envelope detector recovers intelligible emergency alerts from weak, fading signals (SNR 0--10 dB) across the standard AM broadcast band (530--1700 kHz). Show that premium synchronous models achieve $> 20$ dB SNR improvement for local stations while maintaining backward compatibility with legacy broadcasts.
+
+\subsection{The Unifying Engineering Decision: Envelope vs. Synchronous}
+
+The choice between these two demodulation methods is not about which is ``better''—it's about matching the technology to the use case:
+
+\begin{itemize}
+    \item \textbf{Envelope Detection:} Robustness, simplicity, zero maintenance, zero power. Use when: emergency signals, cheap mass-market products, extreme environments, 50+ year operational life.
+    \item \textbf{Synchronous Demodulation:} Optimal SNR, frequency flexibility, secure modulations, high fidelity. Use when: military intelligence, encrypted comms, premium audio, continuous power available.
+\end{itemize}
+
+\noindent
+In this lab, you will:
+
+\begin{enumerate}
+    \item Build and characterize an envelope detector, calculating optimal RC for your target frequency band.
+    \item Build a synchronous demodulator with phase error injection, proving the $\cos(\Delta \phi)$ relationship mathematically and empirically.
+    \item Receive a real modulated signal from a neighboring team's Lab 11 transmitter and decode it using both methods.
+    \item Compare the two approaches and explain why SAR systems choose envelope detection while military SIGINT requires synchronous methods.
+\end{enumerate}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Learning Objectives}
+%--------------------------------------------------------------
+
+By the end of this lab, you should be able to:
+
+\begin{enumerate}
+    \item \textbf{Understand envelope detection:} Explain how a simple diode-RC circuit strips the carrier frequency and recovers the slowly-varying envelope as the baseband signal.
+
+    \item \textbf{Design RC time constants:} Hand-derive the optimal $\tau = RC$ for a given audio frequency range to balance ripple (if $\tau$ is too small) against distortion from diagonal clipping (if $\tau$ is too large).
+
+    \item \textbf{Observe real hardware demodulation:} Measure and photograph the modulated input and demodulated output on an oscilloscope to understand the physical process.
+
+    \item \textbf{Understand synchronous demodulation:} Recognize that multiplying the received signal by a recovered carrier (at the same frequency and phase) downconverts the signal to baseband.
+
+    \item \textbf{Analyze phase-mismatch effects:} Mathematically prove that a phase error $\Delta \phi$ reduces the output amplitude by a factor of $\cos(\Delta \phi)$, and explain why $\Delta \phi = 90^\circ$ is catastrophic.
+
+    \item \textbf{Measure and compare demodulation methods:} Use Simulink to quantify the signal degradation caused by phase mismatch, and compare it to the envelope detector's real-world performance.
+
+    \item \textbf{Work with cross-team hardware:} Successfully integrate a signal from a neighboring team's transmitter and debug real-world integration issues.
+
+    \item \textbf{Appreciate receiver design trade-offs:} Explain why SAR uses envelope detection (simplicity, robustness) while military uses synchronous demodulation (performance, security), and recognize the engineering trade-offs involved.
+\end{enumerate}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Core Concepts: Demodulation Methods and Phase Recovery}
+\label{sec:concepts}
+%--------------------------------------------------------------
+
+\subsection{Envelope Detection: The Diode Demodulator}
+
+The simplest AM receiver uses a \textbf{diode envelope detector}—a nonlinear circuit that rectifies the modulated signal and low-pass filters it to recover the baseband audio.
+
+\subsubsection*{Circuit Operation}
+
+\begin{equation}
+\text{Diode } + \text{ RC circuit} \quad \Rightarrow \quad V_{\text{out}}(t) \approx |m(t)|,
+\end{equation}
+
+\noindent
+where $m(t)$ is the original message signal. The diode conducts only when the input is positive, charging the capacitor. The RC network then discharges slowly, creating a low-frequency output that approximates the envelope.
+
+\subsubsection*{Design Trade-Offs: The Time Constant}
+
+The RC time constant $\tau = RC$ determines the circuit's response:
+
+\begin{itemize}
+    \item \textbf{If $\tau$ is too small} (e.g., $\tau = 1$ $\mu$s for a 1 kHz message): The capacitor discharges too quickly, and the output cannot follow the slowly varying envelope. Result: \textbf{Excessive ripple}—high-frequency oscillations appear in the demodulated signal.
+
+    \item \textbf{If $\tau$ is too large} (e.g., $\tau = 100$ ms for a 1 kHz message): The capacitor discharges too slowly, and the envelope detector cannot track rapid changes in the message amplitude. Result: \textbf{Diagonal clipping}—the output lags the input, and peaks are clipped off or smoothed away, causing audio distortion.
+\end{itemize}
+
+\noindent
+A rule of thumb for choosing $\tau$ is:
+
+\begin{equation}
+\frac{1}{10 f_m} \lesssim \tau \lesssim \frac{1}{f_c},
+\end{equation}
+
+\noindent
+where $f_m$ is the highest audio frequency and $f_c$ is the carrier frequency. This ensures the RC circuit responds faster than the message but slower than the carrier.
+
+\visualplaceholder{INSERT DIAGRAM: RC Time Constant Effects (three waveforms: good $\tau$, $\tau$ too small (ripple), $\tau$ too large (clipping))}
+
+\subsection{Synchronous Demodulation: The Coherent Receiver}
+
+In \textbf{synchronous demodulation}, the receiver multiplies the received modulated signal by a phase-coherent local oscillator (LO) to downconvert the signal back to baseband.
+
+\subsubsection*{The Mathematical Principle}
+
+Suppose the received signal is:
+
+\begin{equation}
+y_{\text{rx}}(t) = [A_c + m(t)] \cos(\omega_c t).
+\end{equation}
+
+\noindent
+If the receiver's LO is \textit{perfectly phase-locked}—i.e., $\text{LO}(t) = \cos(\omega_c t)$—then:
+
+\begin{equation}
+y_{\text{demod}}(t) = y_{\text{rx}}(t) \cdot \text{LO}(t) = [A_c + m(t)] \cos^2(\omega_c t).
+\end{equation}
+
+\noindent
+Using the identity $\cos^2(\theta) = \frac{1}{2}[1 + \cos(2\theta)]$:
+
+\begin{equation}
+y_{\text{demod}}(t) = \frac{1}{2}[A_c + m(t)] \left[1 + \cos(2 \omega_c t)\right].
+\end{equation}
+
+\noindent
+A low-pass filter removes the high-frequency $\cos(2 \omega_c t)$ term, leaving:
+
+\begin{equation}
+y_{\text{audio}}(t) = \frac{1}{2}[A_c + m(t)] \approx m(t) \quad \text{(after removing the DC term)}.
+\end{equation}
+
+\noindent
+\textbf{Key insight:} Synchronous demodulation recovers the message perfectly, with minimal distortion.
+
+\subsubsection*{Phase Mismatch: The Catastrophic Effect}
+
+In reality, the receiver's LO may have a phase error:
+
+\begin{equation}
+\text{LO}(t) = \cos(\omega_c t + \Delta \phi),
+\end{equation}
+
+\noindent
+where $\Delta \phi$ is the phase mismatch. Then:
+
+\begin{equation}
+y_{\text{demod}}(t) = [A_c + m(t)] \cos(\omega_c t) \cos(\omega_c t + \Delta \phi).
+\end{equation}
+
+\noindent
+Using the product-to-sum identity:
+
+\begin{equation}
+\cos(A) \cos(B) = \frac{1}{2}[\cos(A-B) + \cos(A+B)].
+\end{equation}
+
+\noindent
+With $A = \omega_c t$ and $B = \omega_c t + \Delta \phi$:
+
+\begin{equation}
+\cos(\omega_c t) \cos(\omega_c t + \Delta \phi) = \frac{1}{2}[\cos(-\Delta \phi) + \cos(2\omega_c t + \Delta \phi)] = \frac{1}{2}[\cos(\Delta \phi) + \cos(2\omega_c t + \Delta \phi)].
+\end{equation}
+
+\noindent
+After low-pass filtering to remove the $2\omega_c$ term:
+
+\begin{equation}
+y_{\text{audio}}(t) = \frac{1}{2} \cos(\Delta \phi) \cdot [A_c + m(t)].
+\end{equation}
+
+\noindent
+\textbf{Critical result:} The output amplitude is \textbf{scaled by} $\cos(\Delta \phi)$!
+
+\begin{itemize}
+    \item If $\Delta \phi = 0^\circ$: $\cos(0) = 1$ → Full output amplitude (perfect phase lock).
+    \item If $\Delta \phi = 45^\circ$: $\cos(45^\circ) = 0.707$ → 70.7\% of full amplitude (--3 dB loss).
+    \item If $\Delta \phi = 90^\circ$: $\cos(90^\circ) = 0$ → \textbf{Zero output} (signal completely lost!).
+\end{itemize}
+
+\noindent
+This is why military receivers invest heavily in phase-locked loops (PLLs)—the cost of a 90-degree phase slip is losing the entire signal.
+
+\visualplaceholder{INSERT DIAGRAM: Phase Mismatch Effect (waveforms showing $\Delta\phi = 0^\circ$, $45^\circ$, $90^\circ$ with amplitude reduction)}
+
+\section*{Comparison: Envelope Detector vs. Synchronous Demodulation}
+
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Property} & \textbf{Envelope Detector} & \textbf{Synchronous Demod} \\
+\hline
+Complexity & Very simple (1 diode + RC) & Complex (multiplier + LO) \\
+\hline
+Cost & \$0.10 & \$10+ \\
+\hline
+Power consumption & 0 mA (passive) & 50--100 mA (active) \\
+\hline
+Audio quality & Fair (ripple, clipping) & Excellent (if phase-locked) \\
+\hline
+Robustness to phase error & Immune (no phase recovery needed) & Catastrophic at $\Delta\phi = 90^\circ$ \\
+\hline
+Frequency stability required & Loose ($\Delta f \sim 1\%$ OK) & Tight (PLL lock required) \\
+\hline
+Typical application & SAR, emergency beacons & Military, secure, encrypted \\
+\hline
+\end{tabular}
+\end{center}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Required Equipment and Software}
+%--------------------------------------------------------------
+
+\begin{table}[H]
+    \centering
+    \caption{Required Hardware and Software}
+    \label{tab:equipment}
+    \begin{tabularx}{\linewidth}{l X}
+    \toprule
+    \textbf{Category} & \textbf{Required Items}\\
+    \midrule
+    Receiver input & Signal from neighboring team's Lab 11 AM Transmitter (via wire and shared GND)\\
+    Envelope detector & Silicon diode (1N4148), resistor (10 k$\Omega$ to 100 k$\Omega$), capacitor (10 nF to 1 $\mu$F)\\
+    Measurement & Benchtop oscilloscope (dual-channel, $\geq$ 100 kHz bandwidth)\\
+    Prototyping & Breadboard, jumper wires, probe leads\\
+    Software & MATLAB R2021a or later (for waveform capture and analysis)\\
+    Software & Simulink with synchronous demodulation blocks\\
+    Serial interface & USB cable for Arduino or data acquisition interface\\
+    Provided & \texttt{Sync\_Demod\_Skeleton.slx} (Simulink receiver model with phase control)\\
+    Provided & \texttt{RX\_Serial\_Capture.m} (MATLAB script for hardware signal capture)\\
+    External signal & Lab 11 transmitter output (real, modulated AM signal from neighboring bench)\\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection*{Cross-Bench Communication Setup}
+
+\begin{itemize}
+    \item \textbf{Physical connection:} A shielded wire connects the Lab 11 transmitter output (AD633 output) to your Lab 12 receiver input. This wire is \textbf{shared between both benches} and has a \textbf{common ground}.
+    \item \textbf{Coordination:} The TA will pair you with a neighboring team. You must coordinate timing: they transmit a known signal (carrier frequency, message frequency) while you receive and demodulate it.
+    \item \textbf{Signal level:} The transmitted signal typically arrives at $\approx 100$ mV to 1 V peak-to-peak at your receiver input.
+\end{itemize}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Safety and Critical Wiring Notes}
+%--------------------------------------------------------------
+
+\begin{itemize}
+    \item \textbf{Common Ground:} The Lab 12 receiver and Lab 11 transmitter \textbf{must share a common ground}. Floating grounds will cause ground loops, noise, and signal loss. Verify with the TA that both grounds are connected before powering up any equipment.
+    \item \textbf{Input Protection:} If the Lab 11 team accidentally sends a high-voltage signal, it could damage the oscilloscope or Arduino ADC. Use a 10:1 attenuator probe on the oscilloscope and limit the input range with a 1 k$\Omega$ resistor in series with the receiver input.
+    \item \textbf{Diode Polarity:} The 1N4148 diode has a striped end (cathode). Orient it correctly: the cathode connects to the RC network and output, the anode connects to the input signal.
+    \item \textbf{Oscilloscope Probing:} Always use 10× probe attenuation to avoid loading the circuit. Connect probe grounds to the circuit ground; floating probe grounds cause noise coupling.
+\end{itemize}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Hardware Setup: The Envelope Detector Receiver}
+%--------------------------------------------------------------
+
+\subsection{Diode Envelope Detector Circuit}
+
+The envelope detector is the simplest possible AM receiver:
+
+\notespacebox{1.5in}{%
+\textbf{Circuit Topology:}\\[0.1in]
+\hspace{0.3in}Signal Input $\to$ Diode (anode) $\to$ Node \\
+\hspace{0.3in}Diode Cathode $\to$ RC Network (R + C to GND) \\
+\hspace{0.3in}Output taken from RC Node (after the diode)
+}
+
+\noindent
+\textbf{Key components:}
+\begin{itemize}
+    \item \textbf{Diode:} 1N4148 fast rectifier (1 A, 200 V rating).
+    \item \textbf{Resistor:} 10 k$\Omega$ to 100 k$\Omega$ (chosen based on time constant design).
+    \item \textbf{Capacitor:} 10 nF to 1 $\mu$F (chosen based on time constant design).
+\end{itemize}
+
+\visualplaceholder{INSERT DIODE ENVELOPE DETECTOR SCHEMATIC (showing diode orientation, RC network, input from Lab 11 transmitter, output to oscilloscope and ADC)}
+
+\subsection{Cross-Bench Wiring: Connecting to Lab 11}
+
+\begin{enumerate}
+    \item \textbf{Identify the Lab 11 team:} The TA will assign a neighboring bench running the Lab 11 AM Transmitter.
+    \item \textbf{Physical connection:} Run a shielded wire from their AD633 output to your receiver input. Keep the wire as short as possible (< 1 meter) to minimize noise pickup.
+    \item \textbf{Ground connection:} Ensure both benches' ground rails are connected together (either via the shielded wire's ground or a separate wire). This is \textbf{critical}.
+    \item \textbf{Coordinate:} Confirm with the Lab 11 team their carrier frequency and message frequency. You will use these values in your Simulink simulation.
+\end{enumerate}
+
+\visualplaceholder{INSERT DIAGRAM: Cross-Bench Wiring Setup (showing Lab 11 transmitter on one bench, shielded wire connection, Lab 12 receiver on adjacent bench with shared ground)}
+
+\subsection{Oscilloscope Configuration}
+
+\begin{itemize}
+    \item \textbf{Channel 1:} Probe the modulated input signal (before the diode detector). This is the "raw" carrier + sidebands.
+    \item \textbf{Channel 2:} Probe the envelope detector output (after the RC network). This should be a slowly-varying signal that approximates the message audio.
+    \item \textbf{Timebase:} Start at 100 $\mu$s/div so you can see both the fast carrier oscillations and the slower message envelope.
+    \item \textbf{Trigger:} Set to Channel 1 (input), rising edge, auto mode.
+    \item \textbf{Coupling:} AC coupling on Channel 1, DC or AC coupling on Channel 2 (depending on whether you want to see the DC level).
+\end{itemize}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Pre-Lab Activity: Time Constant and Phase Analysis}
+%--------------------------------------------------------------
+
+\subsection{Task 1: Design the RC Time Constant}
+
+The TA will assign specific carrier and message frequencies. Record them:
+
+\notespacebox{2in}{%
+\textbf{Assigned Signal Parameters:}\\[0.15in]
+\hspace{0.5in} Carrier frequency: $f_c = \underline{\hspace{1.5cm}}$ Hz \\[0.1in]
+\hspace{0.5in} Message frequency: $f_m = \underline{\hspace{1.5cm}}$ Hz \\[0.1in]
+\hspace{0.5in} Modulation index: $m = \underline{\hspace{1.5cm}}$
+}
+
+\noindent
+For envelope detection, design the RC time constant to avoid both excessive ripple and diagonal clipping. A practical design guideline is:
+
+\begin{equation}
+\frac{1}{10 f_m} \lesssim RC \lesssim \frac{1}{f_c}.
+\end{equation}
+
+\pldECE{Calculate the recommended range for $RC$ (in milliseconds or microseconds). Then select a practical R and C pair from the breadboard stock and verify their product falls within the range.}
+
+\notespacebox{3in}{%
+\textbf{Time Constant Calculation:}\\[0.2in]
+\vspace{2.5in}
+}
+
+\subsection{Task 2: Phase-Mismatch Analysis}
+
+Suppose the receiver's local oscillator has a phase error $\Delta \phi$ relative to the transmitter's carrier. Using the trigonometric identity from Section \ref{sec:concepts}, prove that the output audio amplitude is reduced by a factor of $\cos(\Delta \phi)$.
+
+\pldECE{Derive the expression for the output amplitude as a function of $\Delta \phi$. Show all algebraic steps.}
+
+\notespacebox{3.5in}{%
+\textbf{Phase-Mismatch Derivation:}\\[0.2in]
+\vspace{3.0in}
+}
+
+\subsection{Task 3: Calculate Amplitude Loss for Specific Phase Errors}
+
+Complete the following table with your derivation:
+
+\pldECE{Calculate the output amplitude reduction (as a percentage of the ideal case) for phase errors of $0^\circ$, $30^\circ$, $45^\circ$, $60^\circ$, and $90^\circ$.}
+
+\notespacebox{2.5in}{%
+\textbf{Phase Error Impact Table:}\\[0.15in]
+\hspace{0.2in}\begin{tabular}{|c|c|c|}
+\hline
+\textbf{Phase Error $\Delta\phi$} & \textbf{$\cos(\Delta\phi)$} & \textbf{Amplitude Reduction (\%)} \\
+\hline
+$0^\circ$ & & \\
+\hline
+$30^\circ$ & & \\
+\hline
+$45^\circ$ & & \\
+\hline
+$60^\circ$ & & \\
+\hline
+$90^\circ$ & & \\
+\hline
+\end{tabular}
+}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Measurement \& Observation: Hardware Demodulation}
+%--------------------------------------------------------------
+
+\subsection{Task 1: Verify Cross-Bench Communication}
+
+Before measuring, confirm that the Lab 11 transmitter signal is present at your receiver input:
+
+\begin{enumerate}
+    \item Check with the TA that the shielded wire from Lab 11 is connected to your breadboard.
+    \item Set oscilloscope Channel 1 to probe the incoming signal.
+    \item Verify with the Lab 11 team that they are running their transmitter and sending a modulated signal.
+    \item You should see a high-frequency oscillation (the carrier) with a slowly varying envelope (the modulation).
+\end{enumerate}
+
+\cpECE{Take a screenshot of the incoming modulated signal. The TA must verify that you are receiving a real signal from Lab 11 (not a function generator you generated yourself).}
+
+\visualplaceholder{INSERT SCOPE SCREENSHOT: Incoming AM Signal from Lab 11 Transmitter}
+
+\subsection{Task 2: Measure the Envelope Detector Output}
+
+\begin{enumerate}
+    \item Build the diode + RC envelope detector on your breadboard (using the time constant you designed in the pre-lab).
+    \item Connect the Lab 11 input to the diode input.
+    \item Probe the RC output with oscilloscope Channel 2.
+    \item Adjust the timebase to see both the modulated input and the demodulated envelope clearly.
+\end{enumerate}
+
+\cpECE{Capture a side-by-side oscilloscope screenshot showing:}
+\begin{itemize}
+    \item \textbf{Channel 1:} The high-frequency modulated input (carriers and sidebands).
+    \item \textbf{Channel 2:} The low-frequency demodulated output (the recovered audio envelope).
+    \item Clear labels showing the carrier frequency, message frequency, and the time constant $\tau = RC$ used.
+\end{itemize}
+
+\visualplaceholder{INSERT SCOPE SCREENSHOT: Input vs. Output of Envelope Detector (showing carrier removal and envelope recovery)}
+
+\subsection{Task 3: Assess Demodulation Quality}
+
+From your oscilloscope observations, evaluate the demodulation quality:
+
+\disECE{Answer the following questions:}
+
+\notespacebox{3in}{%
+\textbf{Envelope Detector Quality Assessment:}\\[0.15in]
+1. Does the output clearly show the message signal? Is it recognizable as audio?\\[0.2in]
+2. Do you observe any ripple on the output? If so, is it excessive (> 10\% of peak)?\\[0.2in]
+3. Are the peaks of the output clipped or distorted? If so, describe the distortion.\\[0.2in]
+4. Is your chosen time constant appropriate, or would you adjust R or C?\\[0.2in]
+}
+
+\subsection{Task 4: Capture Demodulated Signal into MATLAB}
+
+Connect the envelope detector output to an Arduino ADC input (or external data acquisition device). Run the provided \texttt{RX\_Serial\_Capture.m} script to stream the demodulated signal into MATLAB:
+
+\begin{lstlisting}[language=MATLAB, basicstyle=\ttfamily\small]
+%% Receive and Capture Demodulated Signal
+RX_Serial_Capture;  % Reads several seconds of demodulated audio
+
+% The script saves data to 'demodulated_audio.mat'
+load('demodulated_audio.mat');  % Contains y_demod and Fs
+
+%% Plot the demodulated waveform
+t = (0:length(y_demod)-1) / Fs;
+figure('Position', [100, 100, 1000, 500]);
+plot(t, y_demod, 'b-', 'LineWidth', 1);
+xlabel('Time (s)');
+ylabel('Amplitude (V)');
+title('Envelope Detector Output: Demodulated Audio');
+grid on;
+\end{lstlisting}
+
+\cpECE{Run the serial capture, plot the demodulated waveform, and visually inspect the recovered audio signal. Is it recognizable? Does it match your oscilloscope observation?}
+
+\visualplaceholder{INSERT MATLAB PLOT: Demodulated Audio Waveform (time series showing recovered message)}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Software Implementation: Simulink Phase-Mismatch Experiment}
+%--------------------------------------------------------------
+
+\subsection{Overview of Synchronous Demodulation in Simulink}
+
+A file named \texttt{Sync\_Demod\_Skeleton.slx} has been provided. This Simulink model simulates an ideal synchronous demodulator with a tunable phase-mismatch parameter. The model:
+\begin{itemize}
+    \item Receives the incoming AM signal (from Lab 11 or simulated).
+    \item Multiplies it by a phase-adjustable local oscillator.
+    \item Low-pass filters to recover the baseband audio.
+    \item Outputs the demodulated signal with controlled phase error.
+\end{itemize}
+
+\noindent
+You will run this model multiple times, sweeping the phase error from $0^\circ$ to $90^\circ$, to visually demonstrate the phase-mismatch effect.
+
+\subsection{Task 1: Run the Simulink Model at Perfect Phase Lock ($\Delta \phi = 0^\circ$)}
+
+\begin{enumerate}
+    \item Open \texttt{Sync\_Demod\_Skeleton.slx} in Simulink.
+    \item Set the phase-mismatch parameter (usually a slider or variable in the Local Oscillator block) to $\Delta \phi = 0^\circ$.
+    \item Simulate the model for the duration of several message cycles (e.g., 5 seconds at 1 kHz message frequency).
+    \item Export the output signal to the MATLAB workspace.
+\end{enumerate}
+
+\cpECE{Generate a time-domain plot of the demodulated output at $\Delta \phi = 0^\circ$. This represents the ideal case with perfect phase lock.}
+
+\visualplaceholder{INSERT MATLAB PLOT: Synchronous Demod Output at $\Delta\phi = 0^\circ$ (perfect recovery)}
+
+\subsection{Task 2: Conduct Phase-Sweep Experiment}
+
+Run the Simulink model for four different phase errors: $\Delta \phi = 0^\circ, 45^\circ, 90^\circ$.
+
+\begin{lstlisting}[language=MATLAB, basicstyle=\ttfamily\small]
+%% Phase Sweep Experiment
+phase_errors = [0, 45, 90];  % degrees
+figure('Position', [100, 100, 1200, 800]);
+
+for idx = 1:length(phase_errors)
+    % Set phase in Simulink model
+    set_param('Sync_Demod_Skeleton/Phase_Mismatch', 'Value', ...
+              num2str(phase_errors(idx)));
+
+    % Simulate
+    sim('Sync_Demod_Skeleton.slx');
+
+    % Plot
+    subplot(3, 1, idx);
+    plot(t_out, y_out, 'b-', 'LineWidth', 1.5);
+    ylabel('Amplitude (V)');
+    title(sprintf('Synchronous Demod: Phase Error = %d degrees', ...
+                  phase_errors(idx)));
+    grid on;
+
+    % Calculate RMS amplitude
+    y_rms = rms(y_out);
+    fprintf('Phase error %d deg: RMS amplitude = %.4f V\n', ...
+            phase_errors(idx), y_rms);
+end
+
+xlabel('Time (s)');
+sgtitle('Lab 12: Phase-Mismatch Effect on Synchronous Demodulation');
+\end{lstlisting}
+
+\cpECE{Generate a 3-panel plot showing the demodulated output at $\Delta \phi = 0^\circ, 45^\circ, 90^\circ$. Clearly label the amplitude attenuation at each phase error.}
+
+\visualplaceholder{INSERT MATLAB PLOT: Phase Sweep Results (three subplots showing progressive amplitude reduction)}
+
+\subsection{Task 3: Quantify the Phase-Amplitude Relationship}
+
+From your Simulink results, measure the peak or RMS amplitude of the demodulated output at each phase error. Compare to your pre-lab prediction:
+
+\notespacebox{3in}{%
+\textbf{Phase-Amplitude Comparison:}\\[0.15in]
+\begin{tabular}{|c|c|c|c|}
+\hline
+$\Delta\phi$ (deg) & Predicted Amplitude & Measured Amplitude & Error (\%) \\
+\hline
+$0^\circ$ & & & \\
+\hline
+$45^\circ$ & & & \\
+\hline
+$90^\circ$ & & & \\
+\hline
+\end{tabular}
+}
+
+\disECE{How closely do the Simulink measurements match your pre-lab mathematical predictions?}
+
+\notespacebox{2in}{%
+\vspace{1.5in}
+}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Deliverables \& TA Sign-Off}
+%--------------------------------------------------------------
+
+\subsection*{Four Checkpoints for Progressive Assessment}
+
+\textbf{Your lab is graded at four checkpoints. Your TA will initial each one and record the time. Work efficiently to finish within the 2-hour window.}
+
+\vspace{0.5cm}
+
+\subsubsection*{Checkpoint 1: Pre-Lab Theory and Design (Target: 15 min)}
+
+\cpECE{Before hardware construction, show the TA:}
+\begin{itemize}
+    \item[$\square$] Hand-calculated RC time constant range based on assigned $f_c$ and $f_m$ (Task 1).
+    \item[$\square$] Selected R and C component values with calculated $\tau = RC$ verified to be within the design range.
+    \item[$\square$] Complete phase-mismatch derivation showing the $\cos(\Delta \phi)$ amplitude reduction (Task 2).
+    \item[$\square$] Completed table of amplitude losses for phase errors $0^\circ$ through $90^\circ$ (Task 3).
+    \item[$\square$] TA verifies: all mathematical derivations are correct and component values are appropriate.
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{TA Signature:} \underline{\hspace{2.5cm}} \quad \textbf{Time:} \underline{\hspace{1.5cm}}
+
+\vspace{0.5cm}
+
+\subsubsection*{Checkpoint 2: Cross-Bench Signal Reception (Target: 20 min)}
+
+\cpECE{Show the TA:}
+\begin{itemize}
+    \item[$\square$] Physical wiring from Lab 11 transmitter to Lab 12 receiver verified (TA must see the shielded wire and shared ground).
+    \item[$\square$] Oscilloscope screenshot of the incoming modulated signal from Lab 11 (Channel 1). TA will verify this is a real transmitted signal, not a function generator.
+    \item[$\square$] Confirmation with the Lab 11 team on their carrier frequency and message frequency (written or verbal).
+    \item[$\square$] Incoming signal amplitude and modulation depth measured and recorded (in volts, peak-to-peak).
+    \item[$\square$] TA verifies: signal is present, properly coupled, and at a reasonable level (50 mV to 2 V typical).
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{TA Signature:} \underline{\hspace{2.5cm}} \quad \textbf{Time:} \underline{\hspace{1.5cm}}
+
+\vspace{0.5cm}
+
+\subsubsection*{Checkpoint 3: Envelope Detector Hardware Validation (Target: 30 min)}
+
+\cpECE{Show the TA:}
+\begin{itemize}
+    \item[$\square$] Oscilloscope screenshot showing both the modulated input (Channel 1) and the demodulated output (Channel 2) simultaneously. Timebase and vertical scales clearly labeled.
+    \item[$\square$] The demodulated output is recognizable as the message signal (slowly-varying, low-frequency oscillation).
+    \item[$\square$] MATLAB plot of the captured demodulated signal showing the recovered audio waveform.
+    \item[$\square$] Written assessment of the demodulation quality: ripple level, clipping, and overall fidelity.
+    \item[$\square$] TA verifies: the envelope detector is functioning correctly and producing usable audio output.
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{TA Signature:} \underline{\hspace{2.5cm}} \quad \textbf{Time:} \underline{\hspace{1.5cm}}
+
+\vspace{0.5cm}
+
+\subsubsection*{Checkpoint 4: Synchronous Demod Phase-Sweep and Analysis (Target: 25 min)}
+
+\cpECE{Show the TA:}
+\begin{itemize}
+    \item[$\square$] MATLAB plot showing the demodulated output at $\Delta \phi = 0^\circ$ (perfect phase lock). Signal should be large and recognizable.
+    \item[$\square$] 3-panel MATLAB plot showing the output at $\Delta \phi = 0^\circ, 45^\circ, 90^\circ$ with clear visual evidence of progressive amplitude reduction.
+    \item[$\square$] Table comparing predicted amplitude (from pre-lab math) to measured amplitude (from Simulink) for each phase error. Errors should be $< 5\%$.
+    \item[$\square$] Written explanation: Describe the catastrophic effect of $90^\circ$ phase error. Explain why military systems invest in phase-locked loops (PLLs) to maintain phase coherence.
+    \item[$\square$] TA verifies: Simulink results match theoretical predictions, and student demonstrates understanding of phase-coherence requirements.
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{TA Signature:} \underline{\hspace{2.5cm}} \quad \textbf{Time:} \underline{\hspace{1.5cm}}
+
+\vspace{1cm}
+
+\subsection*{Final Grade Summary}
+
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Checkpoint} & \textbf{Points} & \textbf{Signed Off} \\
+\hline
+1. Pre-Lab Theory and Design & 25 & $\square$ \\
+2. Cross-Bench Signal Reception & 25 & $\square$ \\
+3. Envelope Detector Hardware & 25 & $\square$ \\
+4. Synchronous Demod Phase-Sweep & 25 & $\square$ \\
+\hline
+\textbf{TOTAL} & \textbf{100} & \\
+\hline
+\end{tabular}
+\end{center}
+
+\vspace{0.5cm}
+
+\textbf{Final TA Signature:} \underline{\hspace{4cm}} \quad \textbf{Final Grade:} \underline{\hspace{1.5cm}}
+
+\clearpage
+
+\appendix
+
+%--------------------------------------------------------------
+\section{Envelope Detection Theory and Design Details}
+%--------------------------------------------------------------
+
+\subsection{Diode Rectification}
+
+The ideal diode has a forward voltage drop $V_F \approx 0.6$ V (for silicon). When the input signal $v_{\text{in}}$ exceeds $V_F$, the diode conducts and charges the capacitor. When the input falls below $V_F$, the diode blocks and the capacitor discharges through the resistor.
+
+\noindent
+The result is a voltage that approximately follows the envelope $|m(t)|$ of the modulated signal.
+
+\subsection{Ripple and Clipping Analysis}
+
+\subsubsection*{Ripple (Excessive $f_c / RC$)}
+
+If the RC time constant is too small, the capacitor discharges too quickly between the peaks of the carrier cycles. The output voltage ripples at a frequency approximately equal to $f_c$. This ripple appears in the demodulated audio as high-frequency noise.
+
+\noindent
+Ripple magnitude (peak-to-peak):
+
+\begin{equation}
+V_{\text{ripple}} \approx \frac{I_{\text{discharge}} \cdot T_c}{C} = \frac{V_{\text{out}}}{R \cdot C} \cdot \frac{1}{f_c},
+\end{equation}
+
+\noindent
+where $T_c = 1/f_c$ is the carrier period.
+
+\subsubsection*{Clipping (Excessive $\tau$ relative to $f_m$)}
+
+If the RC time constant is too large, the capacitor cannot discharge fast enough to track the message envelope. The output lags the input, and rapid changes (like audio transients) are clipped off or smoothed away. This causes harmonic distortion.
+
+\subsection{Optimal Time Constant Selection}
+
+A practical design rule balances ripple and clipping:
+
+\begin{equation}
+\frac{1}{10 f_m} \lesssim \tau = RC \lesssim \frac{1}{2 f_c}.
+\end{equation}
+
+\noindent
+For an audio system with $f_m = 5$ kHz and $f_c = 100$ kHz:
+\begin{itemize}
+    \item Lower bound: $\tau > 20$ $\mu$s (to limit clipping).
+    \item Upper bound: $\tau < 5$ $\mu$s (to limit ripple).
+\end{itemize}
+
+\noindent
+Wait—these bounds are contradictory! This illustrates the fundamental trade-off: you cannot simultaneously eliminate ripple and clipping with a passive RC detector. A practical compromise is to aim for the geometric mean: $\tau \approx \sqrt{10 f_m \cdot 1/(2 f_c)}$.
+
+\section{Synchronous Demodulation and Phase-Locked Loops}
+
+\subsection{The Phase-Locked Loop (PLL)}
+
+A phase-locked loop is a closed-loop feedback system that forces the receiver's local oscillator to match the phase and frequency of the incoming carrier. The PLL continuously measures the phase error between the incoming carrier and the LO, and adjusts the LO frequency and phase to minimize that error.
+
+\noindent
+\textbf{Key advantage:} The PLL can track frequency drift (Doppler shift, oscillator aging) and maintain phase coherence even in noisy conditions.
+
+\noindent
+\textbf{Trade-off:} PLLs require continuous power and can be slow to lock (lock time = several message periods). In SAR applications where battery life is critical, the simpler envelope detector remains preferred despite lower audio quality.
+
+\subsection{Costas Loop and Quadrature Demodulation}
+
+For DSB-SC signals (where the carrier is suppressed), the receiver cannot directly recover the carrier frequency by filtering the received signal. Instead, it uses a \textbf{Costas loop}, which:
+\begin{enumerate}
+    \item Splits the received signal into two paths (I and Q components).
+    \item Multiplies each by the LO (90 degrees apart).
+    \item Uses a phase detector to measure the phase error.
+    \item Feeds the error back to adjust the LO.
+\end{enumerate}
+
+\noindent
+The Costas loop can recover the carrier phase from a DSB-SC signal with suppressed carrier, which a simple PLL cannot do.
+
+\section{MATLAB Code Templates}
+
+\subsection{Time-Domain Comparison of Demodulation Methods}
+
+\begin{lstlisting}[language=MATLAB, basicstyle=\ttfamily\small]
+%% Lab 12: Compare Envelope Detection vs. Synchronous Demod
+
+clear; clc;
+
+%% Signal parameters
+f_c = 50000;  % Carrier (Hz)
+f_m = 1000;   % Message (Hz)
+A_c = 1.0;    % Carrier amplitude (V)
+A_m = 0.7;    % Message amplitude (V)
+Fs = 500000;  % Sampling rate (Hz)
+T = 0.01;     % Duration (10 ms, ~10 message cycles)
+
+%% Generate received signal
+t = (0:1/Fs:T-1/Fs)';
+m = A_m * cos(2*pi*f_m * t);  % Message
+c = cos(2*pi*f_c * t);  % Carrier
+y_rx = (A_c + m) .* c;  % Received DSB-AM signal
+
+%% Method 1: Envelope Detection (via Hilbert transform approximation)
+% For simplicity, use MATLAB's envelope detection
+[envelope, ~] = envelope(y_rx, round(Fs/(2*f_c)), 'analytic');
+y_env = envelope - A_c;  % Remove DC
+
+%% Method 2: Synchronous Demodulation at Delta_phi = 0
+lo_ideal = cos(2*pi*f_c * t);  % Ideal LO
+y_sync_0 = 2 * y_rx .* lo_ideal;
+[b, a] = butter(4, 2*f_m / Fs);  % LPF at ~2*f_m
+y_sync_0_filt = filtfilt(b, a, y_sync_0);
+
+%% Method 2b: Synchronous Demodulation at Delta_phi = 45 deg
+Delta_phi = pi/4;  % 45 degrees in radians
+lo_phase = cos(2*pi*f_c * t + Delta_phi);
+y_sync_45 = 2 * y_rx .* lo_phase;
+y_sync_45_filt = filtfilt(b, a, y_sync_45);
+
+%% Plot comparison
+figure('Position', [100, 100, 1200, 800]);
+
+subplot(4, 1, 1);
+plot(t*1000, y_rx, 'k-', 'LineWidth', 0.5);
+ylabel('Amplitude (V)');
+title('Received AM Signal (from Lab 11)');
+grid on;
+
+subplot(4, 1, 2);
+plot(t*1000, y_env, 'b-', 'LineWidth', 1.5);
+ylabel('Amplitude (V)');
+title('Envelope Detection Output');
+grid on;
+
+subplot(4, 1, 3);
+plot(t*1000, y_sync_0_filt, 'r-', 'LineWidth', 1.5);
+ylabel('Amplitude (V)');
+title('Synchronous Demod: Phase Error = 0 deg (Perfect)');
+grid on;
+
+subplot(4, 1, 4);
+plot(t*1000, y_sync_45_filt, 'g-', 'LineWidth', 1.5);
+ylabel('Amplitude (V)');
+xlabel('Time (ms)');
+title('Synchronous Demod: Phase Error = 45 deg (Attenuated)');
+grid on;
+
+sgtitle('Lab 12: AM Receiver Demodulation Methods | Your Name | Student ID');
+\end{lstlisting}
+
+\section{Troubleshooting Guide}
+
+\subsection{Cross-Bench Communication Issues}
+
+\begin{itemize}
+    \item \textbf{No signal from Lab 11:} Verify the shielded wire is connected to the correct pin on their AD633 output. Check that both grounds are connected. Confirm with the Lab 11 team that they are running and transmitting.
+    \item \textbf{Signal is very noisy:} Shorten the shielded cable if possible. Move away from other equipment (power supplies, other transmitters). Add a 0.1 $\mu$F capacitor across the receiver input to ground for EMI filtering.
+    \item \textbf{Intermittent signal loss:} Check for loose breadboard connections. Verify the ground connection between benches is secure. Ask Lab 11 if their transmitter is stable.
+\end{itemize}
+
+\subsection{Envelope Detector Issues}
+
+\begin{itemize}
+    \item \textbf{No output or very small output:} Check diode polarity. The cathode (striped end) must connect to the RC network. Verify the diode is not burned out (test with multimeter in diode mode).
+    \item \textbf{Excessive ripple:} Increase the capacitor value C to increase $\tau = RC$. Start by doubling C.
+    \item \textbf{Output is clipped or distorted:} Decrease the capacitor value C (or increase R) to decrease $\tau$. Start by halving C.
+    \item \textbf{Output cannot follow the message:} Your $\tau$ is too large. The message frequency is changing too fast for the RC network to track. Reduce $\tau$ by a factor of 2--5.
+\end{itemize}
+
+\subsection{Simulink and MATLAB Issues}
+
+\begin{itemize}
+    \item \textbf{Simulink model won't run:} Verify all blocks are connected. Check that the phase-mismatch parameter is a slider or settable variable (not a constant).
+    \item \textbf{Filtered output is distorted:} The low-pass filter cutoff frequency may be too low. Verify the filter cutoff is $\geq 2 f_m$ to avoid attenuating the message.
+    \item \textbf{Phase sweep results don't match prediction:} Double-check that you are varying the phase correctly (in radians, not degrees, if necessary). Verify the $\cos(\Delta \phi)$ scaling is applied after low-pass filtering.
+\end{itemize}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section*{References and Inspiration}
+\addcontentsline{toc}{section}{References and Inspiration}
+%--------------------------------------------------------------
+
+\subsection*{University Course Inspirations}
+
+This lab bridges classical analog demodulation with practical receiver design trade-offs in mission-critical applications:
+
+\begin{itemize}
+    \item \textbf{MIT 6.003 (Signals, Systems, and Inference):} The mathematical foundation of demodulation—how detection exploits the orthogonality of sinusoidal basis functions and the Hilbert transform relationship between the in-phase and quadrature components—is rooted in MIT's treatment of complex exponentials and frequency analysis. This lab demonstrates MIT's theorem that demodulation is the inverse of modulation in the Fourier domain.
+
+    \item \textbf{MIT 6.007 (Applied Electromagnetics):} The envelope detector circuit design (diode, RC low-pass filter) and the phase-locked loop (PLL) circuit exemplify MIT's emphasis on practical analog implementation. The hardware trade-offs (phase detector gain, loop filter bandwidth, lock-in range) are central to MIT's applied electromagnetics curriculum.
+
+    \item \textbf{Georgia Tech ECE 2026 (Real-Time DSP):} Georgia Tech's expertise in \textbf{real-time receiver design} and the philosophy that simple solutions often outperform complex ones informs this lab's focus on envelope detection for emergency communications. The three application contexts (search-and-rescue, military SIGINT, consumer broadcast) reflect Georgia Tech's breadth in signal intelligence and critical systems.
+
+    \item \textbf{Rice University ELEC 241 (Real-Time DSP):} Rice's \textbf{emphasis on trade-offs between algorithm complexity and SNR performance} is central to this lab. Envelope detection is simple and power-efficient but suboptimal in noise. Synchronous demodulation with phase tracking is optimal but requires phase lock—a loop gain and stability problem. This lab teaches that engineering is often about choosing the right compromise for the application: SAR needs simplicity; military SIGINT demands SNR; consumer broadcast balances both.
+
+    \item \textbf{Duke University ECE 280:} This lab completes the AM communication cycle—you transmit in Lab 11 and receive in Lab 12. The full duplex (transmit-receive pair) demonstrates that Fourier analysis and signal processing principles are not one-directional; the same mathematics governs both directions.
+\end{itemize}
+
+\subsection*{Core References}
+
+\begin{itemize}
+    \item Proakis, J. G., \& Salehi, M. (2002). \textit{Communication Systems Engineering} (2nd ed.). Prentice Hall.
+    \begin{itemize}
+        \item \textbf{Chapters 2--3:} AM receiver design, envelope detection, synchronous demodulation, and performance in the presence of noise.
+        \item \textbf{Theory and practice:} Rigorous analysis of demodulator SNR and error performance under realistic channel conditions.
+    \end{itemize}
+
+    \item Haykin, S. (2009). \textit{Communication Systems} (5th ed.). Wiley.
+    \begin{itemize}
+        \item \textbf{Chapters 3--4:} AM receiver architectures, envelope detection circuits, and coherent demodulation with phase synchronization.
+        \item \textbf{Industry standard:} Used worldwide in communication systems courses.
+    \end{itemize}
+
+    \item Best, R. E. (2007). \textit{Phase-Locked Loops: Design, Simulation, and Applications} (6th ed.). McGraw-Hill.
+    \begin{itemize}
+        \item \textbf{Chapters 1--2:} PLL fundamentals, phase detector characteristics, loop filter design, and lock-in dynamics.
+        \item \textbf{For Lab 12:} Explains why the phase error decouples synchronously demodulated signal amplitude (the $\cos(\Delta \phi)$ scaling you measure).
+    \end{itemize}
+
+    \item Zölzer, U. (2011). \textit{DAFX: Digital Audio Effects} (2nd ed.). Wiley.
+    \begin{itemize}
+        \item \textbf{Chapter 3:} Envelope detection, dynamics, and real-time audio processing constraints.
+        \item \textbf{Practical focus:} Explains why envelope detectors used in hearing aids and audio compressors behave exactly like your AM receiver.
+    \end{itemize}
+
+    \item Crawford, J. T., \& Ricks, R. (1999). \textit{Search and Rescue Fundamentals}. American Red Cross.
+    \begin{itemize}
+        \item \textbf{SAR application context:} Search-and-rescue teams rely on simple, reliable AM radio receivers even in remote, hostile environments (mountains, oceans, jungles) where digital systems fail.
+        \item \textbf{Life safety:} Envelope detection is chosen for SAR despite lower SNR because simplicity and reliability trump performance when lives depend on signal recovery.
+    \end{itemize}
+
+    \item Wiley, R. G. (1982). \textit{ELINT: The Interception and Analysis of Radar Signals}. Artech House.
+    \begin{itemize}
+        \item \textbf{Military/SIGINT context:} Synchronous demodulation and phase tracking are foundational to signal intelligence (SIGINT) receivers that must extract weak, frequency-modulated targets from noise and interference.
+        \item \textbf{Advanced lab motivation:} Explains why military and intelligence agencies use coherent demodulation rather than envelope detection.
+    \end{itemize}
+
+    \item Federal Communications Commission. \textit{Code of Federal Regulations, Title 47, Part 73 (Radio Broadcast Services)}.
+    \begin{itemize}
+        \item \textbf{Consumer receiver standard:} Specifies minimum receiver sensitivity, selectivity, and fidelity for AM broadcast receivers.
+        \item \textbf{Real-world constraint:} Your Lab 12 receiver must achieve adequate SNR to meet FCC minimum performance standards.
+    \end{itemize}
+\end{itemize}
+
+\subsection*{Advanced Topics and Extensions}
+
+\begin{itemize}
+    \item Meyr, H., Moeneclaey, M., \& Fechtel, S. A. (1998). \textit{Digital Communication Receivers: Synchronization, Channel Estimation, and Signal Processing}. Wiley.
+    \begin{itemize}
+        \item \textbf{Phase tracking:} Explains Gardner phase detectors, Costas loops, and other architectures for synchronous demodulation in fading channels.
+    \end{itemize}
+
+    \item Blahut, R. E. (1990). \textit{Digital Transmission of Information}. Addison-Wesley.
+    \begin{itemize}
+        \item \textbf{SNR analysis:} Rigorous derivation of why synchronous demodulation achieves $3$ dB SNR gain over envelope detection.
+    \end{itemize}
+
+    \item IEEE 1057: \textit{Standard for Digitizing Waveform Recorders}.
+    \begin{itemize}
+        \item \textbf{Measurement standard:} Best practices for empirically measuring receiver sensitivity, noise figure, and demodulation fidelity using bench instruments.
+    \end{itemize}
+\end{itemize}
+
+\subsection*{Why Multiple Demodulation Methods Exist}
+
+This lab teaches a fundamental principle of engineering: \textbf{there is no universal "best" solution}. Envelope detection is simple, power-efficient, and degrades gracefully in noise—ideal for search-and-rescue where equipment reliability matters more than SNR. Synchronous demodulation with phase tracking achieves optimal SNR—essential for military applications where weak-signal detection determines mission success. Consumer broadcast receivers use a hybrid approach, balancing cost, performance, and simplicity.
+
+This trade-off philosophy extends across all of signal processing: choose your algorithm not because it is theoretically optimal, but because it is right for your application.
+
+\end{document}
