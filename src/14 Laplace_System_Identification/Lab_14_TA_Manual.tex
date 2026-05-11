@@ -1,0 +1,761 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{fancybox}
+\usepackage{listings}
+\usepackage{xspace}
+
+\lstset{
+    language=MATLAB,
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    stringstyle=\color{red},
+    showstringspaces=false
+}
+
+\title{\textbf{Lab 14: Black Box System Identification}\\[0.3cm]
+       \Large Teaching Assistant Manual\\
+       \large Instructor Guide: Circuits, Answers, and Grading Rubrics}
+\author{ECE 280: Signals and Systems\\Duke University}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\clearpage
+
+%--------------------------------------------------------------
+\section{Overview and Lab Objectives}
+%--------------------------------------------------------------
+
+Lab 14 is the culminating laboratory in the ECE 280 sequence. Students are tasked with \textbf{reverse engineering} an unknown circuit (black box) using only input/output measurements. The goal is to estimate the circuit's transfer function $H(s)$ and build a Simulink digital twin that replicates its behavior.
+
+\subsection{Key Learning Outcomes}
+
+By the end of the lab, students should be able to:
+\begin{enumerate}
+    \item Understand Laplace domain analysis and the relationship between poles and system response.
+    \item Design proper test signals (step, impulse, chirp) for system identification.
+    \item Acquire clean experimental data from an unknown system.
+    \item Use MATLAB's System Identification Toolbox to estimate $H(s)$.
+    \item Build and validate a Simulink digital twin.
+    \item Defend their identification methodology to the TA.
+\end{enumerate}
+
+\subsection{Lab Duration and Pacing}
+
+\textbf{Total Lab Time:} 2 hours.
+
+\noindent
+\textbf{Recommended Checkpoints:}
+\begin{itemize}
+    \item \textbf{0:00--0:15:} Checkpoint 1 (Pre-Lab Theory) — Review pre-lab derivations. \textit{(15 min)}
+    \item \textbf{0:15--0:40:} Checkpoint 2 (Data Acquisition) — Students acquire step and impulse responses. \textit{(25 min)}
+    \item \textbf{0:40--1:05:} Checkpoint 3 (System ID) — Students run MATLAB tfest() and identify H(s). \textit{(25 min)}
+    \item \textbf{1:05--2:00:} Checkpoint 4 (Digital Twin and Defense) — Students build Simulink model and present findings. \textit{(55 min)}
+\end{itemize}
+
+%--------------------------------------------------------------
+\section{Black Box Circuit Designs}
+%--------------------------------------------------------------
+
+Each pair of students receives a \textbf{unique} black box circuit. This ensures they cannot copy answers and forces them to rely on their system ID methodology. Below are three example circuits (first-order, second-order under-damped, and second-order critically damped) that can be rotated among benches.
+
+\subsection{Black Box Design A: First-Order Low-Pass Filter}
+
+\subsubsection*{Circuit Diagram}
+
+A simple RC low-pass filter:
+
+\vspace{0.3in}
+\noindent
+\begin{tabular}{c}
+Input $\to$ Resistor (R = 10 k$\Omega$) $\to$ Node $\to$ Output \\
+Node $\to$ Capacitor (C = 1.6 $\mu$F) $\to$ GND
+\end{tabular}
+
+\vspace{0.3in}
+
+\subsubsection*{Theoretical Transfer Function}
+
+\begin{equation}
+H(s) = \frac{1}{RCs + 1} = \frac{1}{0.016 s + 1} = \frac{62.5}{s + 62.5}.
+\end{equation}
+
+\noindent
+\textbf{Pole:} $s = -62.5$ rad/s (real).
+
+\noindent
+\textbf{Cutoff frequency:} $f_c = 62.5 / (2\pi) \approx 9.95$ Hz.
+
+\noindent
+\textbf{Time constant:} $\tau = RC = 0.016$ s.
+
+\subsubsection*{Expected Step Response}
+
+\begin{equation}
+y(t) = 1 - e^{-62.5 t} \quad \text{(for unit step input)}.
+\end{equation}
+
+\noindent
+\textbf{Key values:}
+\begin{itemize}
+    \item At $t = \tau = 0.016$ s: $y(t) = 1 - e^{-1} = 0.632$ (63.2\% of final).
+    \item Settling time (to 5\%): $t_s \approx 3\tau = 0.048$ s.
+    \item No overshoot.
+\end{itemize}
+
+\subsubsection*{Expected Measurements}
+
+Students should measure:
+\begin{itemize}
+    \item Steady-state gain: DC gain $= 1$ V (output should reach 5 V if input is 5 V).
+    \item No ripple (capacitor eliminates high-frequency oscillations).
+    \item Clean exponential rise with no overshoot.
+\end{itemize}
+
+\subsection{Black Box Design B: Second-Order Under-Damped System}
+
+\subsubsection*{Circuit Diagram}
+
+An RLC circuit (or active filter) with under-damped response:
+
+\vspace{0.3in}
+\noindent
+\begin{tabular}{c}
+Input $\to$ Resistor (R = 1 k$\Omega$) $\to$ Inductor (L = 10 mH) \\
+Inductor $\to$ Node $\to$ Capacitor (C = 1 $\mu$F) $\to$ GND \\
+Node is the output.
+\end{tabular}
+
+\vspace{0.3in}
+
+\subsubsection*{Theoretical Transfer Function}
+
+\begin{equation}
+H(s) = \frac{\omega_n^2}{s^2 + 2\zeta \omega_n s + \omega_n^2},
+\end{equation}
+
+\noindent
+where:
+\begin{itemize}
+    \item $\omega_n = 1/\sqrt{LC} = 1/\sqrt{0.01 \times 10^{-6}} = 10^4$ rad/s.
+    \item $2\zeta \omega_n = R/L = 1000 / 0.01 = 100,000$, so $\zeta = 5$.
+\end{itemize}
+
+\noindent
+\textbf{Wait:} This is \textit{over}-damped! Let me recalculate with a smaller inductor.
+
+\noindent
+\textbf{Corrected design:} L = 1 mH, C = 1 $\mu$F, R = 100 $\Omega$:
+\begin{itemize}
+    \item $\omega_n = 1/\sqrt{10^{-3} \times 10^{-6}} = 31,623$ rad/s.
+    \item $2\zeta \omega_n = 100 / 0.001 = 100,000$, so $\zeta = 100,000 / (2 \times 31,623) \approx 1.58$ (over-damped).
+\end{itemize}
+
+\noindent
+\textbf{Better choice for under-damped:} L = 100 mH, C = 1 $\mu$F, R = 50 $\Omega$:
+\begin{itemize}
+    \item $\omega_n = 1/\sqrt{0.1 \times 10^{-6}} = 3,162$ rad/s.
+    \item $2\zeta \omega_n = 50 / 0.1 = 500$, so $\zeta = 500 / (2 \times 3,162) \approx 0.079$ (highly under-damped).
+\end{itemize}
+
+\noindent
+\textbf{Transfer Function (corrected):}
+
+\begin{equation}
+H(s) = \frac{3,162^2}{s^2 + 500 s + 3,162^2} = \frac{10^7}{s^2 + 500 s + 10^7}.
+\end{equation}
+
+\noindent
+\textbf{Poles:} $s = -250 \pm j 3,160$ (complex conjugate pair).
+
+\subsubsection*{Expected Step Response}
+
+For $\zeta = 0.079$ (very lightly damped):
+
+\begin{equation}
+\text{Overshoot} \approx e^{-\zeta \pi / \sqrt{1 - \zeta^2}} \approx e^{-\pi \times 0.079 / 0.997} \approx 0.76 \text{ (76\% overshoot)}.
+\end{equation}
+
+\noindent
+\textbf{Key values:}
+\begin{itemize}
+    \item Settling time: $t_s \approx 4 / (\zeta \omega_n) = 4 / (0.079 \times 3,162) \approx 16$ ms.
+    \item Peak time: $t_p = \pi / (3,162 \sqrt{1 - 0.079^2}) \approx 1$ ms.
+    \item Significant oscillation at damped frequency $\omega_d = 3,160$ rad/s $\approx$ 503 Hz.
+\end{itemize}
+
+\subsubsection*{Expected Measurements}
+
+Students should observe:
+\begin{itemize}
+    \item Initial overshoot to $\approx 1.76$ V (for 1 V input).
+    \item Oscillation with frequency $\approx$ 500 Hz.
+    \item Settling within $\approx$ 20 ms.
+    \item Complex poles in the transfer function.
+\end{itemize}
+
+\subsection{Black Box Design C: Second-Order Critically Damped}
+
+\subsubsection*{Circuit Diagram}
+
+Same RLC topology as Design B, but tuned for critical damping:
+
+\noindent
+L = 10 mH, C = 1 $\mu$F, R = 200 $\Omega$:
+\begin{itemize}
+    \item $\omega_n = 1/\sqrt{0.01 \times 10^{-6}} = 10,000$ rad/s.
+    \item $2\zeta \omega_n = 200 / 0.01 = 20,000$, so $\zeta = 20,000 / (2 \times 10,000) = 1.0$ (critically damped).
+\end{itemize}
+
+\subsubsection*{Theoretical Transfer Function}
+
+\begin{equation}
+H(s) = \frac{10^8}{(s + 10,000)^2}.
+\end{equation}
+
+\noindent
+\textbf{Poles:} $s = -10,000$ (repeated, multiplicity 2).
+
+\subsubsection*{Expected Step Response}
+
+\begin{equation}
+y(t) = 1 - e^{-10,000 t}(1 + 10,000 t).
+\end{equation}
+
+\noindent
+\textbf{Key values:}
+\begin{itemize}
+    \item No overshoot.
+    \item Settling time: $t_s \approx 4 / 10,000 = 0.4$ ms.
+    \item Fastest response with zero overshoot.
+\end{itemize}
+
+\subsubsection*{Expected Measurements}
+
+Students should observe:
+\begin{itemize}
+    \item Smooth, monotonic rise with no oscillation.
+    \item No overshoot.
+    \item Very fast settling (sub-millisecond).
+    \item Repeated real pole in the transfer function.
+\end{itemize}
+
+%--------------------------------------------------------------
+\section{Answer Keys for Pre-Lab Tasks}
+%--------------------------------------------------------------
+
+\subsection{Task 1: Deriving First-Order Step Response}
+
+\textbf{Student Task:} Derive the step response for $H(s) = K / (s + \alpha)$.
+
+\noindent
+\textbf{Expected Answer:}
+
+For a unit step input, $X(s) = 1/s$. Then:
+
+\begin{equation}
+Y(s) = H(s) \cdot X(s) = \frac{K}{s+\alpha} \cdot \frac{1}{s} = \frac{K}{s(s+\alpha)}.
+\end{equation}
+
+Using partial fractions:
+
+\begin{equation}
+\frac{K}{s(s+\alpha)} = \frac{A}{s} + \frac{B}{s+\alpha}.
+\end{equation}
+
+Multiply both sides by $s(s+\alpha)$:
+
+\begin{equation}
+K = A(s+\alpha) + Bs.
+\end{equation}
+
+Set $s = 0$: $K = A\alpha$, so $A = K/\alpha$.
+
+Set $s = -\alpha$: $K = -B\alpha$, so $B = -K/\alpha$.
+
+Therefore:
+
+\begin{equation}
+Y(s) = \frac{K/\alpha}{s} - \frac{K/\alpha}{s+\alpha}.
+\end{equation}
+
+Taking the inverse Laplace transform:
+
+\begin{equation}
+y(t) = \frac{K}{\alpha}(1 - e^{-\alpha t}) \, u(t).
+\end{equation}
+
+For $K = \alpha$ (unity DC gain), this simplifies to:
+
+\begin{equation}
+y(t) = 1 - e^{-\alpha t}.
+\end{equation}
+
+\textbf{Key points to verify:}
+\begin{itemize}
+    \item Time constant: $\tau = 1/\alpha$.
+    \item At $t = \tau$: $y(\tau) = 1 - e^{-1} \approx 0.632$ (63.2\%).
+    \item Settling time (5\%): $t_s \approx 3\tau$.
+\end{itemize}
+
+\subsection{Task 2: Second-Order Damping Ratio Analysis}
+
+\textbf{Student Task:} Explain how $\zeta$ affects overshoot and settling time.
+
+\noindent
+\textbf{Expected Answer:}
+
+\begin{itemize}
+    \item \textbf{Percent Overshoot:} $\text{PO} = 100 \times e^{-\zeta \pi / \sqrt{1-\zeta^2}}$.
+        \begin{itemize}
+            \item As $\zeta$ increases, overshoot decreases (exponentially).
+            \item $\zeta = 0$: Undamped oscillation (infinite overshoot, margin unstable).
+            \item $\zeta = 0.7$: About 5\% overshoot (standard control tuning).
+            \item $\zeta = 1$: No overshoot (critically damped).
+            \item $\zeta > 1$: Over-damped, monotonic rise (slow).
+        \end{itemize}
+
+    \item \textbf{Settling Time:} $t_s \approx 4 / (\zeta \omega_n)$.
+        \begin{itemize}
+            \item For a given $\omega_n$, increasing $\zeta$ \textit{increases} settling time.
+            \item Minimum settling time occurs at $\zeta = 0.7$ (trade-off between overshoot and speed).
+        \end{itemize}
+
+    \item \textbf{Optimal tuning:} Most control systems aim for $\zeta \approx 0.7$ to balance response speed and overshoot.
+\end{itemize}
+
+\subsection{Task 3: Predicting Black Box Response}
+
+\textbf{Student Task:} Predict step response for Option A (first-order) and Option B (second-order).
+
+\noindent
+\textbf{Expected Answers:}
+
+\noindent
+\textbf{Option A:} $H(s) = 2\pi \times 1000 / (s + 2\pi \times 1000) = 6,283 / (s + 6,283)$.
+
+\begin{itemize}
+    \item Time constant: $\tau = 1 / 6,283 \approx 0.159$ ms.
+    \item Settling time: $t_s \approx 3\tau \approx 0.48$ ms.
+    \item No overshoot.
+    \item DC gain: 1 (output reaches input amplitude).
+\end{itemize}
+
+\noindent
+\textbf{Option B:} $\omega_n = 2\pi \times 5,000 = 31,416$ rad/s, $\zeta = 0.5$.
+
+\begin{itemize}
+    \item Damped frequency: $\omega_d = 31,416 \sqrt{1 - 0.25} = 27,216$ rad/s $\approx 4,330$ Hz.
+    \item Percent overshoot: $\text{PO} = 100 \times e^{-0.5 \pi / \sqrt{0.75}} \approx 16\%$.
+    \item Settling time: $t_s \approx 4 / (0.5 \times 31,416) \approx 0.255$ ms.
+    \item Observable oscillation with ringing.
+\end{itemize}
+
+%--------------------------------------------------------------
+\section{Expected Measurement Results}
+%--------------------------------------------------------------
+
+\subsection{Design A (First-Order): Expected Hardware Data}
+
+For the RC circuit (R = 10 k$\Omega$, C = 1.6 $\mu$F):
+
+\noindent
+\textbf{Step Response (5 V input):}
+
+\begin{itemize}
+    \item $t = 0$: $y = 0$ V.
+    \item $t = 16$ ms: $y \approx 3.16$ V (63.2\%).
+    \item $t = 48$ ms: $y \approx 4.75$ V (95\% settled).
+    \item Steady state: $y = 5$ V.
+    \item No overshoot or ripple.
+\end{itemize}
+
+\noindent
+\textbf{Impulse Response (1 mV pulse, 1 ms duration):}
+
+\begin{itemize}
+    \item Sharp peak at pulse end: $\approx 0.3$ mV (due to finite pulse duration).
+    \item Exponential decay: $h(t) \propto e^{-62.5 t}$.
+    \item Decay time constant: $\tau \approx 16$ ms.
+\end{itemize}
+
+\subsection{Design B (Under-Damped): Expected Hardware Data}
+
+For the RLC circuit (L = 100 mH, C = 1 $\mu$F, R = 50 $\Omega$):
+
+\noindent
+\textbf{Step Response (5 V input):}
+
+\begin{itemize}
+    \item Initial rise: Very fast (reaches 5 V within 1 ms).
+    \item Overshoot: Reaches $\approx 9$ V (76\% overshoot) at $t \approx 1$ ms.
+    \item Oscillation: Damped sinusoid at $\approx$ 500 Hz, decays over 10--20 ms.
+    \item Settling: Within 20 ms to $\pm 5\%$ of 5 V.
+\end{itemize}
+
+\noindent
+\textbf{Impulse Response:}
+
+\begin{itemize}
+    \item Sharp spike at impulse.
+    \item Ring-down with damped oscillation at 500 Hz.
+    \item Clear evidence of complex poles.
+\end{itemize}
+
+\subsection{Design C (Critically Damped): Expected Hardware Data}
+
+For the RLC circuit (L = 10 mH, C = 1 $\mu$F, R = 200 $\Omega$):
+
+\noindent
+\textbf{Step Response (5 V input):}
+
+\begin{itemize}
+    \item Very fast rise: Reaches steady state within 1 ms.
+    \item No overshoot: Monotonic increase throughout.
+    \item No oscillation.
+    \item Smooth, "fastest without overshoot" behavior.
+\end{itemize}
+
+\noindent
+\textbf{Impulse Response:}
+
+\begin{itemize}
+    \item Clean decay with no ringing.
+    \item Exponential envelope: $h(t) \propto e^{-10,000 t}$.
+    \item Short duration (most energy in first 0.1 ms).
+\end{itemize}
+
+%--------------------------------------------------------------
+\section{Grading Rubrics and Checkpoint Evaluations}
+%--------------------------------------------------------------
+
+\subsection{Checkpoint 1: Pre-Lab Theory (20 points)}
+
+\textbf{Grading Rubric:}
+
+\begin{center}
+\begin{tabularx}{0.95\textwidth}{|X|c|}
+\hline
+\textbf{Criterion} & \textbf{Points} \\
+\hline
+Task 1 (First-Order Step Response): Correct derivation with all algebraic steps shown. & 7 \\
+\hline
+Task 2 (Damping Ratio Analysis): Clear, qualitative explanation of how $\zeta$ affects overshoot and settling time. & 6 \\
+\hline
+Task 3 (Black Box Predictions): Reasonable estimates for settling time, overshoot, and response character for both options. & 5 \\
+\hline
+Mathematical Rigor: All equations properly formatted, notation clear, symbolic work shown (not just numerical answers). & 2 \\
+\hline
+\textbf{TOTAL} & \textbf{20} \\
+\hline
+\end{tabularx}
+\end{center}
+
+\noindent
+\textbf{TA Evaluation Guide:}
+
+\begin{itemize}
+    \item \textbf{Acceptable:} Student shows clear understanding of Laplace transforms, pole-response relationships, and first/second-order characteristics. Allow minor algebraic errors if the method is sound.
+    \item \textbf{Marginal:} Student has correct final answers but skips steps or lacks derivation rigor.
+    \item \textbf{Not Acceptable:} Student provides answers without derivation, demonstrates conceptual misunderstanding, or makes major algebraic errors.
+\end{itemize}
+
+\subsection{Checkpoint 2: Data Acquisition (25 points)}
+
+\textbf{Grading Rubric:}
+
+\begin{center}
+\begin{tabularx}{0.95\textwidth}{|X|c|}
+\hline
+\textbf{Criterion} & \textbf{Points} \\
+\hline
+Arduino test signal generation verified on scope or multimeter. & 5 \\
+\hline
+Step response successfully acquired and plotted with clear input/output distinction. & 10 \\
+\hline
+Impulse response successfully acquired and plotted. & 5 \\
+\hline
+Qualitative assessment: Student correctly identifies system characteristics (oscillatory/non-oscillatory, settling time, stability). & 5 \\
+\hline
+\textbf{TOTAL} & \textbf{25} \\
+\hline
+\end{tabularx}
+\end{center}
+
+\noindent
+\textbf{TA Evaluation Guide:}
+
+\begin{itemize}
+    \item \textbf{Acceptable:} Data is clean, plots are labeled properly, student can describe observed dynamics.
+    \item \textbf{Marginal:} Data is noisy but usable; student shows some effort to filter/smooth but has minor issues.
+    \item \textbf{Not Acceptable:} Data is too noisy to analyze, no attempt at filtration, or student cannot describe observed behavior.
+
+    \item \textbf{Common Issues:}
+        \begin{itemize}
+            \item Arduino sketch not running: Help student verify USB connection and board selection in Arduino IDE.
+            \item No output from black box: Check that power is applied and all connections are secure.
+            \item Excessive noise: Suggest adding a 0.1 $\mu$F capacitor across the ADC input.
+        \end{itemize}
+\end{itemize}
+
+\subsection{Checkpoint 3: System Identification (25 points)}
+
+\textbf{Grading Rubric:}
+
+\begin{center}
+\begin{tabularx}{0.95\textwidth}{|X|c|}
+\hline
+\textbf{Criterion} & \textbf{Points} \\
+\hline
+MATLAB \texttt{tfest()} results displayed: first and second-order models compared. & 7 \\
+\hline
+Model fit plot: Hardware response overlaid with first and second-order predictions. & 7 \\
+\hline
+Error metrics computed: RMSE and percent error quantified for both models. & 5 \\
+\hline
+Transfer function explicitly stated: Poles, zeros, and gain clearly identified. & 4 \\
+\hline
+Model selection justified: Student explains why they chose first or second-order. & 2 \\
+\hline
+\textbf{TOTAL} & \textbf{25} \\
+\hline
+\end{tabularx}
+\end{center}
+
+\noindent
+\textbf{TA Evaluation Guide:}
+
+\begin{itemize}
+    \item \textbf{Acceptable (full points):} Error metrics $< 10\%$ RMS, model fits data clearly, student justifies model order.
+    \item \textbf{Acceptable (partial credit):} Error metrics 10--15\%, reasonable fit, some hesitation in justification.
+    \item \textbf{Marginal:} Error metrics 15--20\%, poor fit, or unjustified model selection.
+    \item \textbf{Not Acceptable:} Error metrics $> 20\%$, or student made fundamental errors in tfest() usage.
+
+    \item \textbf{Expected Results by Design:}
+        \begin{itemize}
+            \item \textbf{Design A:} First-order model should fit extremely well (RMSE $< 2\%$). Second-order adds zero but doesn't improve fit significantly.
+            \item \textbf{Design B:} Second-order under-damped model should fit well (RMSE $< 5\%$). First-order will show poor fit around the overshoot.
+            \item \textbf{Design C:} Both first and second-order (with repeated pole) should fit comparably (RMSE $< 3\%$). Critical damping is difficult to distinguish from first-order.
+        \end{itemize}
+\end{itemize}
+
+\subsection{Checkpoint 4: Digital Twin and Defense (30 points)}
+
+This is the most important checkpoint. Students present their work and explain their methodology.
+
+\textbf{Grading Rubric:}
+
+\begin{center}
+\begin{tabularx}{0.95\textwidth}{|X|c|}
+\hline
+\textbf{Criterion} & \textbf{Points} \\
+\hline
+Simulink model screenshot shown: Transfer Fcn block with correct H(s) parameters. & 5 \\
+\hline
+Hardware vs. Simulink overlay plot: Clear visual agreement between simulation and measurement. & 7 \\
+\hline
+Error quantification: RMSE, max error, percent error properly computed and interpreted. & 5 \\
+\hline
+Written explanation: How well does the Digital Twin match? Where do they diverge? Why? & 6 \\
+\hline
+Verbal defense: Student can articulate their methodology, justify model choice, discuss limitations and confidence. & 5 \\
+\hline
+Engagement with TA questions: Student responds thoughtfully to follow-up questions about system behavior and limitations. & 2 \\
+\hline
+\textbf{TOTAL} & \textbf{30} \\
+\hline
+\end{tabularx}
+\end{center}
+
+\noindent
+\textbf{TA Evaluation Guide and Defense Questions:}
+
+\noindent
+\textbf{Questions to ask during the defense:}
+
+\begin{enumerate}
+    \item Why did you choose this model order? What evidence from your data supports it?
+    \item What are the limitations of your identified model? Are there unmodeled dynamics?
+    \item How does measurement noise affect your system ID? Did you filter the data?
+    \item If you ran a different test (e.g., sine sweep), would your model still match?
+    \item How confident are you in your model for predicting the system's response to unknown inputs?
+    \item (If applicable) Why is there a discrepancy between hardware and simulation at this time point?
+\end{enumerate}
+
+\noindent
+\textbf{Scoring Guidance:}
+
+\begin{itemize}
+    \item \textbf{Excellent (28--30 points):} Simulink model is correct, overlay is clean (RMSE $< 5\%$), and student demonstrates deep understanding. Handles follow-up questions with confidence.
+
+    \item \textbf{Good (24--27 points):} Model is mostly correct, overlay shows good agreement (RMSE 5--10\%), and student can explain their work. Minor gaps in understanding.
+
+    \item \textbf{Adequate (20--23 points):} Model has reasonable accuracy (RMSE 10--15\%), but student struggles with some follow-up questions or has gaps in explanation.
+
+    \item \textbf{Weak (15--19 points):} Model shows significant discrepancies (RMSE $> 15\%$), or student cannot adequately defend their methodology.
+
+    \item \textbf{Failing ($< 15$ points):} Model is fundamentally wrong, or student demonstrates minimal understanding of system ID.
+\end{itemize}
+
+%--------------------------------------------------------------
+\section{Setting Up the Lab: TA Checklist}
+%--------------------------------------------------------------
+
+\subsection{One Week Before Lab}
+
+\begin{itemize}
+    \item[$\square$] Assign students to benches (in pairs). Ensure each pair gets a unique black box.
+    \item[$\square$] Build/test the three black box circuits (Designs A, B, C). Verify step responses match expectations.
+    \item[$\square$] Label each black box with a code (e.g., ``BB-A1'', ``BB-B2'', ``BB-C3'') so students know which design they have.
+    \item[$\square$] Prepare Arduino sketches (\texttt{SysID\_TestSignals\_Skeleton.ino}) on flash drives. Test with sample Arduino boards.
+    \item[$\square$] Verify MATLAB data logger script (\texttt{SysID\_DataLogger.m}) works with your COM ports and Arduino boards.
+    \item[$\square$] Prepare Simulink template (\texttt{SysID\_Blank\_Simulink.slx}). Test that Transfer Fcn block works as expected.
+    \item[$\square$] Create answer keys for all pre-lab tasks (based on Section \ref{sec:answers} above).
+    \item[$\square$] Print lab manuals and distribute to students.
+\end{itemize}
+
+\subsection{Lab Day Setup (30 min before start)}
+
+\begin{itemize}
+    \item[$\square$] Arrange benches so each pair has: breadboard space, Arduino, oscilloscope, black box circuit.
+    \item[$\square$] Connect black box power supplies (verify with multimeter before connecting to student benches).
+    \item[$\square$] Verify each Arduino is recognized by the lab computers (check COM port in Device Manager).
+    \item[$\square$] Load the test signal sketch onto each Arduino.
+    \item[$\square$] Place printed copies of the TA answer key at your desk (do not distribute to students).
+    \item[$\square$] Prepare grading sheets and checkpoint rubrics.
+    \item[$\square$] Brief student TAs (if available) on expected results and common issues.
+\end{itemize}
+
+%--------------------------------------------------------------
+\section{Common Issues and Troubleshooting}
+%--------------------------------------------------------------
+
+\subsection{Pre-Lab Issues}
+
+\textbf{Student hasn't completed pre-lab derivations.}
+
+\noindent
+\textit{Action:} Allow them to start the lab but require them to complete pre-lab by Checkpoint 1. You may give partial credit and deduct 2--3 points.
+
+\textbf{Student's derivations are incorrect.}
+
+\noindent
+\textit{Action:} Review the work with them. If they understand the concept despite algebra errors, give most of the points. If they're missing the fundamental idea, discuss and allow a re-submission before Checkpoint 2 (deduct 1 point for the re-submission).
+
+\subsection{Hardware/Data Acquisition Issues}
+
+\textbf{Arduino sketch won't compile.}
+
+\noindent
+\textit{Action:} Check for missing libraries (esp. if using custom PWM libraries). Offer a pre-compiled hex file to flash via bootloader, or re-upload the skeleton code provided.
+
+\textbf{No signal from the black box.}
+
+\noindent
+\textit{Action:} Systematically check: (1) Is power applied to the black box? (2) Does the Arduino PWM output appear on the scope? (3) Does the RC filter output look correct? (4) Are the ADC connections secure? (5) Is the Arduino's ADC configured for the correct pin?
+
+\textbf{Signal is very noisy.}
+
+\noindent
+\textit{Action:} Suggest adding a 0.1 $\mu$F capacitor from the ADC input to ground to filter high-frequency noise. Recommend averaging multiple measurements (the data logger can do this internally).
+
+\textbf{Oscilloscope display is confusing.}
+
+\noindent
+\textit{Action:} Help students interpret the scope: Show them how to zoom/pan, set appropriate timebase, and overlay both input and output channels for comparison.
+
+\subsection{System Identification Issues}
+
+\textbf{tfest() returns a poor fit (RMSE $> 30\%$).}
+
+\noindent
+\textit{Action:} (1) Verify the data quality (is it noisy?). (2) Try increasing the model order. (3) Check if there are transient effects or settling issues in the data. (4) Suggest filtering the data before fitting.
+
+\textbf{Student fits a very high-order model (5th order or higher) just to get a good fit.}
+
+\noindent
+\textit{Action:} Explain Occam's Razor: a simpler model that fits reasonably well is preferable to an overfitted complex model. Discuss the trade-off between accuracy and interpretability.
+
+\textbf{Simulink model won't run.}
+
+\noindent
+\textit{Action:} Check: (1) Is the Transfer Fcn block correctly parameterized? (2) Are the input/output signals properly connected? (3) Is the model configured for the correct sample time?
+
+\subsection{Defense/Presentation Issues}
+
+\textbf{Student cannot articulate their methodology.}
+
+\noindent
+\textit{Action:} Guide them with questions. Ask them to walk through the steps of their system ID process. This is a teaching moment; allow them to explain and give credit if they can clarify their thinking.
+
+\textbf{Student's model has large discrepancies from hardware.}
+
+\noindent
+\textit{Action:} This is okay. Ask them to explain the discrepancies. Common reasons: (1) Unmodeled high-frequency dynamics. (2) Nonlinearities in the circuit. (3) Measurement noise. (4) Time delays. (5) Quantization from the 10-bit ADC. If they can articulate one of these, give credit.
+
+\textbf{Student is unsure or defensive.}
+
+\noindent
+\textit{Action:} Reinforce that system ID is an art and a science. Perfect agreement is rare. Reward students who acknowledge limitations and uncertainties.
+
+%--------------------------------------------------------------
+\section{Materials and Component List}
+%--------------------------------------------------------------
+
+\textbf{Per Black Box (Design A, B, or C):}
+
+\noindent
+\textbf{Design A (First-Order):}
+\begin{itemize}
+    \item 1× Resistor 10 k$\Omega$ (1/4 W, 5\%).
+    \item 1× Capacitor 1.6 $\mu$F (ceramic, 25 V).
+    \item Breadboard and jumper wires.
+    \item Sealed enclosure (optional, to hide internals).
+\end{itemize}
+
+\noindent
+\textbf{Design B (Under-Damped):}
+\begin{itemize}
+    \item 1× Resistor 50 $\Omega$ (1/4 W).
+    \item 1× Inductor 100 mH (toroidal, unshielded).
+    \item 1× Capacitor 1 $\mu$F (ceramic, 50 V).
+    \item Breadboard and jumper wires.
+\end{itemize}
+
+\noindent
+\textbf{Design C (Critically Damped):}
+\begin{itemize}
+    \item 1× Resistor 200 $\Omega$ (1/4 W).
+    \item 1× Inductor 10 mH (toroidal).
+    \item 1× Capacitor 1 $\mu$F (ceramic, 50 V).
+    \item Breadboard and jumper wires.
+\end{itemize}
+
+\noindent
+\textbf{Shared Equipment (per student pair):}
+\begin{itemize}
+    \item Arduino Uno with USB cable.
+    \item Breadboard (830 tie points or larger).
+    \item Resistors and capacitors for RC filter (10 k$\Omega$, 0.1 $\mu$F, for PWM smoothing).
+    \item Oscilloscope (dual-channel, 100+ kHz bandwidth).
+    \item Multimeter.
+    \item Jumper wires (assorted lengths).
+    \item Laptop with MATLAB, Simulink, Arduino IDE installed.
+\end{itemize}
+
+\end{document}

@@ -1,0 +1,1111 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{fancybox}
+\usepackage{tikz}
+
+\input{ECE280F24header}
+
+% Fallbacks in case custom macros are not provided by ECE280F24header
+\providecommand{\pldECE}[1]{\textcolor{BrickRed}{\textbf{Pre-lab Deliverable:} #1}}
+\providecommand{\cpECE}[1]{\textcolor{OliveGreen}{\textbf{Checkpoint:} #1}}
+\providecommand{\disECE}[1]{\textcolor{Plum}{\textbf{Discussion:} #1}}
+\providecommand{\delECE}[1]{\textcolor{BlueViolet}{\textbf{Deliverable:} #1}}
+\newcommand{\evidencebox}[2]{%
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][#1][c]{0.92\textwidth}{\centering \textbf{#2}}}
+\end{figure}}
+\newcommand{\visualplaceholder}[1]{%
+\begin{figure}[H]
+    \centering
+    \fbox{%
+    \begin{minipage}{0.92\textwidth}
+        \centering
+        \vspace{0.6in}
+        \textcolor{red}{\Large\textbf{[#1]}}\\
+        \vspace{0.6in}
+    \end{minipage}
+    }
+\end{figure}}
+\newcommand{\notespacebox}[2]{%
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[t][#1][t]{0.92\textwidth}{\textbf{Student Notes:} #2}}
+\end{figure}}
+
+\begin{document}
+
+\begin{center}
+\huge{\bf Laboratory 14:}\\
+\vspace{0.2in}
+\Large{\bf Laplace Properties \& System Functions}\\
+\Large{\bf Black Box System Identification: Reverse Engineering Unknown Hardware}\\
+\vspace{0.2in}
+\normalsize{\bf From Measurements to Transfer Functions: Building a Digital Twin}
+\end{center}
+
+\vspace{0.3in}
+\noindent
+\textbf{Lab Duration:} 2 hours\\
+\textbf{Pre-Lab Time Expected:} 40 minutes (Laplace domain analysis and pole-zero theory)\\
+\textbf{Key Concept:} You will be given a sealed "black box" circuit with unknown internal structure. Using only input/output measurements and Laplace domain system identification, you must mathematically reverse engineer its transfer function $H(s)$ and build a Simulink Digital Twin that perfectly replicates its behavior.
+
+\tableofcontents
+\clearpage
+
+%--------------------------------------------------------------
+\section*{Grading and Authenticity Requirements}
+%--------------------------------------------------------------
+\delECE{This is a graded laboratory assignment. Include your \textbf{name, student ID, date, and unique black box identifier} on all handwritten derivations, MATLAB plots, and Simulink models.}
+
+\delECE{Your hand-derived Laplace expressions and pole-zero analysis must be shown to the TA before hardware testing. Calculator results without derivations are not acceptable.}
+
+\cpECE{Before final submission, verify that all MATLAB plots overlay the hardware data (raw measurements) with the Simulink digital twin output with clear legends distinguishing them. Include proper axis labels with units and your name/ID in the title.}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Real-World Context: System Identification Across Legacy and Modern Systems}
+%--------------------------------------------------------------
+
+\noindent
+You are a Junior Systems Identification Engineer at a company specializing in reverse-engineering and modernizing legacy hardware systems. Your expertise in Laplace domain analysis and digital twins is in high demand across three critical industries: aerospace, industrial manufacturing, and biomedical devices. Each domain faces the same challenge: inherited systems with no documentation, no source code, and no original manufacturers—yet they must continue operating reliably.
+
+\subsection{Program 1: Aircraft Autopilot Modernization (Aerospace)}
+
+Your company modernizes vintage commercial and military aircraft from the 1960s--1990s. These planes have 20+ years of remaining service life but their analog autopilot controllers are manufactured by companies that have long since closed or been acquired.
+
+\textbf{The challenge:} Aircraft autopilots are safety-critical systems. A wrong control law update causes loss of aircraft. Before engineers can design a modern digital replacement, they must understand exactly what the old analog hardware is doing—its transfer function $H(s)$.
+
+\textbf{Your task:} You are given a sealed autopilot pitch-damper module (the component that smooths out turbulent pitch oscillations). Using step and impulse test signals, you must identify its transfer function from measured input/output data. Once verified, the digital twin enables: (1) simulation of failure modes safely, (2) design of a modern digital pitch damper that matches original behavior, (3) validation that the new system meets FAA requirements.
+
+\textbf{Regulatory requirement:} Your identified transfer function must predict the system's settling time to within $\pm 10\%$ and pole locations to within $\pm 5\%$ of the true values. Regulators demand this precision because autopilot instability can cause crashes.
+
+\subsection{Program 2: Industrial Legacy Equipment Modernization (Manufacturing)}
+
+Your company helps factories modernize production lines running legacy equipment: 1970s--1990s CNC machines, hydraulic systems, and process controllers manufactured by defunct companies.
+
+\textbf{The challenge:} A factory with a 20-year-old injection molding machine needs predictive maintenance and process optimization. The hydraulic pressure control system is a sealed black box—repairmen know how to tune it through trial-and-error, but no one understands the underlying dynamics. Any modification risks production downtime and costly rework.
+
+\textbf{Your task:} You identify the hydraulic servo system's transfer function by injecting pressure step commands and recording the response. The identified model reveals: (1) whether the system is damped or oscillatory, (2) settling time and overshoot, (3) bandwidth limitations. Armed with this model, engineers can redesign the control algorithm to improve cycle time (e.g., 5--10\% faster production) and reduce quality variability (e.g., tighter part tolerances).
+
+\textbf{Business requirement:} A 5\% production speed improvement is worth millions in annual throughput. Your system ID model must be accurate enough to support control redesign that is production-certified without physical hardware trials (too expensive and risky).
+
+\subsection{Program 3: Clinical Equipment Analysis (Biomedical)}
+
+Your company supports hospitals deploying vintage anesthesia delivery systems, ventilators, and patient monitors. Regulatory changes require that all equipment undergo risk assessments and functional safety analyses. But manufacturers are long gone.
+
+\textbf{The challenge:} An anesthesia machine from 1985 uses an analog servo to control vaporizer output (mixing anesthetic gas with oxygen). The servo valve's response characteristics are unknown. Incorrect servomechanism behavior can lead to patient overdose (dangerous) or underdose (surgery awareness, also dangerous). The hospital cannot safely modify the equipment without understanding its dynamics.
+
+\textbf{Your task:} You identify the servo valve transfer function by injecting small step changes in commanded flow and measuring actual flow response. The transfer function reveals: (1) latency (is there significant delay?), (2) overshoot risk (does the servo "ring" and overshoot setpoint?), (3) settling time (how long does adjustment take?). This information feeds into a functional safety analysis (FMEA) to assess risk and determine if the equipment is still safe to operate.
+
+\textbf{Clinical and regulatory requirement:} Your analysis must achieve $> 95\%$ prediction accuracy for doses in the therapeutic range. Even 1\% error in predicting vaporizer response could mean the difference between safe anesthesia and patient harm. The FDA requires documentation of this validation before the equipment continues clinical use.
+
+\subsection{The Unifying Methodology: Rigorous System Identification}
+
+All three programs depend on the same engineering discipline:
+
+\begin{enumerate}
+    \item \textbf{Test signal design:} Step inputs reveal transient response (damping, settling time). Impulse inputs reveal raw system dynamics. Chirp (swept sine) inputs map frequency response.
+
+    \item \textbf{Data acquisition:} Careful measurement with adequate sampling rate ($\geq 10 \times$ system bandwidth) and noise filtering to extract true system response.
+
+    \item \textbf{Transfer function estimation:} Use MATLAB's \texttt{tfest()} or manual pole-zero fitting to estimate $H(s)$ from the measured data. Conservatism is critical: a simple model (fewer poles/zeros) that is robust is better than a complex model that overfits to noise.
+
+    \item \textbf{Validation and quantification of error:} Build a Simulink digital twin with the identified $H(s)$ and overlay its output against all measured data. Quantify error metrics: peak overshoot error, settling time error, steady-state gain error, etc.
+
+    \item \textbf{Understand limitations:} Your model captures linear, time-invariant behavior. Real systems have nonlinearities, time-varying parameters, and unmeasured disturbances. Good engineers document these limitations and understand when their model breaks down.
+\end{enumerate}
+
+\noindent
+In this lab, you will practice this complete workflow on a mystery black-box system, building a transfer function model and defending it against measurement data—preparing you for real-world system identification in aerospace, manufacturing, and biomedical applications.
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Learning Objectives}
+%--------------------------------------------------------------
+
+By the end of this lab, you should be able to:
+
+\begin{enumerate}
+    \item \textbf{Understand Laplace transform properties:} Recognize how linearity, scaling, differentiation, and integration properties allow engineers to predict system behavior from the transfer function.
+
+    \item \textbf{Relate poles and zeros to system response:} Explain how pole locations in the $s$-plane dictate natural frequency, damping ratio, settling time, and stability.
+
+    \item \textbf{Derive step and impulse responses:} Hand-derive the time-domain output for a given $H(s)$ when excited by step or impulse inputs.
+
+    \item \textbf{Design system identification test signals:} Understand why step, impulse, and swept-sine inputs are chosen for system ID (each reveals different aspects of $H(s)$).
+
+    \item \textbf{Acquire clean experimental data:} Use the Arduino and MATLAB to record input/output data from the black box with appropriate sampling rates and noise filtering.
+
+    \item \textbf{Identify transfer functions from data:} Use MATLAB's \texttt{tfest()} function or manual curve-fitting to estimate $H(s)$ from measured responses.
+
+    \item \textbf{Build and validate digital twins:} Create a Simulink transfer function model and overlay its output against hardware measurements to assess fidelity.
+
+    \item \textbf{Defend your identification:} Articulate the strengths and limitations of your identified model, quantify error metrics, and explain discrepancies between simulation and hardware.
+\end{enumerate}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Core Concepts: Laplace Domain and System Identification}
+%--------------------------------------------------------------
+
+\subsection{Transfer Functions in the Laplace Domain}
+
+For a linear, time-invariant (LTI) system, the \textbf{transfer function} $H(s)$ is defined as the ratio of the Laplace transform of the output to the Laplace transform of the input:
+
+\begin{equation}
+H(s) = \frac{Y(s)}{X(s)},
+\label{eq:transfer_function}
+\end{equation}
+
+\noindent
+where:
+\begin{itemize}
+    \item $X(s) = \mathcal{L}\{x(t)\}$ is the Laplace transform of the input signal $x(t)$.
+    \item $Y(s) = \mathcal{L}\{y(t)\}$ is the Laplace transform of the output signal $y(t)$.
+    \item $s = \sigma + j\omega$ is the complex Laplace variable.
+\end{itemize}
+
+\noindent
+The transfer function completely characterizes the system's behavior for any input, as long as the system is linear and time-invariant.
+
+\subsection{Poles and Zeros: The Foundation of Stability and Response}
+
+The transfer function is usually written as a ratio of polynomials:
+
+\begin{equation}
+H(s) = K \frac{(s - z_1)(s - z_2) \cdots (s - z_m)}{(s - p_1)(s - p_2) \cdots (s - p_n)},
+\end{equation}
+
+\noindent
+where:
+\begin{itemize}
+    \item \textbf{Zeros} ($z_1, z_2, \ldots, z_m$) are the values of $s$ that make the numerator zero.
+    \item \textbf{Poles} ($p_1, p_2, \ldots, p_n$) are the values of $s$ that make the denominator zero.
+    \item \textbf{Gain} $K$ is the steady-state scaling factor.
+\end{itemize}
+
+\noindent
+\textbf{Key insight:} The locations of poles in the complex $s$-plane determine the system's response characteristics:
+
+\begin{itemize}
+    \item \textbf{Real pole at } $s = -\alpha$: Contributes exponential decay $e^{-\alpha t}$ to the response. Smaller $|\alpha|$ means slower decay (longer time constant $\tau = 1/\alpha$).
+
+    \item \textbf{Complex poles at } $s = -\alpha \pm j\omega_d$: Contribute oscillatory exponential decay $e^{-\alpha t} \cos(\omega_d t + \phi)$. The real part $\alpha$ controls decay rate; the imaginary part $\omega_d$ is the damped oscillation frequency.
+
+    \item \textbf{Poles on the right half-plane} (real part $> 0$): System is \textbf{unstable}—exponential growth rather than decay.
+
+    \item \textbf{Poles on the imaginary axis:} System is marginally stable—oscillations at constant amplitude.
+\end{itemize}
+
+\noindent
+For a second-order system with complex poles, it is convenient to express the pole locations in terms of the \textbf{natural frequency} $\omega_n$ and \textbf{damping ratio} $\zeta$:
+
+\begin{equation}
+p_{1,2} = -\zeta \omega_n \pm j \omega_n \sqrt{1 - \zeta^2}.
+\end{equation}
+
+\noindent
+The damping ratio determines the character of the response:
+\begin{itemize}
+    \item $\zeta > 1$: Over-damped (no overshoot, slow settling).
+    \item $\zeta = 1$: Critically damped (fastest settling without overshoot).
+    \item $0 < \zeta < 1$: Under-damped (overshoot, oscillation, faster settling than critical).
+    \item $\zeta = 0$: Marginally stable (pure oscillation at $\omega_n$).
+\end{itemize}
+
+\visualplaceholder{INSERT DIAGRAM: Pole-Zero Plot showing real poles, complex pole pairs, and their relationship to time-domain response (exponential decay, oscillation, etc.)}
+
+\subsection{Step Response and Impulse Response}
+
+\subsubsection*{Step Response}
+
+For a step input $x(t) = A \cdot u(t)$ (Laplace transform $X(s) = A/s$), the output is:
+
+\begin{equation}
+Y(s) = H(s) \cdot \frac{A}{s}.
+\end{equation}
+
+\noindent
+The \textbf{step response} $y_{\text{step}}(t) = \mathcal{L}^{-1}\{Y(s)\}$ shows how the system reaches steady state. Key metrics:
+\begin{itemize}
+    \item \textbf{Steady-state value:} $y_{\infty} = A \cdot H(0) = A \cdot K$ (the DC gain).
+    \item \textbf{Settling time:} How long until $|y(t) - y_{\infty}| < \epsilon$ for some tolerance $\epsilon$.
+    \item \textbf{Overshoot:} The percentage by which the peak exceeds steady state.
+    \item \textbf{Rise time:} Time for output to go from 10\% to 90\% of final value.
+\end{itemize}
+
+\subsubsection*{Impulse Response}
+
+For an impulse input $x(t) = \delta(t)$ (Laplace transform $X(s) = 1$), the output is:
+
+\begin{equation}
+Y(s) = H(s) \cdot 1 = H(s).
+\end{equation}
+
+\noindent
+The \textbf{impulse response} $h(t) = \mathcal{L}^{-1}\{H(s)\}$ is the system's response to a brief, intense shock. The impulse response directly encodes all the dynamic characteristics of the system and can be used to compute the response to any input via convolution:
+
+\begin{equation}
+y(t) = \int_0^t h(\tau) x(t - \tau) \, d\tau.
+\end{equation}
+
+\subsection{System Identification Methodology}
+
+\textbf{System identification} is the process of estimating $H(s)$ (or an equivalent discrete-time model) from measured input/output data. The general approach is:
+
+\begin{enumerate}
+    \item \textbf{Design test signals:} Choose inputs that will excite the system dynamics well. Step and impulse are common because their Laplace transforms are simple.
+
+    \item \textbf{Acquire data:} Record $y(t)$ while applying $x(t)$ to the system. Typically, record at a high sampling rate (10--100× the system's bandwidth) and average over multiple trials to reduce noise.
+
+    \item \textbf{Estimate the model:} Use curve-fitting or formal identification algorithms to fit $H(s)$ to the data. Common methods include:
+        \begin{itemize}
+            \item \textbf{Logarithmic decrement:} Measure the decay envelope of an oscillatory response to extract damping ratio.
+            \item \textbf{Time-constant extraction:} For first-order systems, measure when the step response reaches 63.2\% of steady state.
+            \item \textbf{Least-squares fitting:} Use MATLAB's \texttt{tfest()} to solve an optimization problem that finds the best-fitting $H(s)$.
+        \end{itemize}
+
+    \item \textbf{Validate the model:} Compare the predicted output of your identified $H(s)$ (in Simulink) to the actual hardware output. If they match closely, your identification is successful.
+
+    \item \textbf{Quantify uncertainty:} Compute error metrics (RMS error, percent overshoot difference, settling time difference) and state your confidence in the model.
+\end{enumerate}
+
+\visualplaceholder{INSERT DIAGRAM: System Identification Flow (block diagram showing: Unknown System → Test Signals → Measure Response → Curve Fit to find H(s) → Validate with Simulink)}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Required Equipment and Software}
+%--------------------------------------------------------------
+
+\begin{table}[H]
+    \centering
+    \caption{Required Hardware and Software}
+    \label{tab:equipment}
+    \begin{tabularx}{\linewidth}{l X}
+    \toprule
+    \textbf{Category} & \textbf{Required Items}\\
+    \midrule
+    Black box system & TA-provided sealed circuit (unique to each pair, unknown transfer function)\\
+    Signal generation & Arduino Uno with USB cable (running skeleton test signal code)\\
+    DAC or PWM output & Arduino PWM pin (Pin 9 or Pin 11) driving a low-pass filter to create analog signal\\
+    ADC input & Arduino ADC pin (A0 or A1) reading the black box output\\
+    Measurement device & Multimeter (to verify DC levels) and oscilloscope (optional, for visual verification)\\
+    Prototyping & Breadboard, jumper wires, resistors (1 k$\Omega$, 10 k$\Omega$), capacitors (0.1 $\mu$F, 1 $\mu$F)\\
+    Software & MATLAB R2021a or later with System Identification Toolbox\\
+    Software & Simulink with Control System Toolbox\\
+    Provided & \texttt{SysID\_TestSignals\_Skeleton.ino} (Arduino sketch for test signal generation)\\
+    Provided & \texttt{SysID\_DataLogger.m} (MATLAB script for data acquisition)\\
+    Provided & \texttt{SysID\_Blank\_Simulink.slx} (blank Simulink model template)\\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection*{Black Box Specifications (TA-Provided)}
+
+Each black box will have:
+\begin{itemize}
+    \item \textbf{Input range:} 0--5 V (compatible with Arduino DAC/PWM output).
+    \item \textbf{Output range:} 0--5 V (compatible with Arduino ADC input).
+    \item \textbf{Bandwidth:} Approximately 1 kHz to 100 kHz (typical for analog circuits).
+    \item \textbf{Unique transfer function:} Every pair has a different $H(s)$. You cannot share answers.
+    \item \textbf{Sealed case:} The circuit is physically sealed; you cannot open it or probe internal nodes. All identification must be done via external measurements.
+\end{itemize}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Safety and Critical Wiring Notes}
+%--------------------------------------------------------------
+
+\begin{itemize}
+    \item \textbf{Black Box Power:} The TA will power the black box. Do NOT attempt to power it yourself—you may damage it or receive electric shock.
+    \item \textbf{Input Signal Level:} Keep the test signal between 0--5 V. Exceeding this range will damage the Arduino ADC or the black box input.
+    \item \textbf{Common Ground:} The Arduino, black box, and all test equipment must share a common ground. Floating grounds cause measurement errors and noise.
+    \item \textbf{Oscilloscope Probe Grounding:} If using an oscilloscope, connect the probe ground to the circuit ground to avoid noise coupling and ground loops.
+    \item \textbf{Do Not Touch the Black Box:} It is sealed and temperature-sensitive. Avoid touching it with bare hands; use gloves if necessary.
+\end{itemize}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Hardware Setup: Testing the Black Box}
+%--------------------------------------------------------------
+
+\subsection{Signal Generation and Data Acquisition Pipeline}
+
+The test flow is:
+
+\vspace{0.2in}
+\noindent
+\begin{tabular}{ccccc}
+Arduino & $\to$ & PWM Signal & $\to$ & Black Box \\
+(Test Signal) & & (via RC filter) & & Input \\
+\end{tabular}
+
+\vspace{0.3in}
+
+\noindent
+\begin{tabular}{ccccc}
+Black Box & $\to$ & Arduino ADC & $\to$ & MATLAB \\
+Output &  & (sampling at $f_s$) & & (data logger) \\
+\end{tabular}
+
+\vspace{0.2in}
+
+\subsection{Arduino PWM to Analog Conversion}
+
+The Arduino's PWM (Pulse-Width Modulation) output at Pin 9 or Pin 11 is a digital square wave. To convert it to an analog test signal, a simple RC low-pass filter smooths the PWM:
+
+\notespacebox{1.5in}{%
+\textbf{RC Filter Configuration:}\\[0.1in]
+\hspace{0.3in}Resistor: R = 10 k$\Omega$ \\[0.05in]
+\hspace{0.3in}Capacitor: C = 0.1 $\mu$F \\[0.05in]
+\hspace{0.3in}Cutoff frequency: $f_c = 1/(2\pi RC) \approx 159$ Hz
+}
+
+\noindent
+This ensures the PWM carrier (490 Hz native frequency on most Arduinos) is filtered out, leaving only the low-frequency test signal.
+
+\visualplaceholder{INSERT SCHEMATIC: Arduino PWM → RC Filter → Black Box Input (showing pin labels and component values)}
+
+\subsection{Black Box Wiring}
+
+\notespacebox{1.5in}{%
+\textbf{Black Box Connections:}\\[0.1in]
+\hspace{0.3in}Signal Input $\leftarrow$ RC filter output \\[0.05in]
+\hspace{0.3in}Signal Output $\rightarrow$ Arduino A0 (ADC input) \\[0.05in]
+\hspace{0.3in}GND (black box) $\leftrightarrow$ Arduino GND (shared reference)\\[0.05in]
+\hspace{0.3in}Power (black box) $\leftarrow$ TA-supplied (do not modify)
+}
+
+\visualplaceholder{INSERT SCHEMATIC: Complete Test Setup (Arduino, RC filter, Black Box, ADC input, showing all pin labels and ground connections)}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Pre-Lab Activity: Laplace Domain Analysis}
+%--------------------------------------------------------------
+
+\subsection{Task 1: Poles and Settling Time}
+
+Consider a generic first-order system with a pole at $s = -\alpha$:
+
+\begin{equation}
+H(s) = \frac{K}{s + \alpha}.
+\end{equation}
+
+\noindent
+\textbf{Question:} What is the relationship between the pole location $\alpha$ and the settling time of the system?
+
+\pldECE{Derive the step response $y_{\text{step}}(t)$ for this first-order system (assume step input $x(t) = u(t)$, so $X(s) = 1/s$). Show all algebraic steps and identify the time constant $\tau = 1/\alpha$.}
+
+\notespacebox{3.5in}{%
+\textbf{First-Order Step Response Derivation:}\\[0.2in]
+\vspace{3.0in}
+}
+
+\subsection{Task 2: Second-Order System Response}
+
+Consider a second-order system with complex poles at $s = -\zeta \omega_n \pm j \omega_n \sqrt{1 - \zeta^2}$ (where $0 < \zeta < 1$):
+
+\begin{equation}
+H(s) = \frac{\omega_n^2}{s^2 + 2\zeta \omega_n s + \omega_n^2}.
+\end{equation}
+
+\pldECE{Explain (qualitatively, no need to fully derive) how the damping ratio $\zeta$ affects the overshoot and settling time of the step response. What value of $\zeta$ gives the fastest settling with zero overshoot?}
+
+\notespacebox{3in}{%
+\textbf{Second-Order System Analysis:}\\[0.2in]
+\vspace{2.5in}
+}
+
+\subsection{Task 3: Predict the Unknown Black Box Response}
+
+You do not know the internal structure of your black box, but you can predict general behaviors. Suppose your black box's transfer function is either:
+
+\begin{itemize}
+    \item \textbf{Option A:} A first-order low-pass filter, $H(s) = \frac{\omega_c}{s + \omega_c}$ with $\omega_c = 2\pi \times 1000$ rad/s (i.e., $f_c = 1$ kHz).
+    \item \textbf{Option B:} A second-order under-damped system with $\omega_n = 2\pi \times 5000$ rad/s and $\zeta = 0.5$.
+\end{itemize}
+
+\pldECE{For each option, predict the approximate step response: steady-state value, settling time (to 5\% tolerance), and whether overshoot occurs.}
+
+\notespacebox{3in}{%
+\textbf{Predicted Black Box Response:}\\[0.2in]
+\vspace{2.5in}
+}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Measurement \& Data Acquisition: Testing the Black Box}
+%--------------------------------------------------------------
+
+\subsection{Task 1: Upload and Configure Test Signal Sketch}
+
+\begin{enumerate}
+    \item Load the provided \texttt{SysID\_TestSignals\_Skeleton.ino} into the Arduino IDE.
+    \item This sketch will generate three test signals on Pin 9 (PWM output):
+        \begin{enumerate}
+            \item \textbf{Step input:} PWM value jumps from 0 to 255 and holds.
+            \item \textbf{Impulse approximation:} Very narrow pulse (1--10 ms duration).
+            \item \textbf{Chirp (swept sine):} Frequency increases from 10 Hz to 1 kHz over 5 seconds.
+        \end{enumerate}
+    \item Verify that the sketch compiles without errors.
+\end{enumerate}
+
+\cpECE{Show the TA that the Arduino is successfully running the test sketch. Confirm the Pin 9 PWM output is toggling (visible on an oscilloscope or multimeter reading the RC filter output).}
+
+\subsection{Task 2: Acquire Step Response Data}
+
+\begin{enumerate}
+    \item Run the MATLAB script \texttt{SysID\_DataLogger.m}. This script:
+        \begin{enumerate}
+            \item Opens a serial port connection to the Arduino.
+            \item Triggers the step input test signal.
+            \item Records both the filtered PWM input (Pin 9) and the black box output (A0) for 5 seconds at 10 kHz sampling rate.
+            \item Saves the data to \texttt{step\_response.mat}.
+        \end{enumerate}
+    \item Plot the recorded data (input and output) in MATLAB:
+\end{enumerate}
+
+\begin{lstlisting}[language=MATLAB, basicstyle=\ttfamily\small]
+%% Load and plot step response
+load('step_response.mat');  % Contains: t, u_step (input), y_step (output)
+
+figure('Position', [100, 100, 1000, 600]);
+subplot(2, 1, 1);
+plot(t, u_step, 'b-', 'LineWidth', 1.5);
+ylabel('Input (V)');
+title('Test Signal: Step Input');
+grid on;
+
+subplot(2, 1, 2);
+plot(t, y_step, 'r-', 'LineWidth', 1.5);
+ylabel('Output (V)');
+xlabel('Time (s)');
+title('Black Box Response to Step Input');
+grid on;
+
+sgtitle('Lab 14: Step Response Data Acquisition');
+\end{lstlisting}
+
+\cpECE{Generate the plot showing your recorded step response. Visually inspect the output waveform and describe its characteristics: Does it overshoot? Is it oscillatory? What is the approximate settling time?}
+
+\visualplaceholder{INSERT MATLAB PLOT: Step Response Data (input and output waveforms)}
+
+\subsection{Task 3: Acquire Impulse Response Data}
+
+Repeat the data acquisition with the impulse test signal:
+
+\begin{enumerate}
+    \item Modify the Arduino sketch to generate the impulse test (very narrow pulse).
+    \item Run the MATLAB data logger again, saving to \texttt{impulse\_response.mat}.
+    \item Plot the input and output as above.
+\end{enumerate}
+
+\cpECE{Generate the plot showing your impulse response. The impulse response directly encodes the transfer function's characteristics. Describe what you observe.}
+
+\visualplaceholder{INSERT MATLAB PLOT: Impulse Response Data (input pulse and output waveform)}
+
+\subsection{Task 4: Visual Assessment of Black Box Dynamics}
+
+From your step and impulse data, answer the following questions:
+
+\disECE{Black Box Characteristics:}
+
+\notespacebox{3in}{%
+1. Is the black box system stable (does the output return to steady state)?\\[0.2in]
+2. What is the approximate steady-state gain (ratio of final output to step input)?\\[0.2in]
+3. Does the black box appear to be first-order, second-order, or higher?\\[0.2in]
+4. Is there any observable overshoot or oscillation?\\[0.2in]
+}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Software Implementation: System Identification and Digital Twin}
+%--------------------------------------------------------------
+
+\subsection{Task 1: Estimate the Transfer Function Using MATLAB}
+
+Use MATLAB's System Identification Toolbox to fit a transfer function model to your measured data:
+
+\begin{lstlisting}[language=MATLAB, basicstyle=\ttfamily\small]
+%% System Identification using tfest()
+load('step_response.mat');
+
+% Create a time series data object
+sys_data = iddata(y_step, u_step, 1/Fs);  % output, input, sample time
+
+% Estimate a first-order transfer function
+% nb = 1 (first-order numerator), na = 1 (first-order denominator)
+sys_fo = tfest(sys_data, 1, 1);
+
+% Also estimate a second-order system for comparison
+sys_so = tfest(sys_data, 2, 2);
+
+% Display the identified models
+disp('Identified First-Order System:');
+disp(sys_fo);
+
+disp('Identified Second-Order System:');
+disp(sys_so);
+
+% Compare predictions with measured data
+y_pred_fo = lsim(sys_fo, u_step, t);
+y_pred_so = lsim(sys_so, u_step, t);
+
+figure('Position', [100, 100, 1000, 600]);
+plot(t, y_step, 'k-', 'LineWidth', 1.5, 'DisplayName', 'Hardware');
+hold on;
+plot(t, y_pred_fo, 'b--', 'LineWidth', 1.5, 'DisplayName', '1st-Order Model');
+plot(t, y_pred_so, 'r--', 'LineWidth', 1.5, 'DisplayName', '2nd-Order Model');
+xlabel('Time (s)');
+ylabel('Output (V)');
+title('System ID: Measured vs. Model Predictions');
+legend('Location', 'best');
+grid on;
+
+% Compute error metrics
+err_fo = y_step - y_pred_fo;
+err_so = y_step - y_pred_so;
+rmse_fo = sqrt(mean(err_fo.^2));
+rmse_so = sqrt(mean(err_so.^2));
+fprintf('RMSE (1st-order): %.4f V\n', rmse_fo);
+fprintf('RMSE (2nd-order): %.4f V\n', rmse_so);
+\end{lstlisting}
+
+\cpECE{Run the system identification code and compare the first-order and second-order models. Which provides a better fit to your hardware data? Record the identified transfer function with its specific pole and zero locations.}
+
+\visualplaceholder{INSERT MATLAB PLOT: Hardware Data vs. Fitted Models (showing measured step response overlaid with first and second-order predictions)}
+
+\subsection{Task 2: Extract Poles, Zeros, and Gain}
+
+From the identified system, explicitly write out the transfer function:
+
+\pldECE{Your Identified Transfer Function:}
+
+\notespacebox{2.5in}{%
+\textbf{Transfer Function $H(s)$:}\\[0.2in]
+\hspace{0.3in}$H(s) = $ \\[0.3in]
+\textbf{Poles:} \\[0.1in]
+\textbf{Zeros:} \\[0.1in]
+\textbf{Gain (DC):}
+}
+
+\subsection{Task 3: Build the Simulink Digital Twin}
+
+\begin{enumerate}
+    \item Open the provided \texttt{SysID\_Blank\_Simulink.slx} template.
+    \item Drag a ``Transfer Fcn'' block into the model. Double-click it and enter your identified pole-zero-gain form.
+    \item Connect a ``From Workspace'' block (carrying your measured input $u_{\text{step}}$) to the Transfer Fcn input.
+    \item Connect the Transfer Fcn output to a ``To Workspace'' block to save the simulated output.
+    \item Run the simulation with the exact same input $u_{\text{step}}$ you applied to the hardware.
+\end{enumerate}
+
+\visualplaceholder{INSERT SIMULINK SCREENSHOT: Digital Twin Model (showing From Workspace, Transfer Fcn block with your H(s), and To Workspace)}
+
+\subsection{Task 4: Validate the Digital Twin}
+
+Compare the Simulink output to your hardware measurements:
+
+\begin{lstlisting}[language=MATLAB, basicstyle=\ttfamily\small]
+%% Validation: Hardware vs. Simulink Digital Twin
+load('step_response.mat');
+load('simulink_output.mat');  % y_sim from Simulink
+
+figure('Position', [100, 100, 1000, 600]);
+plot(t, y_step, 'b-', 'LineWidth', 2, 'DisplayName', 'Hardware (Black Box)');
+hold on;
+plot(t, y_sim, 'r--', 'LineWidth', 2, 'DisplayName', 'Simulink (Digital Twin)');
+xlabel('Time (s)');
+ylabel('Output (V)');
+title('Black Box System Identification: Hardware vs. Digital Twin');
+legend('Location', 'best');
+grid on;
+
+% Compute agreement metrics
+err = y_step - y_sim;
+rmse = sqrt(mean(err.^2));
+max_err = max(abs(err));
+fprintf('RMSE: %.4f V\n', rmse);
+fprintf('Max Error: %.4f V\n', max_err);
+fprintf('Percent Error (RMS): %.2f %%\n', 100 * rmse / max(y_step));
+\end{lstlisting}
+
+\cpECE{Generate the overlay plot showing hardware and Simulink output. Compute error metrics (RMSE, max error, percent error) and assess whether your Digital Twin is accurate enough (typically $< 10\%$ RMS error is considered good).}
+
+\visualplaceholder{INSERT MATLAB PLOT: Hardware vs. Digital Twin Overlay (showing how closely Simulink matches hardware)}
+
+\subsection{Task 5: Frequency Response Validation (Optional Advanced)}
+
+For additional confidence, run the chirp sweep test and compare frequency responses:
+
+\begin{enumerate}
+    \item Acquire the chirp sweep response from the hardware (using the test sketch).
+    \item Compute the FFT of the chirp response to extract magnitude and phase vs. frequency.
+    \item Generate the same chirp signal through your Simulink Digital Twin and compute its FFT.
+    \item Overlay the two frequency responses (magnitude and phase).
+\end{enumerate}
+
+\disECE{Does the frequency response of your identified system match the hardware? Where do they diverge? What could cause the discrepancies?}
+
+\notespacebox{2.5in}{%
+\vspace{2.0in}
+}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Deliverables \& TA Sign-Off: The Defense}
+%--------------------------------------------------------------
+
+\subsection*{Four Checkpoints Leading to the Final Defense}
+
+\textbf{Your lab culminates in a verbal ``Defense'' to the TA, where you must justify your system identification methodology and present your Digital Twin. Work efficiently to finish all checkpoints within the 2-hour window.}
+
+\vspace{0.5cm}
+
+\subsubsection*{Checkpoint 1: Pre-Lab Laplace Theory (Target: 15 min)}
+
+\cpECE{Before hardware testing, show the TA:}
+\begin{itemize}
+    \item[$\square$] Hand-derived step response for a first-order system (Task 1). Show all algebraic steps.
+    \item[$\square$] Qualitative explanation of how damping ratio $\zeta$ affects overshoot and settling time (Task 2).
+    \item[$\square$] Predictions for your black box response under step input (Task 3): expected settling time, overshoot, and characteristic response.
+    \item[$\square$] TA verifies: All mathematical derivations are correct and predictions are reasonable.
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{TA Signature:} \underline{\hspace{2.5cm}} \quad \textbf{Time:} \underline{\hspace{1.5cm}}
+
+\vspace{0.5cm}
+
+\subsubsection*{Checkpoint 2: Data Acquisition and Measurement (Target: 25 min)}
+
+\cpECE{Show the TA:}
+\begin{itemize}
+    \item[$\square$] Working Arduino test signal generation verified on Pin 9 (TA observes step, impulse, and chirp signals).
+    \item[$\square$] Successfully acquired step and impulse response data from the black box using the MATLAB data logger.
+    \item[$\square$] Plots of both the test input signal and black box output response (as shown in Tasks 2 and 3).
+    \item[$\square$] Verbal description of the black box's observed dynamics (stable/unstable, oscillatory/non-oscillatory, settling time estimate).
+    \item[$\square$] TA verifies: Data quality is acceptable (minimal noise, clear signal) and matches your pre-lab predictions reasonably.
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{TA Signature:} \underline{\hspace{2.5cm}} \quad \textbf{Time:} \underline{\hspace{1.5cm}}
+
+\vspace{0.5cm}
+
+\subsubsection*{Checkpoint 3: System Identification and Transfer Function (Target: 25 min)}
+
+\cpECE{Show the TA:}
+\begin{itemize}
+    \item[$\square$] MATLAB results from \texttt{tfest()}: Display the identified first-order and second-order transfer functions.
+    \item[$\square$] Plot overlaying the measured hardware step response with predictions from both models (Task 1).
+    \item[$\square$] Quantitative error metrics: RMSE and percent error for each model fit.
+    \item[$\square$] Your chosen model (first vs. second-order) with explicit statement of poles, zeros, and gain.
+    \item[$\square$] TA verifies: The identified transfer function is reasonable (poles stable, gain sensible, error metrics acceptable).
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{TA Signature:} \underline{\hspace{2.5cm}} \quad \textbf{Time:} \underline{\hspace{1.5cm}}
+
+\vspace{0.5cm}
+
+\subsubsection*{Checkpoint 4: Digital Twin Validation and Defense (Target: 25 min)}
+
+\cpECE{Show the TA and be prepared to defend:}
+\begin{itemize}
+    \item[$\square$] Simulink Digital Twin model screenshot showing the Transfer Fcn block with your identified $H(s)$.
+    \item[$\square$] Overlay plot: Hardware step response vs. Simulink simulation output (Task 4).
+    \item[$\square$] Error metrics: RMSE, max error, and percent RMS error between hardware and simulation.
+    \item[$\square$] Written explanation: How well does your Digital Twin replicate the hardware? Where do they diverge? Why?
+    \item[$\square$] Verbal defense: Explain your system identification methodology, the choice of model order, and confidence level in your Digital Twin.
+\end{itemize}
+
+\noindent
+\textbf{Defense Topics You Must Be Prepared to Discuss:}
+\begin{enumerate}
+    \item Why did you choose first-order vs. second-order? What evidence from your data supports this choice?
+    \item What are the limitations of your identified model? Are there unmodeled dynamics or nonlinearities?
+    \item How sensitive is your system ID to measurement noise? Did you filter the data?
+    \item If you tested with a different input (e.g., the chirp sweep), does the Digital Twin still match?
+    \item How confident are you in your model for predicting the system's behavior in unknown scenarios?
+\end{enumerate}
+
+\vspace{0.3cm}
+\textbf{TA Signature:} \underline{\hspace{2.5cm}} \quad \textbf{Time:} \underline{\hspace{1.5cm}}
+
+\vspace{1cm}
+
+\subsection*{Final Grade Summary}
+
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Checkpoint} & \textbf{Points} & \textbf{Signed Off} \\
+\hline
+1. Pre-Lab Laplace Theory & 20 & $\square$ \\
+2. Data Acquisition and Measurement & 25 & $\square$ \\
+3. System Identification and Transfer Function & 25 & $\square$ \\
+4. Digital Twin Validation and Defense & 30 & $\square$ \\
+\hline
+\textbf{TOTAL} & \textbf{100} & \\
+\hline
+\end{tabular}
+\end{center}
+
+\vspace{0.5cm}
+
+\textbf{Final TA Signature:} \underline{\hspace{4cm}} \quad \textbf{Final Grade:} \underline{\hspace{1.5cm}}
+
+\vspace{0.5cm}
+
+\textbf{Notes/Comments from TA:}
+
+\notespacebox{2in}{%
+\vspace{1.5in}
+}
+
+\clearpage
+
+\appendix
+
+%--------------------------------------------------------------
+\section{Laplace Transform Table and Properties}
+%--------------------------------------------------------------
+
+\subsection{Common Laplace Transform Pairs}
+
+\begin{center}
+\begin{tabular}{|c|c|}
+\hline
+\textbf{Signal } $x(t)$ & \textbf{Laplace Transform } $X(s)$ \\
+\hline
+$\delta(t)$ (impulse) & $1$ \\
+\hline
+$u(t)$ (unit step) & $1/s$ \\
+\hline
+$t \cdot u(t)$ & $1/s^2$ \\
+\hline
+$e^{-at} u(t)$ & $1/(s+a)$ \\
+\hline
+$\cos(\omega t) u(t)$ & $s/(s^2 + \omega^2)$ \\
+\hline
+$\sin(\omega t) u(t)$ & $\omega/(s^2 + \omega^2)$ \\
+\hline
+$e^{-at} \cos(\omega t) u(t)$ & $(s+a)/[(s+a)^2 + \omega^2]$ \\
+\hline
+$e^{-at} \sin(\omega t) u(t)$ & $\omega/[(s+a)^2 + \omega^2]$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Key Laplace Properties}
+
+\begin{itemize}
+    \item \textbf{Linearity:} $\mathcal{L}\{ax_1(t) + bx_2(t)\} = aX_1(s) + bX_2(s)$.
+    \item \textbf{Time shift:} $\mathcal{L}\{x(t - T)u(t - T)\} = e^{-sT} X(s)$.
+    \item \textbf{Frequency shift:} $\mathcal{L}\{e^{-at} x(t)\} = X(s + a)$.
+    \item \textbf{Differentiation:} $\mathcal{L}\{dx/dt\} = sX(s) - x(0^-)$.
+    \item \textbf{Integration:} $\mathcal{L}\{\int_0^t x(\tau) d\tau\} = X(s)/s$.
+    \item \textbf{Final Value Theorem:} $\lim_{t \to \infty} x(t) = \lim_{s \to 0} sX(s)$ (if the limit exists).
+    \item \textbf{Initial Value Theorem:} $x(0^+) = \lim_{s \to \infty} sX(s)$.
+\end{itemize}
+
+\section{First-Order and Second-Order System Characteristics}
+
+\subsection{First-Order System}
+
+Standard form: $H(s) = \frac{\omega_c}{s + \omega_c}$ or $H(s) = \frac{K}{\tau s + 1}$.
+
+\noindent
+\textbf{Step response:} $y(t) = K(1 - e^{-t/\tau}) u(t)$.
+
+\noindent
+\textbf{Key metrics:}
+\begin{itemize}
+    \item Time constant: $\tau = 1/\omega_c$.
+    \item Settling time (to 5\%): $t_s \approx 3\tau$.
+    \item No overshoot.
+\end{itemize}
+
+\subsection{Second-Order System (Under-Damped)}
+
+Standard form: $H(s) = \frac{\omega_n^2}{s^2 + 2\zeta \omega_n s + \omega_n^2}$ (where $0 < \zeta < 1$).
+
+\noindent
+\textbf{Step response:}
+
+\begin{equation}
+y(t) = 1 - e^{-\zeta \omega_n t} \left[\cos(\omega_d t) + \frac{\zeta}{\sqrt{1-\zeta^2}} \sin(\omega_d t)\right],
+\end{equation}
+
+\noindent
+where $\omega_d = \omega_n \sqrt{1 - \zeta^2}$ is the damped natural frequency.
+
+\noindent
+\textbf{Key metrics:}
+\begin{itemize}
+    \item Percent overshoot: $\text{PO} = 100 \cdot e^{-\zeta \pi / \sqrt{1-\zeta^2}}$.
+    \item Settling time (to 2\%): $t_s \approx 4 / (\zeta \omega_n)$.
+    \item Peak time: $t_p = \pi / \omega_d$.
+\end{itemize}
+
+\section{System Identification Techniques}
+
+\subsection{Logarithmic Decrement (For Oscillatory Responses)}
+
+If the system's step response exhibits oscillation, the damping ratio can be extracted from the oscillation's decay:
+
+\begin{equation}
+\delta = \ln\left(\frac{y_1}{y_2}\right),
+\end{equation}
+
+\noindent
+where $y_1$ and $y_2$ are successive peak amplitudes. Then:
+
+\begin{equation}
+\zeta = \frac{\delta}{\sqrt{4\pi^2 + \delta^2}}.
+\end{equation}
+
+\subsection{Time-Constant Extraction (For First-Order Systems)}
+
+For a first-order system, the step response reaches 63.2\% of final value at time $t = \tau$. You can read $\tau$ directly from the measured step response and compute the pole as $p = -1/\tau$.
+
+\subsection{Least-Squares Fitting}
+
+MATLAB's \texttt{tfest()} solves a least-squares optimization problem:
+
+\begin{equation}
+\min_{\theta} \sum_{k=1}^N |y[k] - \hat{y}[k](\theta)|^2,
+\end{equation}
+
+\noindent
+where $\theta$ represents the unknown model parameters (pole, zero, gain), $y[k]$ is the measured output, and $\hat{y}[k]$ is the predicted output. The algorithm converges to the best-fitting model of the chosen order.
+
+\section{MATLAB Code Templates}
+
+\subsection{Complete System ID Workflow}
+
+\begin{lstlisting}[language=MATLAB, basicstyle=\ttfamily\small]
+%% Lab 14: Complete System Identification Workflow
+
+clear; clc;
+
+%% Load experimental data
+load('step_response.mat');  % Assuming Fs (sampling rate) is saved
+
+% Create iddata object
+sys_data = iddata(y_step, u_step, 1/Fs);
+
+% Estimate transfer functions of increasing order
+sys_1 = tfest(sys_data, 1, 1);  % 1st order
+sys_2 = tfest(sys_data, 2, 2);  % 2nd order (might include zeros)
+
+% Simulate predicted outputs
+y_pred_1 = lsim(sys_1, u_step, t);
+y_pred_2 = lsim(sys_2, u_step, t);
+
+% Compare models
+figure('Position', [100, 100, 1200, 700]);
+subplot(2, 2, 1);
+plot(t, y_step, 'k-', 'LineWidth', 1.5, 'DisplayName', 'Hardware');
+hold on;
+plot(t, y_pred_1, 'b--', 'LineWidth', 1.5, 'DisplayName', '1st-Order');
+plot(t, y_pred_2, 'r--', 'LineWidth', 1.5, 'DisplayName', '2nd-Order');
+xlabel('Time (s)');
+ylabel('Output (V)');
+title('Step Response Comparison');
+legend;
+grid on;
+
+% Error analysis
+err_1 = y_step - y_pred_1;
+err_2 = y_step - y_pred_2;
+rmse_1 = sqrt(mean(err_1.^2));
+rmse_2 = sqrt(mean(err_2.^2));
+
+subplot(2, 2, 2);
+semilogy(t, abs(err_1), 'b-', 'LineWidth', 1.5, 'DisplayName', ['1st-Order RMSE=' num2str(rmse_1, '%.4f')]);
+hold on;
+semilogy(t, abs(err_2), 'r-', 'LineWidth', 1.5, 'DisplayName', ['2nd-Order RMSE=' num2str(rmse_2, '%.4f')]);
+xlabel('Time (s)');
+ylabel('Absolute Error (V)');
+title('Prediction Error');
+legend;
+grid on;
+
+% Pole-zero plot
+subplot(2, 2, 3);
+pzplot(sys_1);
+hold on;
+pzplot(sys_2);
+title('Pole-Zero Locations');
+grid on;
+
+% Frequency response
+subplot(2, 2, 4);
+[mag1, phase1, w] = bode(sys_1);
+[mag2, phase2, ~] = bode(sys_2);
+loglog(w/(2*pi), squeeze(mag1), 'b-', 'LineWidth', 1.5, 'DisplayName', '1st-Order');
+hold on;
+loglog(w/(2*pi), squeeze(mag2), 'r-', 'LineWidth', 1.5, 'DisplayName', '2nd-Order');
+xlabel('Frequency (Hz)');
+ylabel('Magnitude');
+title('Magnitude Response');
+legend;
+grid on;
+
+sgtitle('Lab 14: System Identification Analysis | Your Name | Student ID');
+\end{lstlisting}
+
+\section{Troubleshooting and Common Pitfalls}
+
+\subsection{Data Acquisition Issues}
+
+\begin{itemize}
+    \item \textbf{No output from black box:} Check that the Arduino is connected to the TA and the black box is powered. Verify the PWM signal is reaching the RC filter input (use a multimeter).
+    \item \textbf{Output is constant DC:} The black box may be in saturation. Reduce the amplitude of the test signal and try again.
+    \item \textbf{Noisy measurements:} Add a low-pass filter to the Arduino ADC input (e.g., 1 k$\Omega$ + 1 $\mu$F). Increase the number of samples before averaging.
+\end{itemize}
+
+\subsection{System Identification Issues}
+
+\begin{itemize}
+    \item \textbf{tfest() fails to converge:} Provide better initial guesses. Specify the pole and zero locations manually based on your step response observations.
+    \item \textbf{First-order and second-order models fit equally well:} Use Occam's Razor: choose the simpler (first-order) model unless there is clear evidence of oscillation.
+    \item \textbf{Simulink output does not match hardware:} Check that the transfer function is entered correctly. Verify the input signal $u(t)$ is identical to what was applied to the hardware.
+\end{itemize}
+
+\subsection{Digital Twin Validation Issues}
+
+\begin{itemize}
+    \item \textbf{Large discrepancy between hardware and Simulink:} Your model may be missing high-frequency dynamics or nonlinearities. Increase the model order or investigate unmodeled inputs.
+    \item \textbf{Small transient mismatch at the beginning:} The black box may have a small delay or dead-time element. Add a transport delay block in Simulink if necessary.
+\end{itemize}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section*{References and Inspiration}
+\addcontentsline{toc}{section}{References and Inspiration}
+%--------------------------------------------------------------
+
+\subsection*{University Course Inspirations}
+
+This lab bridges fundamental Laplace domain analysis with practical reverse engineering and digital twin methodology:
+
+\begin{itemize}
+    \item \textbf{MIT 6.003 (Signals, Systems, and Inference):} The Laplace Transform, pole-zero analysis, and the relationship between $s$-plane locations and time-domain response (natural frequency, damping ratio, settling time) are foundational to this lab. MIT's rigorous treatment of system properties via transfer functions enables the hand-derivation you perform in pre-lab work.
+
+    \item \textbf{MIT 6.007 (Applied Electromagnetics):} The analog circuits underlying the mystery black box—RC networks, op-amp filtering, and dynamic servo systems—reflect MIT's emphasis on physical system realization. Understanding the circuit behavior from the Laplace domain is MIT's bridge between theory and hardware.
+
+    \item \textbf{Georgia Tech ECE 2026 (Real-Time DSP):} Georgia Tech's expertise in \textbf{system identification and digital control} informs this lab's focus on measurement methodology, test signal design, and validation. The three application contexts (aerospace autopilot, industrial manufacturing, biomedical) reflect Georgia Tech's breadth in control systems across domains.
+
+    \item \textbf{Rice University ELEC 241 (Real-Time DSP):} Rice's \textbf{emphasis on reverse engineering and practical model validation} is central to this lab. The lab teaches that you don't always have source code or documentation—you identify the system by measuring its input/output behavior and fitting a mathematical model. This is how embedded systems engineers maintain and upgrade legacy hardware.
+
+    \item \textbf{Duke University ECE 280:} This final lab brings together all prior concepts—Fourier analysis (Labs 1--8), digital signal processing (Labs 9--10), and communication systems (Labs 11--12)—and applies them through the Laplace domain to a complete systems engineering problem: understanding unknown hardware and predicting its behavior.
+\end{itemize}
+
+\subsection*{Core References}
+
+\begin{itemize}
+    \item Franklin, G. F., Powell, J. D., \& Emami-Naeini, A. (2015). \textit{Feedback Control of Dynamic Systems} (7th ed.). Pearson.
+    \begin{itemize}
+        \item \textbf{Chapters 2--4:} Laplace Transform properties, transfer functions, pole-zero analysis, and time-domain response prediction.
+        \item \textbf{Standard control systems textbook:} Used in undergraduate control courses worldwide; emphasis on hands-on system identification and design.
+    \end{itemize}
+
+    \item Ljung, L. (1999). \textit{System Identification: Theory for the User} (2nd ed.). Prentice Hall.
+    \begin{itemize}
+        \item \textbf{Chapters 1--2, 6:} Rigorous treatment of how to identify linear systems from measurement data. Theory of model validation and error quantification.
+        \item \textbf{Industry standard:} The definitive reference for system identification methodology, used by engineers in aerospace, automotive, process control, and biomedical industries.
+    \end{itemize}
+
+    \item Nise, N. S. (2019). \textit{Control Systems Engineering} (8th ed.). Wiley.
+    \begin{itemize}
+        \item \textbf{Chapters 2--4:} Modeling systems with transfer functions, Laplace domain analysis, and prediction of transient response.
+        \item \textbf{Pedagogical strength:} Clear derivations of pole-zero relationships to damping, settling time, and overshoot.
+    \end{itemize}
+
+    \item The MathWorks. \textit{System Identification Toolbox and Simulink Control Design Documentation}.
+    \begin{itemize}
+        \item \texttt{tfest()}: Transfer function estimation from time-domain measurement data.
+        \item \texttt{idnlarx()}, \texttt{idpoly()}: More general system identification methods for nonlinear and higher-order systems.
+        \item \textbf{Digital twin workflow:} Using Simulink to simulate identified models against real hardware.
+    \end{itemize}
+
+    \item Tao, F., Liu, W., \& Nee, A. (2019). ``Digital Twins: Past, Present, and Future.'' \textit{ASME Journal of Manufacturing Science and Engineering}, vol. 141, no. 6, 061014.
+    \begin{itemize}
+        \item \textbf{Digital twin context:} Explains why identifying a system's mathematical model is the first step in creating a digital twin—a virtual replica used for simulation, diagnostics, and design without risking the physical system.
+        \item \textbf{Real-world application:} Digital twins are foundational to predictive maintenance, failure analysis, and modernization of legacy equipment across aerospace, manufacturing, and biomedical industries.
+    \end{itemize}
+
+    \item Blevins, R. D. (1979). \textit{Formulas for Natural Frequency and Mode Shape}. Van Nostrand Reinhold.
+    \begin{itemize}
+        \item \textbf{Mechanical systems context:} For the industrial legacy equipment application (Program 2), understanding natural frequencies and damping of hydraulic systems and mechanical components is essential to safe modernization.
+    \end{itemize}
+
+    \item Ray, L. R., \& Lee, H. (2015). \textit{Robust State Estimation and Model Predictive Control for Process Systems}. Springer.
+    \begin{itemize}
+        \item \textbf{Manufacturing application:} System identification applied to process control, with emphasis on handling model uncertainty and sensor noise.
+    \end{itemize}
+\end{itemize}
+
+\subsection*{Regulatory and Safety Standards}
+
+\begin{itemize}
+    \item FAA. \textit{Advisory Circular 25.203: Stall Characteristics}.
+    \begin{itemize}
+        \item \textbf{Aerospace context:} Aircraft autopilot systems must meet FAA requirements for stability and response characteristics. System ID is the first step in certifying digital autopilot replacements.
+    \end{itemize}
+
+    \item FDA. \textit{Guidance for Industry: Developing Biocompatible Medical Devices}.
+    \begin{itemize}
+        \item \textbf{Biomedical context:} For clinical equipment analysis (Program 3), FDA requires that modernized systems be validated to meet the original equipment's safety and performance characteristics. System ID provides the mathematical foundation for this validation.
+    \end{itemize}
+
+    \item ISO 5349: \textit{Mechanical Vibration and Shock}.
+    \begin{itemize}
+        \item \textbf{Industrial context:} Standard for characterizing vibration and dynamic response of industrial machinery. System ID helps factories predict machinery aging and plan maintenance.
+    \end{itemize}
+
+    \item IEEE 1451: \textit{Smart Sensor Interface Standard}.
+    \begin{itemize}
+        \item \textbf{Measurement standard:} How to interface sensors and data acquisition systems for reliable system identification experiments.
+    \end{itemize}
+\end{itemize}
+
+\subsection*{Why System Identification Is the Gateway to Modernization}
+
+In 2024, industries face a massive challenge: \textbf{aging, undocumented infrastructure}. Aircraft from the 1970s, factories with 30-year-old equipment, hospitals with vintage medical devices—all must continue operating safely despite lack of original documentation. System identification is the engineer's tool to understand these unknowns.
+
+By identifying a system's transfer function from measurements, you unlock the ability to:
+\begin{enumerate}
+    \item \textbf{Predict behavior:} Simulate the system under new conditions without physical testing (safe, cost-effective).
+    \item \textbf{Design replacements:} Create a modern digital controller that matches the original system's behavior, preserving reliability while adding new features.
+    \item \textbf{Detect degradation:} Monitor whether the system's transfer function is changing (early warning of component aging or failure).
+    \item \textbf{Meet regulatory requirements:} Provide mathematical evidence that modernized equipment will behave identically to the original in all conditions.
+\end{enumerate}
+
+This lab teaches you to be the engineer who understands systems others consider \textit{black boxes}—and that skill is invaluable in the real world.
+
+\end{document}
