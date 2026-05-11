@@ -8,6 +8,9 @@
 \usepackage{xcolor}
 \usepackage{graphicx}
 \usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{fancybox}
+\usepackage{tikz}
 
 \input{ECE280F24header}
 
@@ -19,52 +22,116 @@
 \newcommand{\evidencebox}[2]{%
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][#1][c]{0.9\textwidth}{\centering \textbf{#2}}}
+    \fbox{\parbox[c][#1][c]{0.92\textwidth}{\centering \textbf{#2}}}
+\end{figure}}
+\newcommand{\visualplaceholder}[1]{%
+\begin{figure}[H]
+    \centering
+    \fbox{%
+    \begin{minipage}{0.92\textwidth}
+        \centering
+        \vspace{0.6in}
+        \textcolor{red}{\Large\textbf{[#1]}}\\
+        \vspace{0.6in}
+    \end{minipage}
+    }
+\end{figure}}
+\newcommand{\notespacebox}[2]{%
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[t][#1][t]{0.92\textwidth}{\textbf{Student Notes:} #2}}
 \end{figure}}
 
 \begin{document}
 
 \begin{center}
 \huge{\bf Laboratory 2:}\\
-\large{\bf Signals and Systems}\\
-\large{\bf Signal Transformations: Time Shift, Amplitude Scaling, and Time Reversal}\\
-\large{\bf Hardware Implementation with Arduino and MATLAB Verification}
+\vspace{0.2in}
+\Large{\bf Signals and Systems}\\
+\Large{\bf Signal Transformations: Time Shift, Amplitude Scaling, and Time Reversal}\\
+\vspace{0.2in}
+\normalsize{\bf Hardware Implementation with Arduino and MATLAB Verification}
 \end{center}
 
+\vspace{0.3in}
+\noindent
+\textbf{Lab Duration:} 2 hours\\
+\textbf{Pre-Lab Time Expected:} 40 minutes (mathematical derivations and parameter assignment)\\
+\textbf{Key Concept:} Implementing fundamental signal domain and range transformations in embedded hardware and validating their fidelity against ground-truth MATLAB operators.
+
 \tableofcontents
+\clearpage
 
-\section*{Note on Prompts}
-Throughout this and future lab documents, there will be four different prompts to let you know specific work that needs to be done.
-\begin{itemize}
-\item \color{BrickRed}\textbf{Pre-lab Deliverable ($N$): }Work to be documented in the pre-laboratory assignment.\color{black}
-\item \color{OliveGreen}\textbf{Checkpoint ($N$): }Work to be shown to a TA during the laboratory.\color{black}
-\item \color{Plum}\textbf{Discussion ($N$): }Questions to be discussed with your lab partner and then answered in the post-laboratory assignment.\color{black}
-\item \color{BlueViolet}\textbf{Deliverable ($N$): }Other items to be completed individually for the post-laboratory assignment.\color{black}
-\end{itemize}
+%--------------------------------------------------------------
+\section*{Grading and Authenticity Requirements}
+%--------------------------------------------------------------
+\delECE{This is a graded laboratory assignment. Include your \textbf{name and student ID} in all required screenshots and photographs (oscilloscope captures, MATLAB plots, breadboard/setup photos).}
 
-\section*{Graded Assignment and Authenticity Requirement}
-\delECE{This is a graded laboratory assignment. To receive full credit, include your \textbf{name and student ID} in \textbf{all required screenshots} and in as many additional screenshots as possible (oscilloscope captures, MATLAB plots, and setup photos). Screenshots without identifying information may receive reduced credit.}
+\delECE{All signal transformations and measurements must be acquired from your own hardware build and unique TA-assigned parameters. Pre-computed or borrowed data is not accepted.}
 
-\cpECE{Before submission, verify that each required image is legible, clearly labeled, and contains your identifying information when applicable.}
+\cpECE{Before submission, verify that each MATLAB figure includes axis labels with units, a grid, a title with your name/ID, and a legend (if applicable). Oscilloscope photos must show clear identification of input vs. output signals.}
 
 \clearpage
 
-\section{Abstract}
-\noindent This laboratory bridges the gap between the abstract mathematical formalism of continuous-time signal transformations and their concrete physical realization in embedded hardware. Building on the signal generation pipeline established in Laboratory~1, students here apply the three fundamental signal transformations---time shift, amplitude scaling, and time reversal---both in firmware running on an Arduino microcontroller and in MATLAB post-processing. Each student receives a unique, TA-assigned base signal whose parameters are seeded from a random number generator, ensuring independent work and authentic acquisition evidence. The transformed outputs are captured simultaneously on a digital oscilloscope and via MATLAB serial acquisition; MATLAB's \texttt{circshift}, scalar multiplication, and \texttt{fliplr} operators then serve as the computational ground truth against which the hardware results are validated. This dual-domain verification pipeline reinforces the core systems principle that transformations are coordinate changes on the signal's domain and range---independent of the physical medium carrying the signal.
+%--------------------------------------------------------------
+\section*{Title \& Real-World Context}
+%--------------------------------------------------------------
 
-\vspace{0.2in}
+\noindent
+\textbf{\large You are a Junior Signal Processing Engineer at a Major Seismic Data Acquisition Firm}
 
-\section{Learning Objectives}
-\begin{enumerate}
-    \item \textbf{Analytical Transformation Derivation:} Formulate, in closed form, the time-shifted, amplitude-scaled, and time-reversed versions of a given base signal $x(t)$, and map those continuous-time expressions to their discrete-time counterparts $x[n]$.
-    \item \textbf{Hardware Transformation Implementation:} Implement time shift via a circular sample buffer, amplitude scaling via a potentiometer-controlled gain stage, and time reversal via reversed LUT indexing on an Arduino microcontroller.
-    \item \textbf{Dual-Domain Acquisition and Overlay:} Acquire the original and transformed signals through both oscilloscope and MATLAB serial channels; overlay measured versus predicted signals on a common time axis and quantify the residual error.
-    \item \textbf{Discrete-Time Operator Mapping:} Connect hardware operations to the MATLAB operators \texttt{circshift}, scalar multiply, and \texttt{fliplr}, and demonstrate analytically why each operator is the correct discrete-time analogue of the corresponding continuous-time transformation.
-    \item \textbf{Exponential and Sinusoidal Signal Characterization:} Identify and parameterize real exponentials $Ae^{\alpha t}$, sinusoids $A\cos(\omega_0 t + \phi)$, and damped sinusoids $Ae^{-\alpha t}\cos(\omega_0 t + \phi)$ from hardware-acquired waveforms.
+\noindent
+Your technical lead has assigned you a critical role in validating the signal processing pipeline for a next-generation \textbf{marine seismic acquisition system} deployed in deepwater oil and gas exploration. The system must reliably handle three demanding operational scenarios:
+
+\begin{enumerate}[leftmargin=0.4in]
+    \item \textbf{Seismic Reflection Survey Processing (Primary Application).} Your company deploys towed streamer arrays (up to 12 km long) carrying thousands of hydrophone receivers to image subsurface petroleum reservoirs. Each receiver channel must compensate for \textbf{time delays} caused by cable length, water depth, and sensor positioning, then apply \textbf{amplitude corrections} for water absorption and geometrical spreading losses. A single miscalibrated time delay (off by just microseconds) or incorrect amplitude scaling can destroy the lateral coherence of the seismic image and cause geophysicists to miss fault structures worth millions in recoverable reserves. Your signal transformation pipeline must achieve $<$1\% amplitude error and $<$10 microsecond timing precision across all 5,000 channels during a 6-hour acquisition.
+
+    \item \textbf{Wavefield Reconstruction and Time-Reversal Focusing (Advanced Processing).} Post-acquisition, your processing center uses \textbf{time-reversed} recordings to reconstruct seismic wavefields and focus energy back to the subsurface source. This technique (time-reversal focusing) improves lateral resolution by effectively creating a synthetic ``wide-aperture'' receiver. Errors in time-reversal implementation or amplitude normalization corrupt the reconstructed field and degrade final image quality. Your hardware validation ensures that production processing nodes compute reversals accurately and with minimal latency (<2 ms per 1000-sample trace).
+
+    \item \textbf{Real-Time Multi-Channel Gain Normalization (Operational Constraint).} As raw data streams from the cable, a Field Control Unit (FCU) must apply \textbf{real-time amplitude scaling} to each channel to compress an 8-decade dynamic range down to the 12-bit ADC range before storage. Time-varying gain adjustments (following an exponential decay profile due to water absorption) must be synchronized across all channels. Any drift or quantization in the scaling operation causes amplitude spikes, dead channels, or energy loss that contaminates the final product and requires costly reacquisition.
 \end{enumerate}
 
-\section{Theoretical Background}
-Signal transformations are the algebraic mechanisms by which the domain (time axis) and range (amplitude axis) of a signal are systematically altered. Understanding them is prerequisite to every subsequent topic in this course---convolution, system responses, Fourier analysis, and filtering---because each of those operations can be decomposed into elementary transformations.
+\noindent
+\textbf{Your Mission.} In this lab, you will validate the three fundamental signal transformations on a real-time embedded platform and demonstrate their correctness against production-grade MATLAB processing routines:
+\begin{itemize}
+    \item Implement \textbf{time shift} via circular buffering (emulating cable-delay compensation).
+    \item Implement \textbf{amplitude scaling} via potentiometer control (emulating gain normalization).
+    \item Implement \textbf{time reversal} via LUT index inversion (emulating field reconstruction).
+    \item Cross-check hardware outputs against MATLAB operators (\texttt{circshift}, scalar multiply, \texttt{fliplr}) used in production processing.
+    \item Quantify residual errors and propose mitigation strategies for deployment.
+\end{itemize}
+
+\noindent
+The petroleum industry runs on the assumption that field-acquired seismic data is mathematically correct and traceable. A single systematic error in signal transformation—introduced silently in an embedded device—can propagate through months of processing and surface only when geophysicists discover imaging artifacts that are nearly impossible to debug. Your rigorous validation approach (hardware + MATLAB correlation, error quantification, edge-case testing) is the professional standard for certifying mission-critical seismic processing equipment.
+
+\noindent
+\textbf{Constraints (Fixed).} 2-hour lab execution window, existing hardware platform (Arduino Uno, oscilloscope, MATLAB). Unique TA-assigned base signal parameters ensure independent work. All skeleton code provided to focus on transformation logic rather than low-level firmware details. All checkpoints and deliverables remain exactly as specified herein.
+
+\clearpage
+
+Upon completion of this laboratory, you will demonstrate:
+
+\begin{enumerate}
+    \item \textbf{Mathematical Transformation Formulation.} Derive, in closed form, the time-shifted $x(t-t_0)$, amplitude-scaled $B \cdot x(t)$, and time-reversed $x(-t)$ versions of a given base signal, and map those expressions to discrete-time algorithms suitable for embedded implementation.
+
+    \item \textbf{Hardware Transformation Implementation Under Resource Constraints.} Code and deploy time-shift via circular-buffer indexing, amplitude scaling via analog potentiometer input, and time-reversal via reversed LUT lookup, while meeting deterministic timing and memory requirements of a real-time embedded system.
+
+    \item \textbf{Dual-Domain Validation and Error Quantification.} Simultaneously acquire transformed signals via oscilloscope (analog ground truth) and MATLAB serial acquisition, overlay measurements against theoretical predictions, and quantify residual errors by transformation type (RMS error, peak error, boundary artifacts).
+
+    \item \textbf{Discrete-Time Operator Equivalence and Correctness.} Establish the analytical and empirical correspondence between hardware operations and MATLAB standard operators (\texttt{circshift}, scalar multiply, \texttt{fliplr}), and explain why each discrete operator is the correct computational analogue of the continuous transformation.
+
+    \item \textbf{Signal Family Parameterization and Transformation Effects.} Identify and measure the defining parameters ($A$, $\alpha$, $\omega_0$, $\phi$) of real exponentials, sinusoids, and damped sinusoids from hardware-acquired data, and predict how each transformation affects those parameters mathematically and empirically.
+
+    \item \textbf{Production-Grade Error Analysis and Mitigation.} Identify systematic error sources (quantization, boundary wrap-around, potentiometer nonlinearity, jitter), rank them by magnitude, and propose practical mitigation strategies suitable for production seismic-processing equipment.
+\end{enumerate}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Core Concepts: Continuous and Discrete Signal Transformations}
+%--------------------------------------------------------------
+
+Signal transformations are the fundamental algebraic operations by which the domain (time axis) and range (amplitude axis) of a signal are manipulated. Mastery of these operations is prerequisite to every subsequent topic in this course---convolution, system responses, Fourier analysis, and filtering---because each of those computational procedures can be decomposed into and understood through elementary transformations. In production signal processing systems (seismic, radar, communications), systematic errors in transformation implementation frequently escape detection until they compound across millions of samples and render the final output useless.
 
 \subsection{Fundamental Continuous-Time Signal Transformations}
 
@@ -196,7 +263,12 @@ The fundamental calculus relationship between the two singularity functions,
 \end{equation}
 will recur throughout the course when analyzing LTI system impulse and step responses.
 
+\clearpage
+
+%--------------------------------------------------------------
 \section{Pre-Lab Assignment}
+%--------------------------------------------------------------
+
 Provide rigorous mathematical derivations and supporting sketches for the following problems. \textbf{Your assigned base signal parameters are listed in Table~\ref{tab:assigned_params}, which your TA will fill in at the start of the laboratory session. Do not proceed with pre-lab work until you have received your seed.}
 
 \begin{table}[H]
@@ -236,7 +308,11 @@ Provide rigorous mathematical derivations and supporting sketches for the follow
 
 \clearpage
 
+\clearpage
+
+%--------------------------------------------------------------
 \section{Equipment \& Setup}
+%--------------------------------------------------------------
 
 Table~\ref{tab:equipment} lists the hardware and software required for this laboratory session.
 
@@ -297,7 +373,11 @@ The $10\,\text{k}\Omega$ potentiometer is configured as a variable voltage divid
 
 \clearpage
 
+\clearpage
+
+%--------------------------------------------------------------
 \section{Laboratory Procedure}
+%--------------------------------------------------------------
 
 \subsection{Submission Evidence Map}
 Use this map while working to keep your report organized and complete.
@@ -659,7 +739,11 @@ Configure the Arduino to transmit \texttt{analogRead(A0)} values at your assigne
 
 \clearpage
 
+\clearpage
+
+%--------------------------------------------------------------
 \section{Data Analysis}
+%--------------------------------------------------------------
 
 \subsection{Analysis Step 1: Pre-Lab Sketch vs.\ Hardware vs.\ MATLAB Comparison}
 \disECE{For each of the four transformations, compare your pre-lab hand-sketch against the oscilloscope capture and the MATLAB-measured signal. Create a completed version of Table~\ref{tab:summary} and identify which domain shows the largest deviation from the theoretical prediction. Explain the primary source of discrepancy in each case.}
@@ -698,7 +782,9 @@ Configure the Arduino to transmit \texttt{analogRead(A0)} values at your assigne
 
 \clearpage
 
+%--------------------------------------------------------------
 \section{Grading Rubric}
+%--------------------------------------------------------------
 \textbf{Total Points: 100}
 
 \begin{table}[H]
@@ -738,5 +824,41 @@ Configure the Arduino to transmit \texttt{analogRead(A0)} values at your assigne
     \bottomrule
     \end{tabularx}
 \end{table}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section*{References and Inspiration}
+\addcontentsline{toc}{section}{References and Inspiration}
+%--------------------------------------------------------------
+
+This laboratory is part of Duke ECE 280's comprehensive signal processing redesign, drawing on best practices in signal transformation pedagogy from leading universities.
+
+\subsection*{University Course Inspirations}
+
+\subsubsection*{MIT 6.003: Signals, Systems, and Transforms}
+
+Lab 02 is inspired by MIT's rigorous treatment of signal transformations (time-shift, amplitude scaling, time-reversal) and their effect on signal properties and spectra. MIT's emphasis on predicting transformation outcomes mathematically before observing them experimentally informs the pre-lab calculations and verification methodology.
+
+\subsubsection*{Georgia Tech ECE 2026: Real-Time DSP Implementation}
+
+Georgia Tech's philosophy of implementing signal transformations in real hardware—not just simulation—shapes this lab's hardware-focused approach. Using the Arduino PWM to apply amplitude scaling and frequency shifting, then validating with oscilloscope measurements, mirrors Georgia Tech's commitment to making abstract signal operations concrete and observable.
+
+\subsubsection*{Rice University ELEC 241: Real-Time Signal Processing on Embedded Systems}
+
+The emphasis on time-precision (microsecond-scale timing for frequency shifting) and the use of embedded timers reflects Rice's hands-on exploration of how signal transformations are implemented under real-time constraints on resource-limited platforms.
+
+\subsubsection*{Duke University ECE 280: Lab Modernization}
+
+This lab is part of Duke's effort to modernize the signals and systems curriculum with hardware implementations that validate theoretical transformations in real time, making signal processing principles tangible to students.
+
+\subsection*{References}
+
+\begin{itemize}
+    \item A. V. Oppenheim and R. W. Schafer, \textit{Discrete-Time Signal Processing}, 3rd ed. Pearson, 2010. Chapter 2: Time and Frequency Domain Representations.
+    \item A. V. Oppenheim and A. S. Willsky, \textit{Signals and Systems}, 2nd ed. Pearson, 1997. Chapter 1: Signals and Systems (transformations and superposition).
+    \item J. H. McClellan, R. W. Schafer, and M. A. Yoder, \textit{DSP First: A Multimedia Approach}, 2nd ed. Pearson, 2015.
+    \item Arduino PWM Reference: \texttt{https://www.arduino.cc/en/Reference/AnalogWrite}
+\end{itemize}
 
 \end{document}
