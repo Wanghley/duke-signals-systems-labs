@@ -1,0 +1,1069 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{fancybox}
+\usepackage{tikz}
+
+\input{ECE280F24header}
+
+% Fallbacks in case custom macros are not provided by ECE280F24header
+\providecommand{\pldECE}[1]{\textcolor{BrickRed}{\textbf{Pre-lab Deliverable:} #1}}
+\providecommand{\cpECE}[1]{\textcolor{OliveGreen}{\textbf{Checkpoint:} #1}}
+\providecommand{\disECE}[1]{\textcolor{Plum}{\textbf{Discussion:} #1}}
+\providecommand{\delECE}[1]{\textcolor{BlueViolet}{\textbf{Deliverable:} #1}}
+\newcommand{\evidencebox}[2]{%
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][#1][c]{0.92\textwidth}{\centering \textbf{#2}}}
+\end{figure}}
+\newcommand{\visualplaceholder}[1]{%
+\begin{figure}[H]
+    \centering
+    \fbox{%
+    \begin{minipage}{0.92\textwidth}
+        \centering
+        \vspace{0.6in}
+        \textcolor{red}{\Large\textbf{[#1]}}\\
+        \vspace{0.6in}
+    \end{minipage}
+    }
+\end{figure}}
+\newcommand{\notespacebox}[2]{%
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[t][#1][t]{0.92\textwidth}{\textbf{Student Notes:} #2}}
+\end{figure}}
+
+\begin{document}
+
+\begin{center}
+\huge{\bf Laboratory 9:}\\
+\vspace{0.2in}
+\Large{\bf Continuous-Time Fourier Transform \& Convolution}\\
+\Large{\bf Real-Time FIR Audio Filter Design}\\
+\vspace{0.2in}
+\normalsize{\bf Model-Based Design with Simulink and Auto-Generated Code}
+\end{center}
+
+\vspace{0.3in}
+\noindent
+\textbf{Lab Duration:} 2 hours\\
+\textbf{Pre-Lab Time Expected:} 30 minutes (filter coefficient design and hand calculations)\\
+\textbf{Key Concept:} Professional DSP engineers use Model-Based Design (Simulink) to build real-time filters graphically and auto-generate microcontroller code. You will design a Finite Impulse Response (FIR) filter and validate it in hardware.
+
+\tableofcontents
+\clearpage
+
+%--------------------------------------------------------------
+\section*{Grading and Authenticity Requirements}
+%--------------------------------------------------------------
+\delECE{This is a graded laboratory assignment. Include your \textbf{name and student ID} in all MATLAB figures, Simulink screenshots, and scope captures.}
+
+\delECE{Your hand-derived windowed-sinc filter coefficients must be shown to the TA and compared to MATLAB's \texttt{fir1()} output. Calculations must be in your own work; using online filter calculators is not acceptable.}
+
+\cpECE{Before final submission, verify that each MATLAB plot includes proper axis labels, units, a legend, and your name/student ID in the figure title or \texttt{sgtitle}.}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Real-World Context: FIR Filters Drive Consumer Electronics}
+%--------------------------------------------------------------
+
+\noindent
+You are a Junior DSP Engineer deployed across three product lines at your company. Each product depends on real-time FIR filters implemented in Simulink and auto-generated for embedded processors. Your role: design, validate, and ship these filters to millions of users worldwide.
+
+\subsection{Program 1: Voice-Activated Smart Audio Devices (Consumer Electronics)}
+
+Your company manufactures hearing aids, earbuds, and smart speakers with always-on microphone preprocessing. The challenge: raw microphone audio contains electrical hum (60 Hz), wind noise, background chatter, and rustling—all of which confuse downstream machine learning engines trained to recognize wake words.
+
+\textbf{The engineering problem:} Voice intelligibility lives in the 85--4000 Hz band. Noise and artifacts above 4 kHz are useless for speech recognition and waste CPU cycles. But you cannot simply "turn off" the microphone above 4 kHz—audio sensors are analog continuous-time devices. You need an anti-aliasing FIR low-pass filter to remove high-frequency junk before downsampling and forwarding to the neural network.
+
+\textbf{Requirements:} (1) Zero-phase response so speech timing is preserved ($< 5$ ms latency), (2) $\geq 60$ dB attenuation above 8 kHz to suppress ultrasonic clicks, (3) no discontinuities in the passband (0--4 kHz) to avoid audible artifacts. Your Simulink model auto-generates optimized ARM Cortex-M4 code. Production devices ship to 10 million users annually.
+
+\subsection{Program 2: Cellular Modem Equalizers (Wireless Communications)}
+
+Your company supplies the signal processing firmware for cellular base stations and handsets. The critical challenge: wireless channels are not ideal low-pass filters. They introduce frequency-selective fading (some frequencies attenuate more than others) and multipath distortion (echoes from building reflections).
+
+\textbf{The engineering problem:} A signal transmitted at 2.5 GHz arrives at the receiver distorted. The channel's impulse response has multiple echoes. To recover the data, the receiver must apply an adaptive FIR equalizer—essentially the "inverse" of the channel—to flatten the frequency response and align multipath echoes.
+
+\textbf{Requirements:} (1) Equalizer coefficients update in real-time (every 100 microseconds) to track channel changes, (2) 32-tap or 64-tap FIR filter running at 30.72 MHz sampling rate (LTE), (3) mean-squared-error between equalized output and reference falls below a strict threshold. Non-compliance breaks data throughput. Your Simulink-generated code runs on Qualcomm Snapdragon modems in 2 billion smartphones worldwide.
+
+\subsection{Program 3: Medical EEG Monitoring for Epilepsy Detection (Biomedical Devices)}
+
+Your company manufactures wearable EEG monitors for epilepsy patients. The device records brain electrical activity 24/7 and alerts patients to impending seizures.
+
+\textbf{The engineering problem:} EEG signals are extraordinarily noisy. Muscle artifacts (EMG) from jaw clenching, eye blinks, and motion produce large-amplitude transients (1--100 Hz) that can mimic seizure-like activity. Electrical interference from power lines (60 Hz fundamental, harmonics at 120, 180, 240 Hz) also corrupts the recording. Meanwhile, true seizure activity is a high-amplitude, high-frequency burst (typically 3--25 Hz for temporal lobe seizures).
+
+\textbf{Requirements:} (1) Bandpass FIR filter passing 1--40 Hz (seizure band) while rejecting power-line interference and muscle artifacts, (2) Group delay $< 100$ ms (regulatory requirement for alert generation speed), (3) Clinical sensitivity $\geq 85\%$ and specificity $\geq 80\%$ (meaning the filter/detector pipeline must miss fewer than 15\% of true seizures and falsely alarm on fewer than 20\% of non-seizure events). Your Simulink model auto-generates code for an embedded ARM processor. Regulatory approval (FDA 510(k)) depends on hardware validation showing the filter meets these specs.
+
+\subsection{The Common Foundation: Model-Based Design with Simulink}
+
+All three programs use the same workflow:
+
+\begin{enumerate}
+    \item \textbf{MATLAB design:} Hand-calculate or use \texttt{fir1()} to compute impulse response coefficients $h[n]$ for your specification (cutoff frequency, stopband attenuation, passband ripple).
+    \item \textbf{Simulink implementation:} Drag the Discrete FIR Filter block into your model, load coefficients from the MATLAB workspace, and simulate end-to-end performance.
+    \item \textbf{Code generation:} Press ``Generate Code'' and auto-generate optimized C/C++ ready for ARM, DSP, or FPGA hardware.
+    \item \textbf{Hardware validation:} Measure the empirical frequency response of the deployed code and compare against theory—this is how engineers certify designs for regulatory approval and high-volume manufacturing.
+\end{enumerate}
+
+\noindent
+In this lab, you will design a prototype FIR filter, validate it with hardware measurements, and understand why the MATLAB/Simulink workflow is the industry standard for real-time DSP deployment.
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Learning Objectives}
+%--------------------------------------------------------------
+
+By the end of this lab, you should be able to:
+
+\begin{enumerate}
+    \item \textbf{Understand the Continuous-Time Fourier Transform (CTFT):} Recognize the sinc function as the impulse response of an ideal low-pass filter, and understand why real filters must approximate it.
+
+    \item \textbf{Design Finite Impulse Response (FIR) filters by hand:} Compute windowed-sinc coefficients for a specified cutoff frequency, then validate them against professional software.
+
+    \item \textbf{Use Model-Based Design in Simulink:} Build a real-time filter model graphically, insert the Discrete FIR Filter block, and load coefficients from the MATLAB workspace.
+
+    \item \textbf{Auto-generate embedded code:} Deploy a Simulink model to a microcontroller with a single click, replacing weeks of manual C++ coding.
+
+    \item \textbf{Measure frequency response empirically:} Sweep a sinusoidal input across the audio spectrum and measure input/output amplitude ratios to construct a Bode plot by hand.
+
+    \item \textbf{Validate theory with hardware:} Compare your measured frequency response to the theoretical curve computed by MATLAB's \texttt{freqz()} function and quantify accuracy.
+
+    \item \textbf{Understand real-world limitations:} Explain how ADC quantization, PWM timing, and component tolerances introduce deviations between ideal theory and practical hardware.
+\end{enumerate}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Core Concepts: FIR Filters and the Fourier Transform}
+%--------------------------------------------------------------
+
+\subsection{The Ideal Low-Pass Filter and Its Impulse Response}
+
+An ideal low-pass filter with cutoff frequency $\omega_c$ (normalized to rad/sample) has a frequency response that is 1 (unity gain) below $\omega_c$ and 0 (total attenuation) above $\omega_c$. The inverse Fourier transform of this ideal response yields the sinc function:
+
+\begin{equation}
+h_{\text{ideal}}[n] = \text{sinc}(n \omega_c / \pi) = \frac{\sin(n \omega_c)}{ \pi n},
+\end{equation}
+
+\noindent
+with the convention that $h_{\text{ideal}}[0] = \omega_c / \pi$ (from L'Hôpital's rule).
+
+\noindent
+The sinc function is non-causal (extends to $n = -\infty$) and infinite-length. Real filters approximate it by:
+\begin{enumerate}
+    \item \textbf{Sampling:} Evaluate the sinc at discrete times $n = 0, \pm 1, \pm 2, \ldots$
+    \item \textbf{Windowing:} Truncate to a finite length $N$ (e.g., $N = 11$ coefficients).
+    \item \textbf{Centering:} Place the window symmetrically around $n = 0$ so the filter is nearly zero-phase.
+\end{enumerate}
+
+\subsection{Finite Impulse Response (FIR) Filters}
+
+An FIR filter is defined by the convolution equation:
+
+\begin{equation}
+y[n] = \sum_{k=0}^{N-1} h[k] \, x[n-k] = h[n] * x[n],
+\end{equation}
+
+\noindent
+where:
+\begin{itemize}
+    \item $h[k]$ are the filter \textbf{coefficients} (or taps).
+    \item $N$ is the \textbf{filter order} (total number of taps).
+    \item $x[n]$ is the input signal.
+    \item $y[n]$ is the filtered output.
+    \item The asterisk $*$ denotes convolution.
+\end{itemize}
+
+\noindent
+\textbf{Key properties:}
+\begin{itemize}
+    \item \textbf{Linear:} Scaling the input scales the output proportionally.
+    \item \textbf{Time-invariant:} Delaying the input delays the output by the same amount.
+    \item \textbf{Causal:} The output at time $n$ depends only on past and present inputs (no lookahead).
+    \item \textbf{Stable:} If all coefficients are finite, the filter is always stable (bounded inputs produce bounded outputs).
+\end{itemize}
+
+\subsection{Frequency Response of an FIR Filter}
+
+The frequency response is the Discrete-Time Fourier Transform (DTFT) of the impulse response:
+
+\begin{equation}
+H(e^{j\omega}) = \sum_{n=0}^{N-1} h[n] e^{-j\omega n},
+\end{equation}
+
+\noindent
+where $\omega$ is the normalized angular frequency (rad/sample), and $\omega \in [0, \pi]$ corresponds to the Nyquist band. The magnitude response $|H(e^{j\omega})|$ tells you how much each frequency is attenuated or amplified.
+
+\noindent
+MATLAB's \texttt{freqz()} function computes this efficiently and plots the magnitude and phase responses.
+
+\subsection{Convolution in the Frequency Domain}
+
+The \textbf{convolution property} states that multiplication in the time domain is convolution in the frequency domain, and vice versa:
+
+\begin{equation}
+Y(e^{j\omega}) = H(e^{j\omega}) \cdot X(e^{j\omega}).
+\end{equation}
+
+\noindent
+In plain English: the output spectrum is the product of the filter's frequency response and the input spectrum. High frequencies are attenuated if $|H(e^{j\omega})|$ is small at those frequencies.
+
+\visualplaceholder{INSERT DIAGRAM: Ideal vs. Practical FIR Impulse Response (sinc function, windowing effect, side lobes)}
+
+\visualplaceholder{INSERT DIAGRAM: Magnitude Response of Low-Pass FIR Filter (passband, transition zone, stopband, -3 dB cutoff)}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Required Equipment and Software}
+%--------------------------------------------------------------
+
+\begin{table}[H]
+    \centering
+    \caption{Required Hardware and Software}
+    \label{tab:equipment}
+    \begin{tabularx}{\linewidth}{l X}
+    \toprule
+    \textbf{Category} & \textbf{Required Items}\\
+    \midrule
+    Microcontroller & Arduino Uno (or compatible ARM Cortex microcontroller)\\
+    Audio Input & Electret microphone with preamplifier circuit, or function generator\\
+    ADC / Sampling & Arduino A0 pin (configured to 16 kHz sampling rate)\\
+    DAC / Output & Arduino Pin 9 (PWM output, 16 kHz carrier, RC low-pass filter)\\
+    Measurement & Oscilloscope (dual-channel, 20 MHz bandwidth typical)\\
+    Prototyping & Breadboard, jumper wires, resistor (10 k$\Omega$), capacitor (100 nF)\\
+    Software & MATLAB R2021a or later with Signal Processing Toolbox\\
+    Software & Simulink with Embedded Coder, Arduino Support Package\\
+    Provided & \texttt{AudioFilter\_Skeleton.slx} (pre-configured Simulink model)\\
+    Provided & Arduino boot-loader pre-installed on target microcontroller\\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection*{Key Software Versions}
+
+\begin{itemize}
+    \item \textbf{MATLAB:} Must include Signal Processing Toolbox (for \texttt{fir1()} and \texttt{freqz()}).
+    \item \textbf{Simulink:} Must have Embedded Coder and the Arduino Support Package installed (installed via \texttt{Support Package Installer}).
+    \item \textbf{Arduino Board Support:} Simulink can target Arduino Uno, Due, or compatible boards running the Simulink Real-Time kernel.
+\end{itemize}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Safety and Critical Notes}
+%--------------------------------------------------------------
+
+\begin{itemize}
+    \item \textbf{Audio Safety:} Keep microphone preamplifier output within the Arduino's ADC input range (0--5 V). Do not directly connect a line-level audio source (typically 1--2 V RMS or higher) without attenuation.
+    \item \textbf{USB Power:} The Arduino is powered via USB. Ensure the USB cable is fully seated and the Arduino is recognized by the OS before opening Simulink.
+    \item \textbf{Scope Probe Grounding:} Always connect oscilloscope probe ground to the breadboard ground rail to avoid ground loops and noise coupling.
+    \item \textbf{Simulink Deployment:} Once the Simulink model is deployed, the microcontroller runs in real-time. Stop the model via the Simulink toolbar to halt execution and prevent continuous I/O.
+\end{itemize}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Hardware Setup: The Audio Front-End}
+%--------------------------------------------------------------
+
+\subsection{Signal Path Overview}
+
+The signal flows from a microphone (or function generator for testing) through a preamplifier, into the Arduino's ADC, through the digital FIR filter (running on the microcontroller), out through the Arduino's PWM pin, and finally to an oscilloscope for measurement:
+
+\vspace{0.2in}
+\noindent
+\begin{tabular}{ccccc}
+Microphone / & $\to$ & Preamplifier & $\to$ & Arduino ADC (A0) \\
+Function Gen &  & (20 dB gain) &  &  \\
+\end{tabular}
+
+\vspace{0.3in}
+
+\noindent
+\begin{tabular}{ccccc}
+Arduino PWM (Pin 9) & $\to$ & RC Low-Pass Filter & $\to$ & Oscilloscope \\
+(16 kHz carrier) &  & (R=10k$\Omega$, C=100nF) &  & (smoothed output) \\
+\end{tabular}
+
+\vspace{0.2in}
+
+\subsection{Microphone Preamplifier Circuit}
+
+A single electret microphone connected directly to the Arduino ADC would produce a very small signal (millivolts). The preamplifier stage provides approximately 20 dB of gain, amplifying the microphone signal to a level suitable for digitization.
+
+\visualplaceholder{INSERT MICROPHONE PREAMPLIFIER SCHEMATIC (inverting amplifier stage, component values, pinout labels)}
+
+\subsection{Arduino Connections}
+
+\begin{table}[H]
+    \centering
+    \caption{Arduino Pin Assignments}
+    \label{tab:pins}
+    \begin{tabularx}{\linewidth}{l l X}
+    \toprule
+    \textbf{Signal} & \textbf{Arduino Pin} & \textbf{Purpose}\\
+    \midrule
+    Microphone Input & A0 (ADC) & Reads amplified microphone signal at 16 kHz\\
+    Filtered Output & Pin 9 (PWM) & Outputs filtered signal at 16 kHz PWM frequency\\
+    Ground & GND & Common ground (breadboard and oscilloscope)\\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection{RC Low-Pass Filter on PWM Output}
+
+The Arduino's PWM output at Pin 9 is a square wave toggling at 16 kHz with a duty cycle controlled by the filter output value. To recover the analog waveform, a simple RC low-pass filter removes the high-frequency carrier:
+
+\vspace{0.2in}
+\noindent
+\textbf{Component values:}
+\begin{itemize}
+    \item Resistor: $R = 10 \, \text{k}\Omega$
+    \item Capacitor: $C = 100 \, \text{nF}$
+    \item Cutoff frequency: $f_{\text{RC}} = 1 / (2 \pi RC) \approx 159 \, \text{Hz}$
+\end{itemize}
+
+\noindent
+This is much lower than 16 kHz, so the PWM carrier is strongly attenuated and the filtered signal emerges as a smooth analog waveform.
+
+\visualplaceholder{INSERT RC FILTER AND OSCILLOSCOPE CONNECTION SCHEMATIC (Arduino Pin 9 to R to Node with C to GND, scope probes on both Ch1 and Ch2)}
+
+\subsection{Oscilloscope Setup}
+
+\begin{itemize}
+    \item \textbf{Channel 1 (Yellow):} Probe connected after the RC filter (smoothed output).
+    \item \textbf{Channel 2 (Blue):} Probe connected to the function generator or microphone preamplifier output (reference input).
+    \item \textbf{Trigger:} Set to Channel 2, rising edge, auto mode.
+    \item \textbf{Timebase:} 200 $\mu$s/div (for observing 100 Hz to 5 kHz signals).
+    \item \textbf{Voltage Scale:} Ch1 and Ch2 both set to 1 V/div or 500 mV/div (adjust to fit the signal).
+\end{itemize}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Pre-Lab Activity: Theoretical Filter Design}
+%--------------------------------------------------------------
+
+\subsection{Assignment: Your Unique Cutoff Frequency}
+
+Your TA will assign each lab pair a \textbf{unique normalized cutoff frequency}. Record it here:
+
+\notespacebox{2in}{%
+\textbf{Your Assigned Cutoff Frequency:} \\[0.15in]
+$\omega_c = \underline{\hspace{2.0cm}}$ rad/sample \\[0.15in]
+Analog cutoff: $f_c = \underline{\hspace{2.0cm}}$ Hz (where $f_s = 16$ kHz)\\
+}
+
+\noindent
+The relationship between normalized and analog cutoff is:
+
+\begin{equation}
+\omega_c \text{ (rad/sample)} = \frac{2 \pi f_c}{f_s},
+\end{equation}
+
+\noindent
+where $f_s = 16000$ Hz is the sampling rate.
+
+\subsection{Task 1: Hand-Derive the Ideal Sinc Impulse Response}
+
+For your assigned $\omega_c$, compute the ideal (infinite-length) impulse response at the specified sample indices. The sinc function is defined as:
+
+\begin{equation}
+\text{sinc}(u) = \begin{cases}
+1 & u = 0 \\
+\frac{\sin(\pi u)}{\pi u} & u \ne 0
+\end{cases}
+\end{equation}
+
+\noindent
+Your filter will have $N = 11$ coefficients centered at $n = 0$, so compute:
+
+\begin{equation}
+h[n] = \frac{\omega_c}{\pi} \, \text{sinc}\left(\frac{n \omega_c}{\pi}\right) \quad \text{for } n = -5, -4, \ldots, 4, 5
+\end{equation}
+
+\pldECE{Show your hand calculations for at least three tap values (e.g., $h[0]$, $h[1]$, $h[2]$). Use a calculator if needed.}
+
+\notespacebox{3in}{%
+\textbf{Hand-Calculated Sinc Coefficients:}\\[0.2in]
+\vspace{2.5in}
+}
+
+\subsection{Task 2: List Your Windowed FIR Coefficients}
+
+For a rectangular window of length $N = 11$, your hand-derived sinc values \textit{are} your final windowed coefficients. Record them as a vector:
+
+\pldECE{List all 11 coefficients (from $h[-5]$ to $h[5]$).}
+
+\notespacebox{2.5in}{%
+\textbf{Windowed FIR Coefficients (N=11):}\\[0.2in]
+\vspace{2.0in}
+}
+
+\subsection{Task 3: Compare with MATLAB's \texttt{fir1()}}
+
+In MATLAB, run the following code to generate the professional filter coefficients:
+
+\begin{lstlisting}[language=MATLAB, basicstyle=\ttfamily\small]
+% Pre-Lab Filter Design
+Nfir = 11;  % Number of taps
+omega_c_rad_sample = 0.4 * pi;  % YOUR ASSIGNED VALUE (in rad/sample)
+normalized_freq = omega_c_rad_sample / pi;  % Normalize to [0, 1]
+
+% Generate FIR filter using MATLAB's fir1()
+h_filter = fir1(Nfir - 1, normalized_freq);
+fprintf('MATLAB fir1() coefficients:\n');
+disp(h_filter);
+
+% Compute and plot frequency response
+[H, w] = freqz(h_filter, 1, 512);
+f = w / (2*pi) * 16000;  % Convert to Hz
+H_mag = abs(H);
+
+figure;
+semilogy(f, H_mag);
+xlabel('Frequency (Hz)');
+ylabel('Magnitude |H(e^{j\omega})|');
+title('FIR Filter Frequency Response (MATLAB fir1)');
+grid on;
+\end{lstlisting}
+
+\pldECE{Record the MATLAB-generated coefficients and create the frequency response plot.}
+
+\notespacebox{2.5in}{%
+\textbf{MATLAB fir1() Output:}\\[0.2in]
+\vspace{2.0in}
+}
+
+\subsection{Task 4: Compare Hand vs. MATLAB}
+
+Compute the absolute difference between your hand-derived coefficients and MATLAB's output. Are they close?
+
+\pldECE{Show the coefficient comparison table (hand value, MATLAB value, absolute difference). Typical discrepancy should be $< 0.01$.}
+
+\notespacebox{2.5in}{%
+\textbf{Coefficient Comparison (Hand vs. MATLAB):}\\[0.2in]
+\vspace{2.0in}
+}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Software Implementation: Simulink Model-Based Design}
+%--------------------------------------------------------------
+
+\subsection{Overview of the Skeleton Model}
+
+A file named \texttt{AudioFilter\_Skeleton.slx} has been pre-configured with:
+\begin{itemize}
+    \item \textbf{ADC Input Block:} Reads from Arduino A0 at 16 kHz sampling rate.
+    \item \textbf{Discrete FIR Filter Block:} (Currently empty; you will add coefficients.)
+    \item \textbf{DAC Output Block:} Writes to Arduino Pin 9 at 16 kHz PWM frequency.
+    \item \textbf{Model Settings:} Target microcontroller, sample time, and hardware configuration are pre-set.
+\end{itemize}
+
+\noindent
+\textbf{Your job:} Insert your FIR coefficients into the Discrete FIR Filter block and deploy.
+
+\subsection{Step 1: Prepare Your MATLAB Workspace}
+
+Before opening Simulink, ensure your FIR coefficients are in the MATLAB base workspace:
+
+\begin{lstlisting}[language=MATLAB, basicstyle=\ttfamily\small]
+% Prepare FIR coefficients for Simulink
+Nfir = 11;
+omega_c_rad_sample = 0.4 * pi;  % YOUR ASSIGNED VALUE
+normalized_freq = omega_c_rad_sample / pi;
+h_filter = fir1(Nfir - 1, normalized_freq);
+
+% Make sure this variable is in the base workspace
+assignin('base', 'h_filter', h_filter);
+disp('h_filter saved to workspace.');
+\end{lstlisting}
+
+\subsection{Step 2: Open the Skeleton Simulink Model}
+
+\begin{lstlisting}[language=MATLAB, basicstyle=\ttfamily\small]
+open('AudioFilter_Skeleton.slx');
+\end{lstlisting}
+
+\noindent
+Simulink will open a new window showing the model.
+
+\visualplaceholder{INSERT SIMULINK MODEL SCREENSHOT (showing ADC, empty FIR block, DAC blocks before coefficient insertion)}
+
+\subsection{Step 3: Insert the Discrete FIR Filter Block}
+
+\begin{enumerate}
+    \item In the Simulink model, locate the \textbf{Discrete FIR Filter} block (should be pre-placed as a placeholder).
+    \item Double-click the block to open its parameters dialog.
+\end{enumerate}
+
+\visualplaceholder{INSERT SCREENSHOT OF DISCRETE FIR FILTER BLOCK PARAMETER DIALOG}
+
+\subsection{Step 4: Load Coefficients from Workspace}
+
+In the Discrete FIR Filter block parameters:
+
+\begin{itemize}
+    \item \textbf{Coefficient source:} Select ``Specify via dialog''.
+    \item \textbf{Coefficients:} In the text field, enter \texttt{h\_filter} (the variable name from your MATLAB workspace).
+    \item Click \textbf{OK} to apply.
+\end{itemize}
+
+\noindent
+Simulink will read the variable from the base workspace and use those 11 coefficients.
+
+\subsection{Step 5: Build, Deploy \& Start}
+
+\begin{enumerate}
+    \item In the Simulink toolbar, click \textbf{``Monitor \& Tune''} (or select \texttt{Simulation} $\to$ \texttt{Deploy to Hardware}).
+    \item Simulink will automatically:
+        \begin{enumerate}
+            \item Compile your model to optimized C++ code.
+            \item Build the executable for the Arduino.
+            \item Flash the binary onto the microcontroller via USB.
+            \item Start real-time execution.
+        \end{enumerate}
+    \item Watch the MATLAB Command Window for build messages. You should see ``Build Successful'' and Arduino LEDs will blink during flashing.
+    \item The model enters real-time mode; your FIR filter is now running on the hardware.
+\end{enumerate}
+
+\noindent
+\textbf{CRITICAL:} Do not modify the ADC/DAC blocks or sample rate. These are pre-configured and locked. Only change the FIR Filter coefficients.
+
+\visualplaceholder{INSERT SCREENSHOT OF COMPLETED SIMULINK MODEL (showing all three blocks connected, FIR block labeled with coefficients)}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Measurement \& Verification: Empirical Frequency Response}
+%--------------------------------------------------------------
+
+\subsection{Measurement Strategy}
+
+You will measure your filter's frequency response by sweeping a sinusoidal input across the audio spectrum and recording input/output amplitude ratios. This is called a \textbf{Bode plot by hand}.
+
+\subsection{Equipment Configuration}
+
+\begin{itemize}
+    \item \textbf{Function Generator:} Set to sinusoidal output, approximately 1 V peak amplitude.
+    \item \textbf{Oscilloscope Channel 2:} Probe the function generator (reference signal).
+    \item \textbf{Oscilloscope Channel 1:} Probe the Arduino's RC-filtered output (filtered signal).
+    \item Both channels set to 1 V/div or 500 mV/div for clear visibility.
+\end{itemize}
+
+\subsection{Task 1: Measure Gain at Key Test Frequencies}
+
+Sweep the function generator through the following frequencies and record input/output peak-to-peak voltages:
+
+\notespacebox{3in}{%
+\textbf{Frequency Response Measurements:}\\[0.15in]
+\hspace{0.3in}\begin{tabular}{|c|c|c|c|c|}
+\hline
+\textbf{Freq (Hz)} & \textbf{$V_{\text{in,pp}}$ (V)} & \textbf{$V_{\text{out,pp}}$ (V)} & \textbf{Gain} & \textbf{Gain (dB)} \\
+\hline
+100 & & & & \\
+\hline
+500 & & & & \\
+\hline
+1000 & & & & \\
+\hline
+$f_c$ (your cutoff) & & & & \\
+\hline
+2000 & & & & \\
+\hline
+4000 & & & & \\
+\hline
+6000 & & & & \\
+\hline
+8000 & & & & \\
+\hline
+\end{tabular}
+}
+
+\noindent
+\textbf{At each frequency:}
+\begin{enumerate}
+    \item Set function generator to the desired frequency.
+    \item Let oscilloscope display stabilize (10--20 cycles).
+    \item Measure peak-to-peak voltage of Ch2 (input reference).
+    \item Measure peak-to-peak voltage of Ch1 (filtered output).
+    \item Compute gain: $\text{Gain} = V_{\text{out,pp}} / V_{\text{in,pp}}$.
+    \item Compute gain in dB: $\text{Gain}_{\text{dB}} = 20 \log_{10}(\text{Gain})$.
+\end{enumerate}
+
+\subsection{Task 2: Capture Scope Waveforms at Key Frequencies}
+
+\cpECE{Photograph or screenshot the oscilloscope display at three key frequencies:}
+
+\begin{enumerate}
+    \item \textbf{Passband (100 Hz):} Input and output should be nearly identical in amplitude.
+
+    \visualplaceholder{INSERT SCOPE CAPTURE AT 100 HZ (passband, minimal attenuation)}
+
+    \item \textbf{Cutoff Frequency ($f_c$):} Output should be attenuated to approximately 70.7\% of input amplitude (--3 dB point).
+
+    \visualplaceholder{INSERT SCOPE CAPTURE AT CUTOFF FREQUENCY (output $\approx$ 0.707 $\times$ input)}
+
+    \item \textbf{Stopband (6000--8000 Hz):} Output should be significantly attenuated compared to input.
+
+    \visualplaceholder{INSERT SCOPE CAPTURE AT HIGH FREQUENCY (strong attenuation in stopband)}
+
+\end{enumerate}
+
+\subsection{Task 3: Create the Empirical Bode Plot in MATLAB}
+
+Plot your measured frequency response data alongside the theoretical curve. Use MATLAB's \texttt{freqz()} to compute the theory:
+
+\begin{lstlisting}[language=MATLAB, basicstyle=\ttfamily\small]
+%% Empirical Frequency Response Plot
+% Your measured data
+f_measured = [100, 500, 1000, f_c, 2000, 4000, 6000, 8000];
+gain_measured = [...];  % Fill in your measured gain values (linear, not dB)
+
+% Theoretical response from MATLAB
+[H_theory, w] = freqz(h_filter, 1, 1024);
+f_theory = w / (2*pi) * 16000;  % Convert to Hz
+H_mag_theory = abs(H_theory);
+
+%% Plot magnitude response
+figure('Position', [100, 100, 1000, 700]);
+subplot(2, 1, 1);
+semilogy(f_theory, H_mag_theory, 'b-', 'LineWidth', 2);
+hold on;
+semilogy(f_measured, gain_measured, 'ro', 'MarkerSize', 10, ...
+         'LineWidth', 2);
+xlabel('Frequency (Hz)');
+ylabel('Magnitude |H(e^{j\omega})|');
+legend('Theory (freqz)', 'Hardware Measurement', 'Location', 'best');
+title(['FIR Filter Frequency Response: $f_c$ = ' num2str(f_c) ' Hz']);
+grid on;
+xlim([0, 10000]);
+
+%% Plot phase response
+subplot(2, 1, 2);
+phase_theory = angle(H_theory) * 180 / pi;
+plot(f_theory, phase_theory, 'b-', 'LineWidth', 2);
+xlabel('Frequency (Hz)');
+ylabel('Phase (degrees)');
+grid on;
+xlim([0, 10000]);
+
+%% Add name and student ID
+sgtitle(['Lab 09 Frequency Response | Your Name | Student ID']);
+\end{lstlisting}
+
+\pldECE{Generate the empirical frequency response plot (magnitude and phase) and include your name/student ID in the title.}
+
+\subsection{Task 4: Analyze Agreement Between Theory and Hardware}
+
+\disECE{Answer the following questions:}
+
+\notespacebox{3.5in}{%
+\textbf{Analysis Questions:}\\[0.15in]
+1. How close are your measured points to the theoretical curve? Estimate maximum error in dB.\\[0.2in]
+2. Does your filter achieve the expected --3 dB attenuation at $f_c$?\\[0.2in]
+3. What is the observed attenuation (in dB) in the stopband (6--8 kHz)?\\[0.2in]
+4. List potential sources of error (ADC quantization, PWM jitter, component tolerances, etc.).\\[0.2in]
+}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Deliverables \& TA Sign-Off}
+%--------------------------------------------------------------
+
+\subsection*{Four Checkpoints for Progressive Assessment}
+
+\textbf{Your lab is graded at four checkpoints. Your TA will initial each one and record the time. Work efficiently to finish within the 2-hour window.}
+
+\vspace{0.5cm}
+
+\subsubsection*{Checkpoint 1: Filter Design Validation (Target: 20 min)}
+
+\cpECE{Before construction, show the TA:}
+\begin{itemize}
+    \item[$\square$] Pre-lab hand-derived windowed-sinc coefficients (from Pre-Lab Tasks 1 and 2).
+    \item[$\square$] MATLAB \texttt{fir1()} output for the same filter order (from Pre-Lab Task 3).
+    \item[$\square$] Comparison table showing absolute differences between hand and MATLAB values (from Pre-Lab Task 4).
+    \item[$\square$] TA verifies: coefficients are mathematically correct and differences are within tolerance ($< 0.01$ per tap).
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{TA Signature:} \underline{\hspace{2.5cm}} \quad \textbf{Time:} \underline{\hspace{1.5cm}}
+
+\vspace{0.5cm}
+
+\subsubsection*{Checkpoint 2: Simulink Model and Deployment (Target: 30 min)}
+
+\cpECE{Before measurement, show the TA:}
+\begin{itemize}
+    \item[$\square$] Screenshot of the completed Simulink model (showing ADC $\to$ FIR Filter $\to$ DAC blocks properly connected).
+    \item[$\square$] Discrete FIR Filter block parameters showing \texttt{h\_filter} variable loaded.
+    \item[$\square$] Evidence of successful build and deployment: MATLAB Command Window showing ``Build Successful'' and/or Arduino LED activity.
+    \item[$\square$] TA verifies model is running in real-time on hardware and accepts function generator input.
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{TA Signature:} \underline{\hspace{2.5cm}} \quad \textbf{Time:} \underline{\hspace{1.5cm}}
+
+\vspace{0.5cm}
+
+\subsubsection*{Checkpoint 3: Scope Captures and Measurement (Target: 35 min)}
+
+\cpECE{Show the TA:}
+\begin{itemize}
+    \item[$\square$] Three scope captures (photographs or USB exports) at 100 Hz, $f_c$, and 6--8 kHz showing input and output signals.
+    \item[$\square$] A completed measurement table with at least 8 frequency points, peak-to-peak voltages, and computed gains.
+    \item[$\square$] Observed behavior matches expectations: minimal attenuation in passband (< 1 dB), $\approx$ --3 dB at $f_c$, strong attenuation (> 10 dB) in stopband.
+    \item[$\square$] TA verifies hardware is functioning correctly and measurements are physically plausible.
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{TA Signature:} \underline{\hspace{2.5cm}} \quad \textbf{Time:} \underline{\hspace{1.5cm}}
+
+\vspace{0.5cm}
+
+\subsubsection*{Checkpoint 4: Empirical Frequency Response Plot (Target: 25 min)}
+
+\cpECE{Show the TA:}
+\begin{itemize}
+    \item[$\square$] MATLAB plot showing both magnitude and phase responses.
+    \item[$\square$] Theoretical curve (blue line) computed with \texttt{freqz()} over the range 0--10 kHz.
+    \item[$\square$] Measured hardware data points (red markers) overlaid on the theoretical curve.
+    \item[$\square$] Proper axis labels: Frequency (Hz), Magnitude (linear or dB), Phase (degrees).
+    \item[$\square$] Your name and student ID in the figure title (\texttt{sgtitle}).
+    \item[$\square$] TA verifies: agreement within engineering tolerance ($\pm 3$ dB in passband, $\pm 5$ dB in stopband).
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{TA Signature:} \underline{\hspace{2.5cm}} \quad \textbf{Time:} \underline{\hspace{1.5cm}}
+
+\vspace{1cm}
+
+\subsection*{Final Grade Summary}
+
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Checkpoint} & \textbf{Points} & \textbf{Signed Off} \\
+\hline
+1. Filter Design Validation & 25 & $\square$ \\
+2. Simulink Model \& Deployment & 25 & $\square$ \\
+3. Scope Captures \& Measurements & 25 & $\square$ \\
+4. Frequency Response Plot & 25 & $\square$ \\
+\hline
+\textbf{TOTAL} & \textbf{100} & \\
+\hline
+\end{tabular}
+\end{center}
+
+\vspace{0.5cm}
+
+\textbf{Final TA Signature:} \underline{\hspace{4cm}} \quad \textbf{Final Grade:} \underline{\hspace{1.5cm}}
+
+\clearpage
+
+\appendix
+
+%--------------------------------------------------------------
+\section{Fourier Transform Fundamentals}
+%--------------------------------------------------------------
+
+\subsection{Continuous-Time Fourier Transform (CTFT)}
+
+The CTFT of a continuous-time signal $x(t)$ is defined as:
+
+\begin{equation}
+X(j\omega) = \int_{-\infty}^{\infty} x(t) e^{-j\omega t} \, dt,
+\end{equation}
+
+\noindent
+and the inverse CTFT is:
+
+\begin{equation}
+x(t) = \frac{1}{2\pi} \int_{-\infty}^{\infty} X(j\omega) e^{j\omega t} \, d\omega.
+\end{equation}
+
+\noindent
+The CTFT maps time-domain signals to frequency-domain representations, revealing the spectral content (which frequencies are present and at what amplitudes).
+
+\subsection{The Ideal Low-Pass Filter}
+
+An ideal low-pass filter has a rectangular frequency response:
+
+\begin{equation}
+H_{\text{ideal}}(j\omega) = \begin{cases}
+1 & |\omega| < \omega_c \\
+0 & |\omega| \ge \omega_c
+\end{cases}
+\end{equation}
+
+\noindent
+Applying the inverse CTFT yields the sinc impulse response:
+
+\begin{equation}
+h_{\text{ideal}}(t) = \frac{\omega_c}{\pi} \, \text{sinc}\left(\frac{\omega_c t}{\pi}\right).
+\end{equation}
+
+\noindent
+This ideal response extends from $t = -\infty$ to $t = \infty$ and is thus non-realizable in practice. Real filters approximate this ideal by windowing and truncating the sinc function.
+
+\section{Discrete-Time Fourier Transform and FIR Filters}
+
+\subsection{Discrete-Time Fourier Transform (DTFT)}
+
+For a discrete-time signal $x[n]$, the DTFT is:
+
+\begin{equation}
+X(e^{j\omega}) = \sum_{n=-\infty}^{\infty} x[n] e^{-j\omega n},
+\end{equation}
+
+\noindent
+where $\omega \in [0, 2\pi)$ is the normalized angular frequency. The DTFT is periodic with period $2\pi$.
+
+\subsection{FIR Filter Design: Window Method}
+
+The most straightforward design method:
+\begin{enumerate}
+    \item Start with the ideal sinc impulse response.
+    \item Truncate to $N$ coefficients centered at $n = 0$.
+    \item Optionally apply a window function (rectangular, Hamming, Hann) to reduce side lobe artifacts.
+\end{enumerate}
+
+\noindent
+MATLAB's \texttt{fir1()} implements this using a Hamming window by default, which provides good frequency selectivity and low ripple in both passband and stopband.
+
+\section{MATLAB Code Templates and Examples}
+
+\subsection{Complete Pre-Lab Workflow}
+
+\begin{lstlisting}[language=MATLAB, basicstyle=\ttfamily\small]
+%% Lab 09 Pre-Lab: FIR Filter Design
+clear; clc;
+
+%% Assigned parameters
+omega_c_rad_sample = 0.4 * pi;  % CHANGE TO YOUR ASSIGNED VALUE
+fs = 16000;  % Sampling rate in Hz
+
+%% Compute analog cutoff frequency
+f_c = (omega_c_rad_sample / (2*pi)) * fs;
+fprintf('Lab 09 Pre-Lab\n');
+fprintf('Cutoff (rad/sample): %.4f\n', omega_c_rad_sample);
+fprintf('Cutoff (Hz): %.1f\n\n', f_c);
+
+%% Task 1: Hand-derive sinc coefficients
+n = -5:5;
+h_hand = sinc(n .* omega_c_rad_sample / pi);
+fprintf('Hand-derived sinc coefficients:\n');
+fprintf('n=%d: h[n]=%.6f\n', [n; h_hand]);
+
+%% Task 3: MATLAB fir1()
+Nfir = 11;
+normalized_freq = omega_c_rad_sample / pi;
+h_filter = fir1(Nfir - 1, normalized_freq);
+fprintf('\nMATLAB fir1() coefficients:\n');
+fprintf('n=%d: h[n]=%.6f\n', [n; h_filter']);
+
+%% Frequency response
+[H, w] = freqz(h_filter, 1, 1024);
+f = w / (2*pi) * fs;
+H_mag = abs(H);
+H_phase = angle(H) * 180 / pi;
+
+figure('Position', [100, 100, 1000, 600]);
+subplot(2, 1, 1);
+semilogy(f, H_mag, 'b-', 'LineWidth', 2);
+xlabel('Frequency (Hz)');
+ylabel('Magnitude |H(e^{j\omega})|');
+title(sprintf('FIR Filter: f_c = %.1f Hz', f_c));
+grid on;
+xlim([0, 8000]);
+
+subplot(2, 1, 2);
+plot(f, H_phase, 'b-', 'LineWidth', 2);
+xlabel('Frequency (Hz)');
+ylabel('Phase (degrees)');
+grid on;
+xlim([0, 8000]);
+\end{lstlisting}
+
+\section{Simulink and Model-Based Design Guide}
+
+\subsection{Setting Up the Arduino Target}
+
+\begin{itemize}
+    \item Open Simulink and select \texttt{Simulation} $\to$ \texttt{Model Configuration Parameters}.
+    \item Navigate to \texttt{Hardware Implementation}.
+    \item Set \textbf{Hardware Board} to ``Arduino Uno''.
+    \item Verify that the \textbf{Solver} is set to ``Fixed-step'', ``Discrete (no continuous states)''.
+\end{itemize}
+
+\subsection{The Discrete FIR Filter Block}
+
+Location in Simulink Library Browser: \texttt{Simulink} $\to$ \texttt{Filtering} $\to$ \texttt{Discrete Filters}.
+
+\noindent
+\textbf{Key Parameters:}
+\begin{itemize}
+    \item \textbf{Coefficients:} Reference a MATLAB workspace variable (e.g., \texttt{h\_filter}).
+    \item \textbf{Sample Time:} Set to 1/16000 s (matching the ADC sample rate).
+    \item \textbf{Initial Conditions:} Leave as default (zeros).
+\end{itemize}
+
+\section{Troubleshooting Guide}
+
+\subsection{Pre-Lab Issues}
+
+\begin{itemize}
+    \item \textbf{fir1() not available:} Verify Signal Processing Toolbox is installed. Run \texttt{ver} in MATLAB to check.
+    \item \textbf{Sinc values disagree with MATLAB:} Double-check the sinc definition. MATLAB uses $\text{sinc}(x) = \sin(\pi x) / (\pi x)$ with $\text{sinc}(0) = 1$.
+    \item \textbf{Coefficients very different from MATLAB output:} Verify your normalized frequency is in [0, 1]. Compare with \texttt{fir1(10, omega\_c/pi)} in MATLAB.
+\end{itemize}
+
+\subsection{Simulink Deployment Issues}
+
+\begin{itemize}
+    \item \textbf{Arduino not recognized:} Check USB cable and ensure Arduino board shows in Device Manager (Windows) or \texttt{/dev/} (Mac/Linux). Try ``Build Hardware'' without deployment first.
+    \item \textbf{Build fails with unknown symbol:} Ensure \texttt{h\_filter} variable is in the MATLAB base workspace. Run \texttt{assignin('base', 'h\_filter', h\_filter);} before deployment.
+    \item \textbf{ADC reads all zeros:} Check that A0 is connected to the preamplifier output and powered. Verify Arduino can read analog voltages independently (e.g., with a simple sketch).
+    \item \textbf{No output on Pin 9:} Verify the DAC output block is properly configured. Check Pin 9 with a multimeter (should see toggling PWM).
+\end{itemize}
+
+\subsection{Measurement Issues}
+
+\begin{itemize}
+    \item \textbf{Scope shows very noisy signal:} Verify oscilloscope probes are properly grounded. Use short, twisted probe leads. Increase averaging if available.
+    \item \textbf{Measured attenuation is much less than expected:} Check that the correct coefficients were loaded into the FIR block. Re-deploy the model if coefficients changed.
+    \item \textbf{Frequency response doesn't match theory:} ADC/DAC quantization and PWM timing jitter cause deviations. These are normal; document and explain in your analysis.
+\end{itemize}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section*{References and Inspiration}
+\addcontentsline{toc}{section}{References and Inspiration}
+%--------------------------------------------------------------
+
+\subsection*{University Course Inspirations}
+
+This lab represents a convergence of signal theory, practical DSP implementation, and professional software engineering:
+
+\begin{itemize}
+    \item \textbf{MIT 6.003 (Signals, Systems, and Inference):} The derivation of the sinc function as the ideal low-pass impulse response, the Discrete-Time Fourier Transform (DTFT), and the frequency response of FIR filters are foundational to this lab. MIT's rigorous mathematical treatment of signal analysis informs the windowed-sinc design methodology.
+
+    \item \textbf{MIT 6.007 (Applied Electromagnetics):} While this lab focuses on digital filters, the underlying circuit concepts (passband ripple, stopband attenuation, phase response) originate in analog filter theory, which MIT's circuits curriculum emphasizes.
+
+    \item \textbf{Rice University ELEC 241 (Real-Time DSP):} Rice's foundational expertise in embedded, real-time signal processing is the heartbeat of this lab. ELEC 241 emphasizes \textbf{direct implementation}: code that actually runs on microcontrollers, not just simulation. Rice's philosophy is reflected in the Simulink-to-embedded-code workflow—the method by which professional DSP engineers deploy filters to billions of devices. The lab's focus on finite arithmetic, group delay, and trade-offs between filter order and computational cost directly mirrors ELEC 241's pedagogical priorities.
+
+    \item \textbf{Georgia Tech ECE 2026 (Real-Time DSP):} Georgia Tech's strength in audio processing and real-time system validation informs the lab's focus on empirical frequency response measurement and hardware validation. The three application contexts (hearing aids, cellular modems, EEG monitoring) reflect Georgia Tech's breadth of DSP applications.
+
+    \item \textbf{Duke University ECE 280:} This lab bridges the continuous-time Fourier analysis of Labs 1--7 with discrete-time signal processing and embedded implementation. Students progress from analog prototype (Lab 08) to digital realization (Lab 09)—a fundamental engineering workflow.
+\end{itemize}
+
+\subsection*{Core References}
+
+\begin{itemize}
+    \item Oppenheim, A. V., Schafer, R. W., \& Buck, J. R. (2010). \textit{Discrete-Time Signal Processing} (3rd ed.). Prentice Hall.
+    \begin{itemize}
+        \item \textbf{Chapters 5--7:} Discrete-Time Fourier Transform, FIR filter design, windowing, and the frequency response of digital filters.
+        \item \textbf{Standard reference:} Textbook used in undergraduate DSP courses worldwide.
+    \end{itemize}
+
+    \item Harris, F. J. (1978). ``On the use of windows for harmonic analysis with the discrete Fourier transform.'' \textit{Proceedings of the IEEE}, 66(1), 51--83.
+    \begin{itemize}
+        \item \textbf{Foundational paper:} Explains why windows are necessary for FIR filter design and catalogs trade-offs between window families (rectangular, Hamming, Hann, Blackman).
+        \item \textbf{Practical focus:} The Hamming window you use in this lab is justified by this seminal work.
+    \end{itemize}
+
+    \item Orfanidis, S. J. (2009). \textit{Introduction to Signal Processing}. Prentice Hall (available online at www.ece.rutgers.edu/~orfanidi/intro2sp/).
+    \begin{itemize}
+        \item \textbf{Chapters 10--11:} FIR and IIR filter design with detailed windowed-sinc methodology.
+        \item \textbf{Clear derivations:} Explains the sinc function and windowing with pedagogical clarity suitable for undergraduate students.
+    \end{itemize}
+
+    \item The MathWorks. \textit{Simulink User Guide and Code Generation Documentation}.
+    \begin{itemize}
+        \item \textbf{Professional toolchain:} Simulink is the industrial standard for Model-Based Design in automotive, aerospace, and consumer electronics.
+        \item \textbf{Code generation:} The Embedded Coder and Arduino Support Package transform your graphical model into optimized C code deployed to embedded processors.
+    \end{itemize}
+
+    \item Zölzer, U. (2011). \textit{DAFX: Digital Audio Effects} (2nd ed.). Wiley.
+    \begin{itemize}
+        \item \textbf{Audio-specific:} Real-world audio filter design, including hearing aids, equalizers, and noise reduction—three of the application contexts in this lab.
+        \item \textbf{Hardware constraints:} Addresses fixed-point arithmetic, latency, and real-time CPU budgets.
+    \end{itemize}
+
+    \item Steiglitz, K. (1996). \textit{A Digital Signal Processing Primer: With Applications to Digital Audio and Computer Music}. Addison-Wesley.
+    \begin{itemize}
+        \item \textbf{Intuitive approach:} Connects digital filter theory to audible sound and musical instruments, making the abstract concrete.
+    \end{itemize}
+
+    \item IEEE 754-2019: \textit{IEEE Standard for Floating-Point Arithmetic}.
+    \begin{itemize}
+        \item \textbf{Hardware constraint:} Defines how real numbers are represented in embedded processors and DSP cores. Finite precision impacts filter stability and coefficient quantization.
+    \end{itemize}
+\end{itemize}
+
+\subsection*{Industry Standards and Validation}
+
+\begin{itemize}
+    \item IEEE 1057: \textit{Standard for Digitizing Waveform Recorders}.
+    \begin{itemize}
+        \item \textbf{Measurement standard:} Defines best practices for empirically measuring frequency response of digital systems in hardware.
+        \item \textbf{Hardware validation:} This lab's methodology of sweeping sinusoids and measuring amplitude ratios follows IEEE 1057 principles.
+    \end{itemize}
+
+    \item FDA 510(k) Predicate Devices (biomedical context):
+    \begin{itemize}
+        \item \textbf{Regulatory requirement:} For the EEG monitoring application (Program 3), the filter must be validated both in simulation and hardware. Clinical sensitivity and specificity benchmarks are FDA-mandated.
+    \end{itemize}
+
+    \item 3GPP TS 36.104 (LTE Specification):
+    \begin{itemize}
+        \item \textbf{Wireless communications context:} For the cellular modem equalizer application (Program 2), channel equalization performance is governed by 3GPP standards. Your FIR filter's coefficients must adapt to maintain signal-to-interference-plus-noise ratio (SINR) above a threshold.
+    \end{itemize}
+\end{itemize}
+
+\subsection*{Software Tools and Deployment}
+
+\begin{itemize}
+    \item MATLAB \& Simulink (MathWorks).
+    \begin{itemize}
+        \item \texttt{fir1()}: Compute windowed-sinc coefficients (Hamming, Hann, Blackman, Kaiser windows).
+        \item \texttt{freqz()}: Compute and plot the frequency response of an FIR filter.
+        \item Simulink Discrete FIR Filter block: Real-time filter implementation.
+        \item Embedded Coder: Auto-generate optimized C/C++ code for ARM Cortex-M, DSP, and FPGA targets.
+    \end{itemize}
+
+    \item Arduino IDE with Simulink Support Package.
+    \begin{itemize}
+        \item \textbf{Microcontroller target:} Deploy Simulink models to Arduino Uno, Mega, and MKR boards.
+        \item \textbf{Real-time sampling:} Achievable ADC rates up to 16 kHz (sufficient for audio and biomedical applications).
+    \end{itemize}
+
+    \item GNU Octave (free alternative to MATLAB).
+    \begin{itemize}
+        \item \textbf{Open-source:} Equivalent \texttt{fir1()} and \texttt{freqz()} functions available in Octave's Signal Package.
+    \end{itemize}
+\end{itemize}
+
+\subsection*{Why This Lab Bridges Theory and Practice}
+
+This lab teaches the \textbf{professional DSP workflow}: from mathematical theory (sinc function, Fourier transforms) to graphical design (Simulink blocks) to auto-generated embedded code. This is how every smartphone, hearing aid, and base station filter is designed and validated. By implementing this workflow yourself—deriving coefficients by hand, building a Simulink model, and measuring hardware performance—you gain the intuition and skills that make you a productive DSP engineer in industry.
+
+\end{document}
