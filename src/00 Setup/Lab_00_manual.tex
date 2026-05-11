@@ -208,10 +208,107 @@ Submit the following to Gradescope:
     \item \textbf{Deliverable 4:} MATLAB Onramp Certificate PDF.
 \end{itemize}
 
-\section{Updates}
+\clearpage
+
+\section*{References and Inspiration}
+
+\subsection*{University Course Inspirations}
+
+This foundational lab prepares you for the full ECE 280 course by establishing the software and hardware infrastructure that all subsequent labs depend on:
+
 \begin{itemize}
-\item April 2026: Updated for MATLAB R2023b, Arduino IDE 2.x, and CH340 driver requirements.
+    \item \textbf{MIT 6.003 (Signals, Systems, and Inference):} MIT's emphasis on rigorous mathematical analysis paired with practical implementation motivates the requirement for MATLAB—the industry-standard tool for signal processing education and research.
+
+    \item \textbf{Georgia Tech ECE 2026 (Real-Time DSP):} Georgia Tech's real-time hardware-in-the-loop pedagogy drives the Arduino + MATLAB integration. The Arduino Mega 2560 is affordable, reliable, and capable of real-time DSP at kilohertz sample rates—ideal for teaching embedded signal processing on actual microcontroller hardware.
+
+    \item \textbf{Rice University ELEC 241 (Real-Time DSP):} Rice's curriculum emphasizes \textbf{direct hardware implementation} on microcontrollers. This setup lab ensures you have a working embedded platform (Arduino Mega) before diving into signal acquisition, filtering, and real-time control in Labs 1--14.
+
+    \item \textbf{Duke University ECE 280:} This course bridges classical Fourier analysis, digital signal processing, and modern communication systems with hands-on hardware validation. The setup ensures all students—regardless of home computer OS or prior Arduino experience—can successfully run labs in a consistent, reproducible environment.
+\end{itemize}
+
+\subsection*{Core Software References}
+
+\begin{itemize}
+    \item The MathWorks. \textit{MATLAB Documentation} (\url{https://www.mathworks.com/help/}).
+    \begin{itemize}
+        \item \textbf{Instrument Control Toolbox:} \texttt{serialport}, \texttt{readline}, \texttt{configureTerminator} for Arduino communication.
+        \item \textbf{Signal Processing Toolbox:} \texttt{fft}, \texttt{freqz}, \texttt{fir1}, \texttt{butter} for signal analysis and filter design.
+        \item \textbf{Control System Toolbox:} \texttt{tf}, \texttt{bode}, \texttt{step} for transfer function analysis.
+        \item \textbf{Simulink:} Block-diagram modeling for real-time system simulation and code generation.
+    \end{itemize}
+
+    \item Arduino. \textit{Arduino IDE Documentation} (\url{https://docs.arduino.cc/}).
+    \begin{itemize}
+        \item \textbf{Arduino Mega 2560:} 54 digital I/O pins, 16 analog inputs, 4 hardware UARTs at up to 2 Mbps, 16 MHz crystal oscillator.
+        \item \textbf{Hardware Specifications:} Flash memory 256 KB, SRAM 8 KB, EEPROM 4 KB.
+        \item \textbf{IDE 2.x improvements:} Integrated debugging, library manager, Boards Manager for easy toolchain setup.
+    \end{itemize}
+
+    \item WCH Semiconductor. \textit{CH340 USB-to-Serial Adapter Datasheet and Driver} (\url{https://www.wch-ic.com}).
+    \begin{itemize}
+        \item \textbf{Common issue:} Most Arduino clones use CH340G instead of the official ATmega16U2. Drivers must be manually installed on Windows/macOS; built-in on modern Linux kernels.
+        \item \textbf{Driver availability:} Cross-platform support (Windows, macOS Ventura/Sonoma, Linux kernel 3.12+).
+    \end{itemize}
+
+    \item Analog Devices. \textit{AD9833 Programmable Waveform Generator Datasheet}.
+    \begin{itemize}
+        \item \textbf{Function generator reference:} Optional hardware for generating precision test signals in later labs.
+    \end{itemize}
+\end{itemize}
+
+\subsection*{Embedded Systems and Real-Time Fundamentals}
+
+\begin{itemize}
+    \item Vahid, F., \& Givargis, T. (2010). \textit{Embedded System Design: A Unified Hardware/Software Introduction} (2nd ed.). Wiley.
+    \begin{itemize}
+        \item \textbf{Chapters 1--3:} Microcontroller architecture, I/O subsystems (GPIO, analog I/O), interrupt handling, and real-time scheduling.
+        \item \textbf{Arduino context:} Explains why the Mega's dual hardware UARTs, interrupt-driven ADC, and PWM outputs are critical for real-time DSP.
+    \end{itemize}
+
+    \item Monk, S. (2013). \textit{Arduino + MATLAB: Audio Waveform Generation, Signal Processing, and Visualization}.
+    \begin{itemize}
+        \item \textbf{Practical guide:} Serial communication protocols, baud rate selection, buffering, and synchronization between Arduino and MATLAB.
+    \end{itemize}
+
+    \item Atmel. \textit{ATmega2560 Datasheet} (now Microchip Technology).
+    \begin{itemize}
+        \item \textbf{Deep reference:} Hardware registers, timer configurations, ADC characteristics. Not required for Lab 0 but essential for advanced Labs 1--14.
+    \end{itemize}
+\end{itemize}
+
+\subsection*{Operating System Compatibility}
+
+\begin{itemize}
+    \item Microsoft. \textit{Windows Device Manager and COM Port Configuration Guide} (\url{https://docs.microsoft.com/}).
+    \begin{itemize}
+        \item \textbf{Windows 10/11:} Native CDC-ACM support for most Arduino boards; CH340 drivers improve clone board stability.
+    \end{itemize}
+
+    \item Apple. \textit{macOS Kernel Extension and Security Guidelines} (\url{https://developer.apple.com/}).
+    \begin{itemize}
+        \item \textbf{Ventura/Sonoma:} User approval required in System Settings for third-party kernel extensions (CH340 drivers).
+    \end{itemize}
+
+    \item Linux Foundation. \textit{udev Rules and Device Permissions} (\url{https://www.kernel.org/}).
+    \begin{itemize}
+        \item \textbf{dialout group:} Linux provides built-in USB-to-serial support; user permission configuration required.
+    \end{itemize}
+\end{itemize}
+
+\subsection*{Why This Setup Matters}
+
+This lab is foundational because \textbf{every subsequent lab depends on a working MATLAB + Arduino environment}. A broken serial connection, missing toolbox, or driver issue will block you from conducting the actual experiments. By investing time now in correct setup, you prevent weeks of frustration later.
+
+The specific choices (MATLAB, Arduino Mega, 115200 baud, etc.) reflect decades of ECE education best practices: MATLAB is the standard in signal processing; Arduino Mega is affordable and reliable; and 115200 baud is the sweet spot between speed and USB reliability on breadboard circuits.
+
+\section{Updates and Changelog}
+
+Version history of Lab 0 setup requirements:
+\begin{itemize}
+\item \textbf{April 2026:} Updated for MATLAB R2023b, Arduino IDE 2.x, and CH340 driver requirements. Added References section with pedagogical foundations.
 \item January 2025: Updated lab location and enumerated add-ons.
 \end{itemize}
+
+For a detailed changelog of the entire ECE 280 Lab Redesign initiative, see CHANGELOG.md in the project root.
 
 \end{document}
