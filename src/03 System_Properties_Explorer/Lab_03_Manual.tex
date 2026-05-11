@@ -8,6 +8,9 @@
 \usepackage{xcolor}
 \usepackage{graphicx}
 \usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{fancybox}
+\usepackage{tikz}
 
 \input{ECE280F24header}
 
@@ -21,54 +24,115 @@
     \centering
     \fbox{\parbox[c][#1][c]{0.92\textwidth}{\centering \textbf{#2}}}
 \end{figure}}
+\newcommand{\visualplaceholder}[1]{%
+\begin{figure}[H]
+    \centering
+    \fbox{%
+    \begin{minipage}{0.92\textwidth}
+        \centering
+        \vspace{0.6in}
+        \textcolor{red}{\Large\textbf{[#1]}}\\
+        \vspace{0.6in}
+    \end{minipage}
+    }
+\end{figure}}
+\newcommand{\notespacebox}[2]{%
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[t][#1][t]{0.92\textwidth}{\textbf{Student Notes:} #2}}
+\end{figure}}
 
 \begin{document}
 
 \begin{center}
 \huge{\bf Laboratory 3:}\\
-\large{\bf Signals and Systems}\\
-\large{\bf CT/DT Systems and Basic System Properties}\\
-\large{\bf System Properties Explorer}
+\vspace{0.2in}
+\Large{\bf Signals and Systems}\\
+\Large{\bf CT/DT Systems and Basic System Properties}\\
+\vspace{0.2in}
+\normalsize{\bf System Properties Explorer: Hardware Verification}
 \end{center}
+
+\vspace{0.3in}
+\noindent
+\textbf{Lab Duration:} 2 hours\\
+\textbf{Pre-Lab Time Expected:} 45 minutes (property predictions, test signal design, MATLAB plan)\\
+\textbf{Key Concept:} Mapping formal system property definitions to measurable hardware behavior and quantifying agreement with rigor sufficient for production certification.
 
 \tableofcontents
 \clearpage
 
-\section*{Graded Assignment and Authenticity Requirement}
-\delECE{This is a graded assignment. Include your name and student ID in all required screenshots and in as many additional screenshots as possible. Work missing clear student identification may lose credit.}
+%--------------------------------------------------------------
+\section*{Grading and Authenticity Requirements}
+%--------------------------------------------------------------
 
-\delECE{All MATLAB verification must use your own captured input/output data from hardware. Synthetic data generated entirely in MATLAB is not accepted for property verification credit.}
+\delECE{This is a graded laboratory assignment. Include your \textbf{name and student ID} in all required screenshots and photographs (oscilloscope captures, MATLAB plots, breadboard/setup photos).}
 
-\cpECE{Before submission, verify that all screenshots are legible and include axis labels, units, and measurement readouts where applicable.}
+\delECE{All MATLAB property verification must use your own captured input/output data from hardware. Purely synthetic data generated in MATLAB is not accepted.}
 
-\section*{Note on Prompts}
-Throughout this lab manual, four prompt types indicate required work.
-\begin{itemize}
-\item \color{BrickRed}\textbf{Pre-lab Deliverable ($N$): }Work to complete before entering lab.\color{black}
-\item \color{OliveGreen}\textbf{Checkpoint ($N$): }Evidence to show your TA during lab.\color{black}
-\item \color{Plum}\textbf{Discussion ($N$): }Analysis questions to answer in your submission.\color{black}
-\item \color{BlueViolet}\textbf{Deliverable ($N$): }Required artifacts for grading.\color{black}
-\end{itemize}
+\cpECE{Before submission, verify that all screenshots are legible, include axis labels with units, and clearly show measurement readouts where applicable.}
 
 \clearpage
 
-\section{Abstract}
-This laboratory builds a direct bridge between abstract system-property definitions and measurable hardware behavior. You will implement three physical systems driven by an Arduino source: a first-order RC filter, a diode clipper, and a comparator threshold circuit. For each system, you will evaluate linearity, time invariance, causality, and bounded-input bounded-output stability using both oscilloscope evidence and MATLAB-based numerical tests from captured data.
+%--------------------------------------------------------------
+\section*{Title \& Real-World Context}
+%--------------------------------------------------------------
 
-The instructional objective is not merely classification, but explanation: when a property fails, you must identify the mechanism (memory, thresholding, saturation, finite slew rate, or switching nonlinearity) responsible for the observed behavior.
+\noindent
+\textbf{\large You are a Junior RF Circuit Engineer at a 5G Base Station Equipment Manufacturer}
 
-\section{Learning Objectives}
-By the end of this lab, you should be able to:
-\begin{enumerate}
-    \item Map formal CT/DT property definitions to real circuit behavior under physical non-idealities.
-    \item Design and execute reproducible experiments to test linearity and time invariance using measured input/output pairs.
-    \item Distinguish theoretical causality/stability claims from practical measurement artifacts.
-    \item Quantify property-test agreement using error metrics (e.g., NRMSE) computed from acquired data.
-    \item Defend a system-property truth table with both mathematical argument and hardware evidence.
+\noindent
+Your technical lead has tasked you with validating the analog front-end signal conditioning chain for a next-generation \textbf{5G New Radio receiver module} deployed in carrier networks worldwide. The receiver must reliably handle three critical operational scenarios:
+
+\begin{enumerate}[leftmargin=0.4in]
+    \item \textbf{Wideband Receiver Linear Response (Primary Requirement).} Your module receives 5G signals across a 100+ MHz bandwidth with peak-to-peak amplitudes ranging over 60 dB (from barely detectable $\mu$V signals to interference transients at 1V+). A \textbf{first-order RC low-pass filter} ahead of the ADC must suppress out-of-band interference while remaining perfectly \textbf{linear} in the passband (any nonlinearity causes IMD—intermodulation distortion—that corrupts adjacent-channel decoding). The receiver's linearity specification: $<0.5\%$ THD across the entire operating range. A single component mismatch or thermal drift that violates this linearity destroys the receiver's ability to decode weak signals amid interference, causing field deployment failures and customer complaints.
+
+    \item \textbf{Envelope Detection for Signal Power Measurement (Automatic Gain Control).} A \textbf{diode clipper} detects signal envelopes for automatic gain control (AGC). This circuit must respond proportionally to input amplitude (linearity requirement) and show consistent time-delayed response to amplitude changes (time-invariance requirement). If the clipper is nonlinear or its threshold drifts with temperature, the AGC loop becomes unstable and oscillates, creating audible noise and dropped calls. Your lab validates both linearity and time invariance under realistic load and temperature conditions.
+
+    \item \textbf{Threshold Detection and Alarm Generation (System Stability Certification).} A \textbf{comparator threshold detector} flags excessive interference or system overload. This circuit must be stable (bounded output for bounded input, no ringing or oscillation) and causal (output does not respond before the input edge arrives). If the comparator rings or exhibits instability, it generates false alarms that crash the receiver or trigger unnecessary power backoffs, degrading cell-site throughput.
 \end{enumerate}
 
-\section{Theoretical Background}
-For a system operator $\mathcal{T}\{\cdot\}$ with input $x(t)$ and output $y(t)$:
+\noindent
+\textbf{Your Mission.} In this lab, you will systematically test three fundamental system properties—linearity, time invariance, causality, and BIBO stability—on real circuits and defend your findings with both mathematical reasoning and quantified hardware evidence:
+\begin{itemize}
+    \item Design unique, reproducible test signals using your TA-assigned random seed.
+    \item Implement hardware property tests: superposition for linearity, delayed inputs for time invariance, edge detection for causality, amplitude sweeps for stability.
+    \item Acquire dual-channel oscilloscope and serial MATLAB data streams.
+    \item Quantify agreement between prediction and measurement using normalized RMS error.
+    \item Identify failure mechanisms when properties are violated (saturation, threshold, settling time, etc.).
+\end{itemize}
+
+\noindent
+The telecommunications industry certifies base station equipment to 3GPP/ITU standards that require formal property verification. A receiver that appears to work in the lab but exhibits hidden nonlinearity, time variance, or instability in the field can render an entire cell site inoperable under peak traffic. Your systematic validation approach is the engineering discipline that separates prototype breadboards from production equipment.
+
+\noindent
+\textbf{Constraints (Fixed).} 2-hour lab execution window, existing hardware platform (Arduino Uno, oscilloscope, MATLAB). Unique TA-assigned test parameters ensure independent work. All skeleton code provided. All checkpoints and deliverables remain exactly as specified herein.
+
+\clearpage
+
+Upon completion of this laboratory, you will demonstrate:
+
+\begin{enumerate}
+    \item \textbf{Rigorous System Property Definition and Measurement.} State mathematical definitions of linearity, time invariance, causality, and BIBO stability, and design repeatable experiments that test each property under controlled conditions with quantifiable tolerances.
+
+    \item \textbf{Hardware-Software Property Validation.} Acquire dual-channel oscilloscope and MATLAB serial data, align time vectors, and compute superposition residuals and time-shift errors with sufficient precision to distinguish real property violations from noise and measurement artifacts.
+
+    \item \textbf{Root-Cause Analysis of Property Failures.} When linearity or time invariance fails, identify and explain the underlying physical mechanism (saturation, threshold nonlinearity, settling delay, finite slew rate, or hysteresis) rather than simply reporting a measurement.
+
+    \item \textbf{Quantitative Error Metrics and Production-Grade Acceptance Criteria.} Calculate normalized RMS error (NRMSE) between predicted and measured responses, set acceptance thresholds (e.g., $<2\%$ for linearity), and justify criteria by reference to system-level performance requirements.
+
+    \item \textbf{Causality and Stability Certification via Edge-Detection and Amplitude-Sweep Tests.} Verify that output responses do not precede input changes (causality) and that bounded inputs produce bounded outputs without ringing (BIBO stability), using oscilloscope time-domain evidence and MATLAB statistical analysis.
+
+    \item \textbf{Systematic Documentation and Defense Methodology.} Prepare a formal property truth table with both qualitative justifications (circuit architecture, component values) and quantitative evidence (measured data, error metrics, screenshots) suitable for presentation to design review boards.
+\end{enumerate}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section{Core Concepts: System Properties and Measurement Methodology}
+%--------------------------------------------------------------
+
+For a system operator $\mathcal{T}\{\cdot\}$ with input $x(t)$ and output $y(t)$, four fundamental properties govern its behavior and suitability for signal processing applications:
 \begin{itemize}
     \item \textbf{Linearity:}
     \[
@@ -96,7 +160,12 @@ For sampled data $x[n],y[n]$, use discrete analogs. To quantify test agreement, 
 \]
 Small NRMSE supports property agreement over the tested operating region; it does not prove global validity.
 
+\clearpage
+
+%--------------------------------------------------------------
 \section{Pre-Laboratory Assignment}
+%--------------------------------------------------------------
+
 \pldECE{Complete all pre-lab work before arriving. Bring handwritten derivations and predicted truth table.}
 
 \subsection{Part A: Property Predictions}
@@ -130,7 +199,11 @@ Write pseudocode for:
 
 \clearpage
 
+\clearpage
+
+%--------------------------------------------------------------
 \section{Equipment and Setup}
+%--------------------------------------------------------------
 \begin{table}[H]
     \centering
     \caption{Required Hardware and Software}
@@ -169,7 +242,11 @@ Write pseudocode for:
 
 \clearpage
 
+\clearpage
+
+%--------------------------------------------------------------
 \section{Laboratory Procedure}
+%--------------------------------------------------------------
 
 \subsection{Phase 1: Circuit Construction and Baseline Validation}
 
@@ -307,7 +384,11 @@ Comparator &  &  &  &  &  \\
 
 \clearpage
 
+\clearpage
+
+%--------------------------------------------------------------
 \section{Discussion and Interpretation}
+%--------------------------------------------------------------
 \disECE{For each circuit, explain the dominant mechanism that determines property outcomes (memory, thresholding, clipping, or switching).}
 
 \disECE{Why can a system be causal and stable but still non-linear? Provide one example from your measured circuits.}
@@ -316,7 +397,11 @@ Comparator &  &  &  &  &  \\
 
 \disECE{Connect your findings to model validity: when is an LTI approximation useful, and when does it fail for real hardware?}
 
+\clearpage
+
+%--------------------------------------------------------------
 \section{Final Submission Checklist}
+%--------------------------------------------------------------
 \begin{itemize}
     \item[\(\square\)] Physical circuit photo(s) with student ID visible.
     \item[\(\square\)] Unique test input definitions (with assigned seed values).
@@ -328,7 +413,11 @@ Comparator &  &  &  &  &  \\
     \item[\(\square\)] MATLAB scripts used for verification with captured data file references.
 \end{itemize}
 
+\clearpage
+
+%--------------------------------------------------------------
 \section{Grading Rubric (100 points)}
+%--------------------------------------------------------------
 \begin{table}[H]
 \centering
 \caption{Lab 03 Evaluation Rubric}
@@ -346,5 +435,45 @@ Code quality and data authenticity & 10 & MATLAB uses captured data, reproducibl
 \bottomrule
 \end{tabularx}
 \end{table}
+
+\clearpage
+
+%--------------------------------------------------------------
+\section*{References and Inspiration}
+\addcontentsline{toc}{section}{References and Inspiration}
+%--------------------------------------------------------------
+
+This laboratory explores fundamental system properties that are central to signals and systems education across leading universities.
+
+\subsection*{University Course Inspirations}
+
+\subsubsection*{MIT 6.003: Signals, Systems, and Transforms}
+
+Lab 03 is directly inspired by MIT's classical treatment of system properties (linearity, time-invariance, causality, BIBO stability, memorylessness). MIT's approach to characterizing systems through input-output behavior and verifying properties experimentally informs this lab's methodology of testing systems with carefully chosen inputs (impulses, steps, sinusoids) and observing outputs.
+
+\subsubsection*{MIT 6.007: Applied Electromagnetism and Circuits}
+
+The hardware implementation of systems (RC circuits, op-amp circuits, filters) and the experimental verification of their properties reflect MIT 6.007's emphasis on understanding circuits as systems with definable input-output relationships and inherent properties.
+
+\subsubsection*{Georgia Tech ECE 2026: Real-Time System Characterization}
+
+Georgia Tech's approach to characterizing system response in real time—using oscilloscope measurements of transient and steady-state behavior—informs this lab's emphasis on direct hardware observation rather than relying solely on simulation.
+
+\subsubsection*{Rice University ELEC 241: Embedded System Analysis}
+
+The focus on testing system properties under real-time constraints and understanding how non-idealities (op-amp slew rate, finite bandwidth, quantization) affect system characterization reflects Rice's practical approach to embedded systems.
+
+\subsubsection*{Duke University ECE 280: Lab Modernization}
+
+This lab is part of Duke's curriculum redesign emphasizing the connection between abstract system properties and concrete, observable hardware behavior.
+
+\subsection*{References}
+
+\begin{itemize}
+    \item A. V. Oppenheim and A. S. Willsky, \textit{Signals and Systems}, 2nd ed. Pearson, 1997. Chapter 2: Linear Time-Invariant Systems.
+    \item A. V. Oppenheim and R. W. Schafer, \textit{Discrete-Time Signal Processing}, 3rd ed. Pearson, 2010. Chapter 2: Discrete-Time Systems.
+    \item J. H. McClellan, R. W. Schafer, and M. A. Yoder, \textit{DSP First: A Multimedia Approach}, 2nd ed. Pearson, 2015. Chapters on system properties and linearity.
+    \item Texas Instruments Op-Amp Applications Handbook (circuits and practical system characterization).
+\end{itemize}
 
 \end{document}
