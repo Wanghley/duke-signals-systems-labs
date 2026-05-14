@@ -10,24 +10,24 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <a href="https://github.com/wanghley/duke-ece280-lab-redesign">
+  <a href="https://github.com/wanghley/duke-signals-systems-labs">
     <img src="https://upload.wikimedia.org/wikipedia/en/thumb/4/4b/Duke_University_Athletics_logo.svg/440px-Duke_University_Athletics_logo.svg.png" alt="Duke University" width="120">
   </a>
 
-  <h3 align="center">ECE 280 Lab Redesign</h3>
-  <h4 align="center">Professional Modernization of Signals and Systems Laboratory Manuals</h4>
+  <h3 align="center">Duke Signals and Systems Labs</h3>
+  <h4 align="center">Professional Modernization of Undergraduate Signal Processing Laboratory Manuals</h4>
 
   <p align="center">
-    A comprehensive curriculum redesign featuring industry-focused real-world context, university-inspired pedagogical frameworks, and production-ready laboratory manuals for Duke University's 200-level Signals and Systems course.
+    A comprehensive curriculum redesign featuring industry-focused real-world context, university-inspired pedagogical frameworks, and production-ready laboratory manuals for undergraduate Signals and Systems education. Originally developed for Duke University ECE 280, designed for broader educational adoption.
     <br />
-    <a href="https://github.com/wanghley/duke-ece280-lab-redesign"><strong>Explore the labs »</strong></a>
+    <a href="https://github.com/wanghley/duke-signals-systems-labs"><strong>Explore the labs »</strong></a>
     <br />
     <br />
     <a href="#about-the-project">About</a>
     ·
-    <a href="https://github.com/wanghley/duke-ece280-lab-redesign/issues">Report Bug</a>
+    <a href="https://github.com/wanghley/duke-signals-systems-labs/issues">Report Bug</a>
     ·
-    <a href="https://github.com/wanghley/duke-ece280-lab-redesign/issues">Request Feature</a>
+    <a href="https://github.com/wanghley/duke-signals-systems-labs/issues">Request Feature</a>
   </p>
 </div>
 
@@ -52,7 +52,7 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-The **ECE 280 Lab Redesign** is a comprehensive modernization of Duke University's undergraduate Signals and Systems laboratory curriculum. This project transforms traditional signal processing labs into industry-focused learning experiences that prepare students for real-world engineering challenges.
+The **Duke Signals and Systems Labs** is a comprehensive modernization of undergraduate signal processing laboratory curricula, originally developed for Duke University's ECE 280 course. This project transforms traditional signal processing labs into industry-focused learning experiences that prepare students for real-world engineering challenges. The curriculum is designed for adoption by other universities and ECE programs.
 
 Each lab manual features:
 - ✨ **Professional Real-World Context** — Students work as Junior Engineers at actual companies
@@ -61,7 +61,8 @@ Each lab manual features:
 - 🔬 **Hardware Implementation** — Arduino-based experiments with hands-on validation
 - 📖 **Comprehensive References** — Academic foundations and industry standards
 
-**Status:** Production-Ready (v1.0.0) — 13 of 14 labs complete (Lab 13 pending)
+**Status:** Production-Ready (v1.0.0) — 13 of 14 labs complete (Lab 13 pending)  
+**Original Institution:** Duke University, Department of Electrical and Computer Engineering (ECE 280)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -153,8 +154,8 @@ To use this curriculum, you'll need:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/wanghley/duke-ece280-lab-redesign.git
-   cd duke-ece280-lab-redesign
+   git clone https://github.com/wanghley/duke-signals-systems-labs.git
+   cd duke-signals-systems-labs
    ```
 
 2. **Navigate to a lab directory:**
@@ -350,9 +351,9 @@ Distributed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.
 
 **How to Cite:**
 ```
-Soares Martins, W. (2026). ECE 280 lab redesign: Professional modernization 
-of signals and systems laboratory manuals (v1.0.0). Duke University.
-https://github.com/wanghley/duke-ece280-lab-redesign
+Soares Martins, W. (2026). Duke signals and systems labs: Professional modernization 
+of undergraduate signal processing laboratory manuals (v1.0.0). Duke University.
+https://github.com/wanghley/duke-signals-systems-labs
 Licensed under CC BY-NC-SA 4.0.
 ```
 
@@ -374,7 +375,7 @@ For **commercial licensing inquiries**, please contact: **wanghleys@gmail.com**
 Duke University, Department of Electrical and Computer Engineering
 
 **Project Repository:**
-[github.com/wanghley/duke-ece280-lab-redesign](https://github.com/wanghley/duke-ece280-lab-redesign)
+[github.com/wanghley/duke-signals-systems-labs](https://github.com/wanghley/duke-signals-systems-labs)
 
 **For:**
 - 🔧 Technical issues and bug reports → Open a GitHub issue
@@ -423,14 +424,14 @@ This redesign was created with the hope that **future Blue Devils** will have an
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- MARKDOWN LINKS & IMAGES -->
-[contributors-shield]: https://img.shields.io/github/contributors/wanghley/duke-ece280-lab-redesign?style=for-the-badge
-[contributors-url]: https://github.com/wanghley/duke-ece280-lab-redesign/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/wanghley/duke-ece280-lab-redesign.svg?style=for-the-badge
-[forks-url]: https://github.com/wanghley/duke-ece280-lab-redesign/network/members
-[stars-shield]: https://img.shields.io/github/stars/wanghley/duke-ece280-lab-redesign.svg?style=for-the-badge
-[stars-url]: https://github.com/wanghley/duke-ece280-lab-redesign/stargazers
-[issues-shield]: https://img.shields.io/github/issues/wanghley/duke-ece280-lab-redesign.svg?style=for-the-badge
-[issues-url]: https://github.com/wanghley/duke-ece280-lab-redesign/issues
+[contributors-shield]: https://img.shields.io/github/contributors/wanghley/duke-signals-systems-labs?style=for-the-badge
+[contributors-url]: https://github.com/wanghley/duke-signals-systems-labs/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/wanghley/duke-signals-systems-labs.svg?style=for-the-badge
+[forks-url]: https://github.com/wanghley/duke-signals-systems-labs/network/members
+[stars-shield]: https://img.shields.io/github/stars/wanghley/duke-signals-systems-labs.svg?style=for-the-badge
+[stars-url]: https://github.com/wanghley/duke-signals-systems-labs/stargazers
+[issues-shield]: https://img.shields.io/github/issues/wanghley/duke-signals-systems-labs.svg?style=for-the-badge
+[issues-url]: https://github.com/wanghley/duke-signals-systems-labs/issues
 [license-shield]: https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg?style=for-the-badge
 [license-url]: https://creativecommons.org/licenses/by-nc-sa/4.0/
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
